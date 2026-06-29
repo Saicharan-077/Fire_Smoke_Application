@@ -9,11 +9,13 @@ from typing import Optional, List
 from datetime import datetime, timedelta
 
 from ..database import get_db
+from ..routes.auth_routes import get_current_user
 from .. import models, schemas
 from ..services.analytics_service import get_timeline, get_zones
 
-logger = logging.getLogger("fireguard.dashboard")
 router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
+
+logger = logging.getLogger("fireguard.dashboard")
 
 
 @router.get("/stats", response_model=schemas.DashboardStats)

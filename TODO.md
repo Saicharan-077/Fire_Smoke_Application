@@ -1,10 +1,9 @@
 # TODO
 
-## History feature
-- [x] Add backend history routes (GET /api/v1/history, export CSV/PDF)
-- [x] Register history router in backend/app/main.py
-- [ ] Add/verify backend PDF dependency handling (reportlab)
-- [ ] Verify frontend services/historyService.ts hits correct endpoints
-- [ ] Verify History.tsx filters (search/status/type/date/page/pagination) map to backend query params
-- [ ] Smoke test endpoints locally (run backend + fetch endpoints)
+## Dashboard loading speed fixes (frontend)
+- [x] Update `frontend/src/pages/Dashboard.tsx` to fetch stats + analytics in parallel and render metrics/chart skeletons sooner.
+- [ ] Update `frontend/src/components/Layout.tsx` + `frontend/src/components/SOC/NotificationsHub.tsx` to defer websocket connect and avoid requesting browser notification permission immediately on mount.
+
+- [ ] Verify dashboard loads faster and does not break instant alert popups.
+
 

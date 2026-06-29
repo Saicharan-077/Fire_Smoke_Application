@@ -10,7 +10,8 @@ export interface Alert {
   id: string;
   detection_type: 'fire' | 'smoke';
   confidence: number;
-  status: 'active' | 'acknowledged' | 'resolved';
+  status: 'active' | 'resolved';
+
   source_type: string;
   camera_id: string | null;
   location: string | null;
@@ -48,8 +49,37 @@ export interface DetectionEvent {
 }
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, init);
-  if (!res.ok) throw new Error(await res.text());
+  const headers = new Headers(init?.headers);
+  const token = localStorage.getItem('fg-token');
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  
+  const res = await fetch(`${BASE}${path}`, {
+    ...init,
+    headers,
+  });
+
+  if (res.status === 401) {
+    localStorage.removeItem('fg-token');
+    // Clear Zustand store dynamically
+    import('../store/authStore').then((mod) => {
+      mod.useAuthStore.getState().logout();
+    }).catch(() => {});
+  }
+
+  if (!res.ok) {
+    let errText = 'API Error';
+    try {
+      const data = JSON.parse(await res.clone().text());
+      errText = data.detail || data.message || errText;
+    } catch {
+      try {
+        errText = await res.text();
+      } catch {}
+    }
+    throw new Error(errText);
+  }
   return res.json();
 }
 
@@ -100,6 +130,7 @@ export const getDashboardAnalytics = () =>
   api<{ timeline: Record<string, unknown>[]; zones: Record<string, unknown>[] }>(
     '/api/v1/dashboard/analytics'
   );
+
 
 export const getAnalyticsIncidentTrends = () =>
   api<{ timeline: { day: string; fire: number; smoke: number }[] }>(
@@ -161,3 +192,121 @@ export const connectAlertSocket = (onMessage: (data: unknown) => void): WebSocke
   ws.onclose = () => clearInterval(ping);
   return ws;
 };
+
+// ── Interfaces ────────────────────────────────────────────────────────────────
+export interface Incident {
+  id: string;
+  title: string;
+  description: string | null;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  status: 'active' | 'resolved';
+  alert_id: string | null;
+  reporter: string | null;
+  assigned_user: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Setting {
+  id: string;
+  value: string;
+  description: string | null;
+  category: string | null;
+}
+
+export interface AuditLog {
+  id: string;
+  user_id: string | null;
+  username: string | null;
+  action: string;
+  details: string | null;
+  ip_address: string | null;
+  timestamp: string;
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+export const loginApi = (payload: any) =>
+  api<{ token: string; user: any }>('/api/v1/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+export const registerApi = (payload: any) =>
+  api<any>('/api/v1/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+export const forgotPasswordApi = (payload: { email: string }) =>
+  api<{ status: string; message: string }>('/api/v1/auth/forgot-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+export const logoutApi = () =>
+  api<{ status: string; message: string }>('/api/v1/auth/logout', {
+    method: 'POST',
+  });
+
+export const getProfileApi = () =>
+  api<any>('/api/v1/auth/profile');
+
+export const updateProfileApi = (payload: any) =>
+  api<any>('/api/v1/profile', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+export const getAuditLogs = () =>
+  api<AuditLog[]>('/api/v1/profile/audit-logs');
+
+// ── Incidents ─────────────────────────────────────────────────────────────────
+export const getIncidents = (params?: { status?: string; severity?: string; search?: string }) =>
+  api<{ items: Incident[]; total: number; page: number; limit: number; pages: number }>(
+    `/api/v1/incidents${toQuery(params)}`
+  );
+
+export const createIncident = (payload: Partial<Incident>) =>
+  api<Incident>('/api/v1/incidents', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+export const updateIncident = (incidentId: string, payload: Partial<Incident>) =>
+  api<Incident>(`/api/v1/incidents/${incidentId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+export const deleteIncident = (incidentId: string) =>
+  api<{ status: string; message: string }>(`/api/v1/incidents/${incidentId}`, {
+    method: 'DELETE',
+  });
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+export const getSettings = () =>
+  api<Setting[]>('/api/v1/settings');
+
+export const updateSettings = (payload: Record<string, string>) =>
+  api<Setting[]>('/api/v1/settings', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+// ── CCTV/Webcam Stream Detections ─────────────────────────────────────────────
+export const testCctvConnection = (streamUrl: string) =>
+  api<{ status: string; message: string; url: string }>('/api/v1/detect/cctv', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ stream_url: streamUrl }),
+  });
+
+

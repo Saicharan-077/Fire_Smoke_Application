@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional, List
 from datetime import datetime
 
@@ -62,7 +62,14 @@ class AlertOut(BaseModel):
 
 
 class AlertStatusUpdate(BaseModel):
-    status: str  # active | acknowledged | resolved
+    status: str  # active | resolved
+
+    @field_validator('status')
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        if v not in ('active', 'resolved'):
+            raise ValueError("status must be 'active' or 'resolved'")
+        return v
 
 
 # ── Detection Event ──────────────────────────────────────────────────────────
@@ -118,4 +125,113 @@ class VideoUploadResponse(BaseModel):
     total_events: int
     events: List[dict]
     file_name: Optional[str]
+
+
+# ── User Authentication ───────────────────────────────────────────────────────
+class UserLogin(BaseModel):
+    username_or_email: str
+    password: str
+    remember_me: Optional[bool] = False
+
+
+class UserOut(BaseModel):
+    id: str
+    username: str
+    email: str
+    role: str
+    last_login: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class TokenResponse(BaseModel):
+    token: str
+    user: UserOut
+
+
+class UserRegister(BaseModel):
+    username: str
+    email: str
+    password: str
+    role: Optional[str] = "operator"  # "admin" | "operator" | "viewer"
+
+
+class IncidentCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    severity: Optional[str] = "medium"
+    status: Optional[str] = "active"
+    alert_id: Optional[str] = None
+    reporter: Optional[str] = None
+    assigned_user: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class IncidentUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    severity: Optional[str] = None
+    status: Optional[str] = None
+    assigned_user: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class IncidentOut(BaseModel):
+    id: str
+    title: str
+    description: Optional[str]
+    severity: str
+    status: str
+    alert_id: Optional[str]
+    reporter: Optional[str]
+    assigned_user: Optional[str]
+    notes: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class SettingOut(BaseModel):
+    id: str
+    value: str
+    description: Optional[str]
+    category: Optional[str]
+
+    class Config:
+        from_attributes = True
+
+
+class SettingUpdate(BaseModel):
+    value: str
+    description: Optional[str] = None
+
+
+class AuditLogOut(BaseModel):
+    id: str
+    user_id: Optional[str]
+    username: Optional[str]
+    action: str
+    details: Optional[str]
+    ip_address: Optional[str]
+    timestamp: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class SystemLogOut(BaseModel):
+    id: str
+    level: str
+    source: str
+    message: str
+    timestamp: datetime
+
+    class Config:
+        from_attributes = True
+
+
 

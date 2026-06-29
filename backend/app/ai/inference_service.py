@@ -10,17 +10,10 @@ logger = logging.getLogger("fireguard.detection")
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "models", "best.pt")
 
-# Diagnostic result (from diagnose.py on real fire image):
-#   fire  best conf = 0.2163  → threshold set to 0.15 to catch it
-#   smoke best conf = 0.8430  → threshold stays 0.25
-# YOLO runs at 0.10 so we receive every raw box, then apply per-class filtering.
-CONF_FIRE  = float(os.environ.get("CONF_FIRE", "0.15"))
-CONF_SMOKE = float(os.environ.get("CONF_SMOKE", "0.25"))
-CONF_RUN   = 0.10   # passed to YOLO — collect all boxes, filter ourselves
+CONF_FIRE  = float(os.environ.get("CONF_FIRE", "0.35"))
+CONF_SMOKE = float(os.environ.get("CONF_SMOKE", "0.40"))
+CONF_RUN   = 0.15   # passed to YOLO — collect all boxes, filter ourselves
 
-# Verified class order for this model (FireSmokeDataset):
-#   Class 0 = fire
-#   Class 1 = smoke
 NUMERIC_CLASS_MAP: Dict[int, str] = {0: "fire", 1: "smoke"}
 
 COLORS = {
@@ -33,14 +26,12 @@ PER_CLASS_THRESHOLD = {
     "smoke": CONF_SMOKE,
 }
 
-
 def _map_class(cls_id: int, raw_name: str) -> str | None:
     low = raw_name.lower().strip()
-    if "fire"  in low: return "fire"
-    if "smoke" in low: return "smoke"
+    if low == "fire": return "fire"
+    if low == "smoke": return "smoke"
     if low.isdigit():  return NUMERIC_CLASS_MAP.get(cls_id)
     return None
-
 
 class DetectionService:
     def __init__(self):
@@ -49,14 +40,109 @@ class DetectionService:
         self.model.to(self.device)
         self.class_names = self.model.names
 
+        # Strict Model Validation
+        model_classes = {str(v).lower().strip() for v in self.class_names.values()}
+        is_coco = "person" in model_classes or "car" in model_classes or "dog" in model_classes
+        has_target = "fire" in model_classes or "smoke" in model_classes or "0" in model_classes or "1" in model_classes
+        if is_coco or not has_target:
+            logger.error(f"Invalid model loaded. Classes found: {model_classes}")
+            raise ValueError("Invalid Fire & Smoke model.")
+
+        # Modular Preprocessing Pipeline Configuration
+        self.config = {
+            "enable_motion_filtering":     os.environ.get("PREPROCESS_MOTION_FILTERING", "false").lower() == "true",
+            "motion_threshold":            float(os.environ.get("PREPROCESS_MOTION_THRESHOLD", "0.005")),
+            "enable_noise_reduction":      os.environ.get("PREPROCESS_NOISE_REDUCTION", "false").lower() == "true",
+            "enable_contrast_enhancement": os.environ.get("PREPROCESS_CONTRAST_ENHANCEMENT", "false").lower() == "true",
+            "enable_letterbox":            os.environ.get("PREPROCESS_LETTERBOX", "false").lower() == "true",
+            "enable_resize":               os.environ.get("PREPROCESS_RESIZE", "false").lower() == "true",
+            "resize_shape":                (640, 640),
+            "enable_normalization":        os.environ.get("PREPROCESS_NORMALIZATION", "false").lower() == "true",
+            "frame_skipping_interval":     int(os.environ.get("PREPROCESS_FRAME_SKIPPING", "0")),
+            "roi_cropping":                None, # shape: (x1, y1, x2, y2)
+        }
+
+        roi_env = os.environ.get("PREPROCESS_ROI", None)
+        if roi_env:
+            try:
+                self.config["roi_cropping"] = tuple(map(int, roi_env.split(",")))
+            except Exception:
+                logger.warning("Invalid PREPROCESS_ROI format, expected 'x1,y1,x2,y2'")
+
         logger.info("=" * 60)
         logger.info(f"[MODEL] Path      : {os.path.abspath(MODEL_PATH)}")
         logger.info(f"[MODEL] Device    : {self.device.upper()}")
-        logger.info(f"[MODEL] Raw names : {self.class_names}")
         logger.info(f"[MODEL] Thresholds: fire>={CONF_FIRE}  smoke>={CONF_SMOKE}  (run@{CONF_RUN})")
-        for cid, raw in self.class_names.items():
-            logger.info(f"[MODEL]   Class {cid} '{raw}' -> '{_map_class(cid, raw)}'")
+        logger.info(f"[PREPROCESS] Pipeline: {self.config}")
         logger.info("=" * 60)
+
+    def _letterbox(self, img: np.ndarray, new_shape: Tuple[int, int] = (640, 640), color: Tuple[int, int, int] = (114, 114, 114)) -> np.ndarray:
+        """Resize image preserving aspect ratio with padding."""
+        shape = img.shape[:2]  # [height, width]
+        r = min(new_shape[0] / shape[0], new_shape[1] / shape[1])
+        new_unpad = int(round(shape[1] * r)), int(round(shape[0] * r))
+        dw, dh = new_shape[1] - new_unpad[0], new_shape[0] - new_unpad[1]
+        dw /= 2
+        dh /= 2
+        if shape[::-1] != new_unpad:
+            img = cv2.resize(img, new_unpad, interpolation=cv2.INTER_LINEAR)
+        top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
+        left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
+        return cv2.copyMakeBorder(img, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)
+
+    def _check_motion(self, frame: np.ndarray, prev_frame: np.ndarray, threshold: float) -> bool:
+        """Filter frames based on basic pixel variance differences (Motion Filtering)."""
+        diff = cv2.absdiff(frame, prev_frame)
+        gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
+        _, thresh = cv2.threshold(gray, 25, 255, cv2.THRESH_BINARY)
+        non_zero = np.count_nonzero(thresh)
+        ratio = non_zero / (frame.shape[0] * frame.shape[1])
+        return ratio > threshold
+
+    def _preprocess_frame(self, frame: np.ndarray, prev_frame: np.ndarray | None = None) -> Tuple[np.ndarray, bool]:
+        """Runs the modular preprocessing pipeline on the input frame."""
+        # 1. Motion filtering
+        if self.config["enable_motion_filtering"] and prev_frame is not None:
+            if not self._check_motion(frame, prev_frame, self.config["motion_threshold"]):
+                return frame, False
+
+        out = frame.copy()
+
+        # 2. ROI Cropping
+        roi = self.config["roi_cropping"]
+        if roi:
+            h, w = out.shape[:2]
+            x1, y1, x2, y2 = roi
+            x1, x2 = max(0, x1), min(w, x2)
+            y1, y2 = max(0, y1), min(h, y2)
+            out = out[y1:y2, x1:x2]
+
+        # 3. Noise reduction
+        if self.config["enable_noise_reduction"]:
+            out = cv2.GaussianBlur(out, (5, 5), 0)
+
+        # 4. Contrast enhancement
+        if self.config["enable_contrast_enhancement"]:
+            lab = cv2.cvtColor(out, cv2.COLOR_BGR2LAB)
+            l, a, b = cv2.split(lab)
+            clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+            cl = clahe.apply(l)
+            limg = cv2.merge((cl, a, b))
+            out = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+
+        # 5. Resize / Letterbox
+        target_shape = self.config["resize_shape"]
+        if self.config["enable_letterbox"]:
+            out = self._letterbox(out, target_shape)
+        elif self.config["enable_resize"]:
+            out = cv2.resize(out, target_shape, interpolation=cv2.INTER_LINEAR)
+
+        # 6. Normalization
+        if self.config["enable_normalization"]:
+            # Min-Max Scaling simulation
+            out = (out.astype(np.float32) / 255.0 * 255.0).astype(np.uint8)
+
+        return out, True
 
     def _run_inference(self, frame: np.ndarray) -> List[Dict[str, Any]]:
         results    = self.model(frame, verbose=False, conf=CONF_RUN, device=self.device)
@@ -64,7 +150,6 @@ class DetectionService:
 
         for r in results:
             if r.boxes is None or len(r.boxes) == 0:
-                logger.debug("No boxes in this frame")
                 continue
 
             for box in r.boxes:
@@ -77,13 +162,6 @@ class DetectionService:
                 threshold = PER_CLASS_THRESHOLD.get(mapped, 0.25) if mapped else 0.25
                 passes    = conf >= threshold
 
-                logger.debug(
-                    f"cls_id={cls_id} raw='{raw_name}' mapped='{mapped}' "
-                    f"conf={conf:.4f} thresh={threshold} "
-                    f"{'PASS' if passes else f'SKIP(<{threshold})'} "
-                    f"bbox=[{x1},{y1},{x2},{y2}]"
-                )
-
                 if mapped is None or not passes:
                     continue
 
@@ -94,12 +172,6 @@ class DetectionService:
                     "raw_class_name": raw_name,
                     "class_id":       cls_id,
                 })
-
-        logger.info(
-            f"Accepted: {len(detections)} — "
-            f"fire={sum(1 for d in detections if d['detection_type']=='fire')} "
-            f"smoke={sum(1 for d in detections if d['detection_type']=='smoke')}"
-        )
         return detections
 
     def annotate_frame(self, frame: np.ndarray, detections: List[Dict]) -> np.ndarray:
@@ -128,9 +200,9 @@ class DetectionService:
         return out
 
     def infer_image(self, frame: np.ndarray) -> Tuple[np.ndarray, List[Dict]]:
-        logger.debug(f"infer_image shape={frame.shape}")
-        detections = self._run_inference(frame)
-        annotated  = self.annotate_frame(frame, detections)
+        processed, _ = self._preprocess_frame(frame)
+        detections = self._run_inference(processed)
+        annotated  = self.annotate_frame(processed, detections)
         return annotated, detections
 
     def infer_video(self, video_path: str, consecutive: int = 3):
@@ -138,13 +210,25 @@ class DetectionService:
         frame_num = 0
         counters:  Dict[str, int]  = {"fire": 0, "smoke": 0}
         triggered: Dict[str, bool] = {"fire": False, "smoke": False}
+        prev_frame = None
+        skip_interval = self.config["frame_skipping_interval"]
 
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret:
                 break
             frame_num += 1
-            detections     = self._run_inference(frame)
+            if skip_interval > 0 and frame_num % (skip_interval + 1) != 1:
+                continue
+
+            processed, should_infer = self._preprocess_frame(frame, prev_frame)
+            if self.config["enable_motion_filtering"]:
+                prev_frame = frame.copy()
+
+            if not should_infer:
+                continue
+
+            detections     = self._run_inference(processed)
             detected_types = {d["detection_type"] for d in detections}
 
             for cls in ("fire", "smoke"):
@@ -157,7 +241,7 @@ class DetectionService:
                 if counters[cls] >= consecutive and not triggered[cls]:
                     triggered[cls] = True
                     cls_dets  = [d for d in detections if d["detection_type"] == cls]
-                    annotated = self.annotate_frame(frame, cls_dets)
+                    annotated = self.annotate_frame(processed, cls_dets)
                     logger.info(f"{cls.upper()} confirmed at frame {frame_num}")
                     yield frame_num, cls_dets, annotated
 

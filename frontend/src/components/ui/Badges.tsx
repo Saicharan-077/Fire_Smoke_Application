@@ -1,4 +1,4 @@
-import { Flame, Wind, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { Flame, Wind, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export const TypeBadge = ({ type }: { type: 'fire' | 'smoke' }) =>
   type === 'fire'
@@ -7,7 +7,6 @@ export const TypeBadge = ({ type }: { type: 'fire' | 'smoke' }) =>
 
 export const StatusBadge = ({ status }: { status: string }) => {
   if (status === 'active')       return <span className="badge-active"><AlertCircle size={10} />Active</span>;
-  if (status === 'acknowledged') return <span className="badge-acknowledged"><Clock size={10} />Acknowledged</span>;
   return <span className="badge-resolved"><CheckCircle2 size={10} />Resolved</span>;
 };
 

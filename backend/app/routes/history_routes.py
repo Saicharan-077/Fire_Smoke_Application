@@ -17,11 +17,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
 
 from ..database import get_db
+from ..routes.auth_routes import get_current_user
 from .. import models
 
-logger = logging.getLogger("fireguard.history")
+router = APIRouter(prefix="/api/v1/history", tags=["history"], dependencies=[Depends(get_current_user)])
 
-router = APIRouter(prefix="/api/v1/history", tags=["history"])
+logger = logging.getLogger("fireguard.history")
 
 
 def _parse_date(date_str: Optional[str]) -> Optional[datetime]:

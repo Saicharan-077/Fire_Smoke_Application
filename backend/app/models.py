@@ -31,9 +31,10 @@ class Alert(Base):
     id             = Column(String,   primary_key=True, default=gen_uuid)
     detection_type = Column(String,   nullable=False)              # "fire" | "smoke"
     confidence     = Column(Float,    nullable=False)
-    status         = Column(String,   default="active")            # "active"|"acknowledged"|"resolved"
+    status         = Column(String,   default="active")            # "active"|"resolved"
     source_type    = Column(String,   nullable=False)              # "image" | "video" | "stream"
     camera_id      = Column(String,   ForeignKey("cameras.id"), nullable=True)
+
     location       = Column(String,   nullable=True)
     file_name      = Column(String,   nullable=True)
     evidence_path  = Column(String,   nullable=True)
@@ -79,3 +80,80 @@ class DetectionEvent(Base):
         Index("ix_event_timestamp", "timestamp"),
         Index("ix_event_alert", "alert_id"),
     )
+
+
+class User(Base):
+    __tablename__ = "users"
+    id              = Column(String, primary_key=True, default=gen_uuid)
+    username        = Column(String, unique=True, nullable=False)
+    email           = Column(String, unique=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    role            = Column(String, default="admin")  # "admin" | "operator" | "viewer"
+    last_login          = Column(DateTime, nullable=True)
+    session_token       = Column(String, nullable=True)
+    session_expires_at  = Column(DateTime, nullable=True)
+    created_at          = Column(DateTime, default=datetime.utcnow)
+
+
+class Incident(Base):
+    __tablename__ = "incidents"
+    id             = Column(String, primary_key=True, default=gen_uuid)
+    title          = Column(String, nullable=False)
+    description    = Column(Text, nullable=True)
+    severity       = Column(String, nullable=False, default="medium")  # "critical" | "high" | "medium" | "low"
+    status         = Column(String, nullable=False, default="active")   # "active" | "resolved"
+    alert_id       = Column(String, ForeignKey("alerts.id"), nullable=True)
+    reporter       = Column(String, nullable=True)
+    assigned_user  = Column(String, nullable=True)
+    notes          = Column(Text, nullable=True)
+    created_at     = Column(DateTime, default=datetime.utcnow)
+    updated_at     = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    alert = relationship("Alert", backref="incident", uselist=False)
+
+    __table_args__ = (
+        Index("ix_incident_status", "status"),
+        Index("ix_incident_severity", "severity"),
+        Index("ix_incident_created_at", "created_at"),
+    )
+
+
+class Setting(Base):
+    __tablename__ = "settings"
+    id          = Column(String, primary_key=True)  # unique config key
+    value       = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    category    = Column(String, nullable=True, default="general")  # "ai" | "notifications" | "general"
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    id         = Column(String, primary_key=True, default=gen_uuid)
+    user_id    = Column(String, nullable=True)
+    username   = Column(String, nullable=True)
+    action     = Column(String, nullable=False)  # "LOGIN" | "LOGOUT" | "CAMERA_CREATE" | "ALERT_RESOLVE" etc.
+    details    = Column(Text, nullable=True)
+    ip_address = Column(String, nullable=True)
+    timestamp  = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_audit_log_timestamp", "timestamp"),
+        Index("ix_audit_log_action", "action"),
+    )
+
+
+class SystemLog(Base):
+    __tablename__ = "system_logs"
+    id        = Column(String, primary_key=True, default=gen_uuid)
+    level     = Column(String, nullable=False, default="INFO")  # "INFO" | "WARNING" | "ERROR"
+    source    = Column(String, nullable=False)  # "inference" | "auth" | "websocket" | "database" etc.
+    message   = Column(Text, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_system_log_timestamp", "timestamp"),
+        Index("ix_system_log_level", "level"),
+    )
+
+

@@ -3,7 +3,7 @@ import { APP_CONFIG } from '../config/appConfig';
 const BASE = APP_CONFIG.apiBaseUrl;
 
 export type HistoryType = 'fire' | 'smoke';
-export type HistoryStatus = 'active' | 'acknowledged' | 'resolved';
+export type HistoryStatus = 'active' | 'resolved';
 
 export type HistoryQuery = {
   page?: number;
@@ -48,9 +48,45 @@ function toQuery(params?: Record<string, unknown>): string {
 }
 
 async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`);
+  const headers = new Headers();
+  const token = localStorage.getItem('fg-token');
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  const res = await fetch(`${BASE}${path}`, { headers });
+  
+  if (res.status === 401) {
+    localStorage.removeItem('fg-token');
+    import('../store/authStore').then((mod) => {
+      mod.useAuthStore.getState().logout();
+    }).catch(() => {});
+  }
+
   if (!res.ok) throw new Error(await res.text());
   return res.json();
+}
+
+async function fetchWithAuth(path: string, init?: RequestInit): Promise<Response> {
+  const headers = new Headers(init?.headers);
+  const token = localStorage.getItem('fg-token');
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  const res = await fetch(`${BASE}${path}`, {
+    ...init,
+    headers,
+  });
+
+  if (res.status === 401) {
+    localStorage.removeItem('fg-token');
+    import('../store/authStore').then((mod) => {
+      mod.useAuthStore.getState().logout();
+    }).catch(() => {});
+  }
+
+  return res;
 }
 
 export async function getHistory(q: HistoryQuery): Promise<HistoryResponse> {
@@ -67,16 +103,16 @@ export async function getHistory(q: HistoryQuery): Promise<HistoryResponse> {
 }
 
 export async function exportHistoryCsv(q: Omit<HistoryQuery, 'page' | 'page_size'>): Promise<Blob> {
-  const res = await fetch(
-    `${BASE}/api/v1/history/export/csv${toQuery(q as Record<string, unknown>)}`
+  const res = await fetchWithAuth(
+    `/api/v1/history/export/csv${toQuery(q as Record<string, unknown>)}`
   );
   if (!res.ok) throw new Error(await res.text());
   return res.blob();
 }
 
 export async function exportHistoryPdf(q: Omit<HistoryQuery, 'page' | 'page_size'>): Promise<Blob> {
-  const res = await fetch(
-    `${BASE}/api/v1/history/export/pdf${toQuery(q as Record<string, unknown>)}`
+  const res = await fetchWithAuth(
+    `/api/v1/history/export/pdf${toQuery(q as Record<string, unknown>)}`
   );
   if (!res.ok) throw new Error(await res.text());
   return res.blob();

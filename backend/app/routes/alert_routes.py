@@ -11,11 +11,13 @@ from typing import Optional, List
 from datetime import datetime
 
 from ..database import get_db
+from ..routes.auth_routes import get_current_user
 from .. import models, schemas
 from ..services.alert_service import update_alert_status
 
+router = APIRouter(prefix="/api/v1/alerts", tags=["alerts"], dependencies=[Depends(get_current_user)])
+
 logger = logging.getLogger("fireguard.alerts")
-router = APIRouter(prefix="/api/v1/alerts", tags=["alerts"])
 
 
 @router.get("", response_model=schemas.PaginatedAlerts)

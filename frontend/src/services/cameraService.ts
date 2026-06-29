@@ -38,19 +38,37 @@ export interface CameraZoneUpdateInput {
   zone?: string | null;
 }
 
-function toQuery(params?: Record<string, unknown>): string {
-  if (!params) return '';
-  const p = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== '') p.append(k, String(v));
-  });
-  const s = p.toString();
-  return s ? '?' + s : '';
-}
-
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}${toQuery(undefined)}`, init);
-  if (!res.ok) throw new Error(await res.text());
+  const headers = new Headers(init?.headers);
+  const token = localStorage.getItem('fg-token');
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  
+  const res = await fetch(`${BASE}${path}`, {
+    ...init,
+    headers,
+  });
+
+  if (res.status === 401) {
+    localStorage.removeItem('fg-token');
+    import('../store/authStore').then((mod) => {
+      mod.useAuthStore.getState().logout();
+    }).catch(() => {});
+  }
+
+  if (!res.ok) {
+    let errText = 'API Error';
+    try {
+      const data = JSON.parse(await res.clone().text());
+      errText = data.detail || data.message || errText;
+    } catch {
+      try {
+        errText = await res.text();
+      } catch {}
+    }
+    throw new Error(errText);
+  }
   return res.json();
 }
 

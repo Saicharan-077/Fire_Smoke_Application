@@ -4,14 +4,16 @@ export interface Alert {
   id: string;
   detection_type: 'fire' | 'smoke';
   confidence: number;
-  status: 'active' | 'acknowledged' | 'resolved';
+  status: 'active' | 'resolved';
   source_type: string;
-  camera_id?: string;
-  location?: string;
-  file_name?: string;
-  evidence_path?: string;
+  camera_id?: string | null;
+  location?: string | null;
+  file_name?: string | null;
+  evidence_path?: string | null;
+  frame_number?: number | null;
   timestamp: string;
 }
+
 
 interface DashboardState {
   totalAlerts: number;

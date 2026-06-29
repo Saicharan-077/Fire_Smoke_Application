@@ -7,10 +7,16 @@ type AppSettingsState = {
   theme: Theme;
   notificationsEnabled: boolean;
   alertSoundEnabled: boolean;
+  defaultGridLayout: '2x2' | '3x3' | '4x4';
+  autoFocusNewAlerts: boolean;
+  cameraRefreshRate: number; // in seconds
 
   setTheme: (theme: Theme) => void;
   toggleNotifications: () => void;
   toggleAlertSound: () => void;
+  setDefaultGridLayout: (layout: '2x2' | '3x3' | '4x4') => void;
+  toggleAutoFocusNewAlerts: () => void;
+  setCameraRefreshRate: (rate: number) => void;
 };
 
 function applyTheme(theme: Theme) {
@@ -27,6 +33,9 @@ export const useAppSettingsStore = create<AppSettingsState>()(
       theme: 'light',
       notificationsEnabled: true,
       alertSoundEnabled: true,
+      defaultGridLayout: '2x2',
+      autoFocusNewAlerts: true,
+      cameraRefreshRate: 10,
 
       setTheme: (theme) => {
         applyTheme(theme);
@@ -34,6 +43,9 @@ export const useAppSettingsStore = create<AppSettingsState>()(
       },
       toggleNotifications: () => set((state) => ({ notificationsEnabled: !state.notificationsEnabled })),
       toggleAlertSound: () => set((state) => ({ alertSoundEnabled: !state.alertSoundEnabled })),
+      setDefaultGridLayout: (layout) => set({ defaultGridLayout: layout }),
+      toggleAutoFocusNewAlerts: () => set((state) => ({ autoFocusNewAlerts: !state.autoFocusNewAlerts })),
+      setCameraRefreshRate: (rate) => set({ cameraRefreshRate: rate }),
     }),
     {
       name: 'fg-app-settings',
@@ -42,6 +54,9 @@ export const useAppSettingsStore = create<AppSettingsState>()(
         theme: state.theme,
         notificationsEnabled: state.notificationsEnabled,
         alertSoundEnabled: state.alertSoundEnabled,
+        defaultGridLayout: state.defaultGridLayout,
+        autoFocusNewAlerts: state.autoFocusNewAlerts,
+        cameraRefreshRate: state.cameraRefreshRate,
       }),
       onRehydrateStorage: () => (state) => {
         if (!state) return;

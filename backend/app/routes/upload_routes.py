@@ -10,13 +10,15 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..routes.auth_routes import get_current_user
 from ..ai.inference_service import DetectionService
 from ..services.storage_service import save_evidence
 from ..services.alert_service import create_alert, create_event
 from .. import schemas
 
+router = APIRouter(prefix="/api/v1/upload", tags=["upload"], dependencies=[Depends(get_current_user)])
+
 logger = logging.getLogger("fireguard.upload")
-router = APIRouter(prefix="/api/v1/upload", tags=["upload"])
 
 _detection_svc: DetectionService = None
 _ws_manager = None
@@ -29,6 +31,7 @@ def get_detection_svc() -> DetectionService:
 
 
 async def _broadcast(
+    db: Session,
     alert_id: str,
     detection_type: str,
     confidence: float,
@@ -36,6 +39,23 @@ async def _broadcast(
     location: str | None = None,
 ):
     if _ws_manager:
+        from .. import models
+        alert = db.query(models.Alert).filter(models.Alert.id == alert_id).first()
+        alert_data = None
+        if alert:
+            alert_data = {
+                "id": alert.id,
+                "detection_type": alert.detection_type,
+                "confidence": alert.confidence,
+                "status": alert.status,
+                "source_type": alert.source_type,
+                "camera_id": alert.camera_id,
+                "location": alert.location,
+                "file_name": alert.file_name,
+                "evidence_path": alert.evidence_path,
+                "frame_number": alert.frame_number,
+                "timestamp": alert.timestamp.isoformat() if alert.timestamp else None,
+            }
         await _ws_manager.broadcast({
             "event":        "new_alert",
             "alert_id":     alert_id,
@@ -43,6 +63,7 @@ async def _broadcast(
             "confidence":   confidence,
             "camera_id":    camera_id,
             "location":     location,
+            "alert":        alert_data,
         })
 
 
@@ -107,6 +128,7 @@ async def upload_image(
         alerts_created.append(alert.id)
         logger.info(f"Alert created: id={alert.id} type={cls_type} conf={det['confidence']:.4f}")
         await _broadcast(
+            db,
             alert.id,
             cls_type,
             det["confidence"],
@@ -175,49 +197,79 @@ async def upload_video(
 
     events_out = []
     try:
+        best_frames = {}
+        all_detections = []
+
         for frame_num, detections, annotated in svc.infer_video(tmp_path):
-            evidence_path = save_evidence(annotated, prefix=f"vid_f{frame_num}")
+            if not detections:
+                continue
+            cls_type = detections[0]["detection_type"]
+            max_conf = max(d["confidence"] for d in detections)
 
-            best: dict[str, dict] = {}
-            for det in detections:
-                t = det["detection_type"]
-                if t not in best or det["confidence"] > best[t]["confidence"]:
-                    best[t] = det
+            if cls_type not in best_frames or max_conf > max(d["confidence"] for d in best_frames[cls_type]["detections"]):
+                best_frames[cls_type] = {
+                    "frame_num": frame_num,
+                    "detections": detections,
+                    "annotated": annotated,
+                }
 
-            for cls_type, det in best.items():
-                alert = create_alert(
-                    db,
-                    detection_type=cls_type,
-                    confidence=det["confidence"],
-                    source_type="video",
-                    camera_id="CAM-UPLOAD",
-                    location="Upload",
-                    file_name=file.filename,
-                    evidence_path=evidence_path,
-                    frame_number=frame_num,
+            all_detections.append({
+                "frame_num": frame_num,
+                "cls_type": cls_type,
+                "detections": detections,
+            })
+
+        created_alerts = {}
+        for cls_type, best_info in best_frames.items():
+            evidence_path = save_evidence(best_info["annotated"], prefix=f"vid_{cls_type}_best")
+            best_conf = max(d["confidence"] for d in best_info["detections"])
+            alert = create_alert(
+                db,
+                detection_type=cls_type,
+                confidence=best_conf,
+                source_type="video",
+                camera_id="CAM-UPLOAD",
+                location="Upload",
+                file_name=file.filename,
+                evidence_path=evidence_path,
+                frame_number=best_info["frame_num"],
+            )
+            created_alerts[cls_type] = alert
+            await _broadcast(
+                db,
+                alert.id,
+                cls_type,
+                best_conf,
+                camera_id="CAM-UPLOAD",
+                location="Upload",
+            )
+
+        for item in all_detections:
+            c_type = item["cls_type"]
+            f_num = item["frame_num"]
+            assoc_alert = created_alerts.get(c_type)
+            if not assoc_alert:
+                continue
+
+            is_peak = (f_num == best_frames[c_type]["frame_num"])
+            ev_path = assoc_alert.evidence_path if is_peak else None
+
+            for d in item["detections"]:
+                create_event(
+                    db, assoc_alert.id, d, "video",
+                    camera_id="CAM-UPLOAD", location="Upload",
+                    file_name=file.filename, frame_number=f_num,
+                    evidence_path=ev_path,
                 )
-                for d in [d for d in detections if d["detection_type"] == cls_type]:
-                    create_event(
-                        db, alert.id, d, "video",
-                        camera_id="CAM-UPLOAD", location="Upload",
-                        file_name=file.filename, frame_number=frame_num,
-                        evidence_path=evidence_path,
-                    )
-                await _broadcast(
-                    alert.id,
-                    cls_type,
-                    det["confidence"],
-                    camera_id="CAM-UPLOAD",
-                    location="Upload",
-                )
 
-                events_out.append({
-                    "alert_id":       alert.id,
-                    "frame_number":   frame_num,
-                    "detection_type": cls_type,
-                    "confidence":     det["confidence"],
-                    "evidence_path":  evidence_path,
-                })
+            events_out.append({
+                "alert_id":       assoc_alert.id,
+                "frame_number":   f_num,
+                "detection_type": c_type,
+                "confidence":     max(d["confidence"] for d in item["detections"]),
+                "evidence_path":  ev_path,
+            })
+
     finally:
         try:
             os.unlink(tmp_path)
@@ -230,65 +282,4 @@ async def upload_video(
     )
 
 
-# ── Debug endpoints ───────────────────────────────────────────────────────────
-@router.get("/debug/detection")
-def debug_class_map(svc: DetectionService = Depends(get_detection_svc)):
-    """Shows exactly how the model maps class IDs to fire/smoke labels."""
-    from ..ai.inference_service import CONF_FIRE, CONF_SMOKE, CONF_RUN
-    return {
-        "raw_model_names":    svc.class_names,
-        "resolved_class_map": svc.get_class_map(),
-        "thresholds": {
-            "fire":          CONF_FIRE,
-            "smoke":         CONF_SMOKE,
-            "yolo_run_conf": CONF_RUN,
-        },
-    }
-
-
-@router.post("/debug/detection")
-async def debug_upload(
-    file: UploadFile = File(...),
-    svc: DetectionService = Depends(get_detection_svc),
-):
-    """Upload an image — returns raw table of ALL boxes including suppressed."""
-    from ..ai.inference_service import CONF_RUN, PER_CLASS_THRESHOLD, _map_class
-    data = await file.read()
-    arr = np.frombuffer(data, np.uint8)
-    frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-    if frame is None:
-        raise HTTPException(status_code=400, detail="Invalid image")
-
-    results = svc.model(frame, verbose=False, conf=CONF_RUN, device=svc.device)
-    raw_rows = []
-    for r in results:
-        for box in (r.boxes or []):
-            cls_id = int(box.cls[0])
-            raw_name = svc.class_names.get(cls_id, str(cls_id))
-            conf = round(float(box.conf[0]), 4)
-            x1, y1, x2, y2 = map(int, box.xyxy[0])
-            mapped = _map_class(cls_id, raw_name)
-            threshold = PER_CLASS_THRESHOLD.get(mapped, 0.25) if mapped else 0.25
-            suppressed = conf < threshold
-            raw_rows.append({
-                "class_id":       cls_id,
-                "raw_class_name": raw_name,
-                "mapped":         mapped,
-                "confidence":     conf,
-                "threshold":      threshold,
-                "suppressed":     suppressed,
-                "bbox":           {"x1": x1, "y1": y1, "x2": x2, "y2": y2},
-            })
-
-    accepted = [r for r in raw_rows if not r["suppressed"] and r["mapped"]]
-    _, detections = svc.infer_image(frame)
-
-    return {
-        "file":                file.filename,
-        "frame_shape":         list(frame.shape),
-        "total_raw_boxes":     len(raw_rows),
-        "total_accepted":      len(accepted),
-        "alert_generated":     len(accepted) > 0,
-        "raw_detection_table": raw_rows,
-        "detections":          detections,
-    }
+# Debug endpoints have been removed from production.

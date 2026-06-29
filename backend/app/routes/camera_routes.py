@@ -8,10 +8,12 @@ from sqlalchemy import func
 from typing import List
 
 from ..database import get_db
+from ..routes.auth_routes import get_current_user
 from .. import models, schemas
 
+router = APIRouter(prefix="/api/v1/cameras", tags=["cameras"], dependencies=[Depends(get_current_user)])
+
 logger = logging.getLogger("fireguard.cameras")
-router = APIRouter(prefix="/api/v1/cameras", tags=["cameras"])
 
 
 @router.get("", response_model=List[schemas.CameraOut])
