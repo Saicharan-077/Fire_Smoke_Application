@@ -1,77 +1,95 @@
 """
 Detection routes — /api/v1/detect and /detect
 """
-import os
-import cv2
-import numpy as np
 import logging
+import cv2
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
+
 from ..database import get_db
-from ..routes.auth_routes import get_current_user, log_audit, log_system
+from ..routes.auth_routes import get_current_user, log_audit
 from ..routes.upload_routes import upload_image, upload_video, get_detection_svc
-from .. import schemas
+from .. import schemas, models
 
 router = APIRouter(prefix="/api/v1/detect", tags=["detect"], dependencies=[Depends(get_current_user)])
 
 logger = logging.getLogger("fireguard.detect")
 
-# Re-use endpoints
+
+class CctvTestRequest(BaseModel):
+    stream_url: str
+
+
 @router.post("/image", response_model=schemas.ImageUploadResponse)
 async def detect_image(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    svc = Depends(get_detection_svc),
+    svc=Depends(get_detection_svc),
+    current_user: models.User = Depends(get_current_user),
 ):
-    # Log audit action
     res = await upload_image(file, db, svc)
-    current_user = db.query(models.User).filter(models.User.session_token != None).first() # heuristic to log user
     log_audit(db, current_user, "DETECTION_IMAGE", f"Processed image file: {file.filename}")
     return res
+
 
 @router.post("/video", response_model=schemas.VideoUploadResponse)
 async def detect_video(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    svc = Depends(get_detection_svc),
+    svc=Depends(get_detection_svc),
+    current_user: models.User = Depends(get_current_user),
 ):
     res = await upload_video(file, db, svc)
-    current_user = db.query(models.User).filter(models.User.session_token != None).first()
     log_audit(db, current_user, "DETECTION_VIDEO", f"Processed video file: {file.filename}")
     return res
 
+
 @router.get("/live")
-def get_live_webcam_details(db: Session = Depends(get_db)):
+def get_live_webcam_details(current_user: models.User = Depends(get_current_user)):
+    from ..routes.upload_routes import _detection_svc
+    svc = _detection_svc
     return {
         "status": "active",
         "webcam_feed": "client_side",
-        "simulated": True,
         "inference_engine": "YOLOv8",
-        "description": "Client-side capturing streaming frames via canvas context updates."
+        "model_ready": bool(svc and svc.ready),
+        "device": svc.device if svc else "cpu",
+        "description": "Client-side webcam capture with server-side inference on uploaded frames.",
     }
+
 
 @router.post("/cctv")
-def test_cctv_connection(body: dict, db: Session = Depends(get_db)):
-    stream_url = body.get("stream_url")
-    if not stream_url:
-        raise HTTPException(status_code=400, detail="stream_url is required")
-    
-    # Simple simulated ping/check for connection
-    is_valid = False
-    if "rtsp://" in stream_url or "http://" in stream_url or "https://" in stream_url:
-        is_valid = True
-    
-    current_user = db.query(models.User).filter(models.User.session_token != None).first()
-    log_audit(db, current_user, "CCTV_TEST", f"Tested RTSP CCTV connection: {stream_url} - Success: {is_valid}")
-    
-    if not is_valid:
+def test_cctv_connection(
+    body: CctvTestRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    stream_url = body.stream_url.strip()
+    if not stream_url.startswith(("rtsp://", "http://", "https://")):
         raise HTTPException(status_code=400, detail="Invalid RTSP or HTTP stream URL format")
-        
+
+    is_online = False
+    cap = cv2.VideoCapture(stream_url)
+    try:
+        is_online = cap.isOpened() and cap.read()[0]
+    except Exception:
+        is_online = False
+    finally:
+        cap.release()
+
+    log_audit(
+        db,
+        current_user,
+        "CCTV_TEST",
+        f"Tested CCTV connection: {stream_url} - Success: {is_online}",
+    )
+
+    if not is_online:
+        raise HTTPException(status_code=400, detail="Unable to connect to stream URL")
+
     return {
         "status": "online",
-        "message": "CCTV Stream Connection successful",
-        "url": stream_url
+        "message": "CCTV stream connection successful",
+        "url": stream_url,
     }
-
-# Also import models at module level to avoid issues
-from .. import models

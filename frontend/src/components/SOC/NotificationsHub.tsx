@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotificationsStore, type NotificationItem } from '../../store/notificationsStore';
 import { evidenceUrl, connectAlertSocket } from '../../services/api';
@@ -6,7 +6,11 @@ import { useAlertSound } from './AlertSound';
 import { AlertPopupCard } from './InstantAlertPopup';
 import { APP_CONFIG } from '../../config/appConfig';
 
-export function NotificationsHub() {
+interface NotificationsHubProps {
+  onConnectionChange?: (connected: boolean) => void;
+}
+
+export function NotificationsHub({ onConnectionChange }: NotificationsHubProps) {
   const navigate = useNavigate();
   const { play } = useAlertSound();
 
@@ -16,15 +20,9 @@ export function NotificationsHub() {
   const popPopup = useNotificationsStore((s) => s.popPopup);
   const hasSeen = useNotificationsStore((s) => s.hasSeen);
   const markSeen = useNotificationsStore((s) => s.markSeen);
+  const permissionRequested = useRef(false);
 
-  // Request browser notification permissions on mount
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      if (window.Notification.permission === 'default') {
-        window.Notification.requestPermission().catch(() => {});
-      }
-    }
-  }, []);
+  // Defer browser notification permission until first alert
 
   useEffect(() => {
     let ws: WebSocket | null = null;
@@ -67,16 +65,21 @@ export function NotificationsHub() {
       // Native browser notification
       if (
         typeof window !== 'undefined' &&
-        'Notification' in window &&
-        window.Notification.permission === 'granted'
+        'Notification' in window
       ) {
-        try {
-          new window.Notification(`FireGuard AI: ${alert.detection_type.toUpperCase()} Alert`, {
-            body: `${alert.detection_type.toUpperCase()} detected at ${cameraName} — Conf: ${(alert.confidence * 100).toFixed(0)}%`,
-            icon: '/favicon.ico',
-          });
-        } catch (e) {
-          console.error('Failed to trigger browser notification:', e);
+        if (window.Notification.permission === 'default' && !permissionRequested.current) {
+          permissionRequested.current = true;
+          window.Notification.requestPermission().catch(() => {});
+        }
+        if (window.Notification.permission === 'granted') {
+          try {
+            new window.Notification(`FireGuard AI: ${alert.detection_type.toUpperCase()} Alert`, {
+              body: `${alert.detection_type.toUpperCase()} detected at ${cameraName} — Conf: ${(alert.confidence * 100).toFixed(0)}%`,
+              icon: '/favicon.ico',
+            });
+          } catch (e) {
+            console.error('Failed to trigger browser notification:', e);
+          }
         }
       }
 
@@ -127,9 +130,11 @@ export function NotificationsHub() {
 
       ws.onopen = () => {
         reconnectAttempts = 0;
+        onConnectionChange?.(true);
       };
 
       ws.onclose = () => {
+        onConnectionChange?.(false);
         if (closedByCleanup) return;
         const delay = backoffs[Math.min(reconnectAttempts, backoffs.length - 1)];
         reconnectAttempts++;
@@ -145,9 +150,10 @@ export function NotificationsHub() {
 
     return () => {
       closedByCleanup = true;
+      onConnectionChange?.(false);
       try { ws?.close(); } catch { /**/ }
     };
-  }, [hasSeen, markSeen, historyAdd, pushPopup, play]);
+  }, [hasSeen, markSeen, historyAdd, pushPopup, play, onConnectionChange]);
 
   return (
     <div
@@ -162,7 +168,7 @@ export function NotificationsHub() {
             onNavigate={() => {
               popPopup(it.id);
               const cam = it.cameraId;
-              navigate(`/live${cam ? `?cameraId=${encodeURIComponent(cam)}` : ''}`);
+              navigate(`/live-monitoring${cam ? `?cameraId=${encodeURIComponent(cam)}` : ''}`);
             }}
           />
         </div>

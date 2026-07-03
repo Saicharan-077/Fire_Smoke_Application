@@ -4,17 +4,28 @@ import os
 from datetime import datetime
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from sqlalchemy.orm import Session
+from sqlalchemy import func
 
-from .database import engine, Base, SessionLocal
+from .database import engine, Base, SessionLocal, get_db
+from . import models
 from .ai.inference_service import DetectionService
+from .middleware.security import SecurityHeadersMiddleware
+from .middleware.rate_limit import RateLimitMiddleware
 from .routes import (
     auth_routes, upload_routes, alert_routes, dashboard_routes, camera_routes,
     history_routes, incident_routes, settings_routes, profile_routes, detect_routes
 )
-from .routes.auth_routes import get_user_by_websocket_token, get_current_user
+from .routes.auth_routes import get_user_by_websocket_token, get_current_user, get_user_by_token
+from .services.analytics_service import (
+    get_timeline, get_zones, get_weekly_trend,
+    get_camera_activity, get_type_breakdown,
+    _range_filter,
+)
 
 
 # ── Logging setup ─────────────────────────────────────────────────────────────
@@ -28,6 +39,8 @@ logger = logging.getLogger("fireguard.main")
 # Create DB tables
 Base.metadata.create_all(bind=engine)
 logger.info("[DB] Tables created / verified")
+
+_detection_svc_instance: DetectionService | None = None
 
 
 def seed_database():
@@ -50,7 +63,7 @@ def seed_database():
                 role="administrator"
             )
             db.add(admin)
-        else:
+        elif os.getenv("SEED_RESET_PASSWORDS", "false").lower() == "true":
             admin.hashed_password = hash_password("Admin@123")
             admin.role = "administrator"
             db.add(admin)
@@ -211,14 +224,20 @@ def seed_database():
     finally:
         db.close()
 
-seed_database()
+
+if os.getenv("SEED_DATABASE", "true").lower() == "true":
+    seed_database()
+else:
+    logger.info("[Seed] Skipped — SEED_DATABASE is not enabled")
 
 
 # ── App lifespan ──────────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global _detection_svc_instance
     logger.info("[Startup] Loading YOLOv8 model...")
     svc = DetectionService()
+    _detection_svc_instance = svc
     upload_routes._detection_svc = svc
     detect_routes._detection_svc = svc
     
@@ -232,6 +251,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="FireGuard AI API", version="1.0.0", lifespan=lifespan)
+
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware)
 
 # CORS — configurable via env
 _origins = [origin.strip() for origin in os.environ.get("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",") if origin.strip()]
@@ -247,6 +269,15 @@ app.add_middleware(
 EVIDENCE_DIR = os.path.join(os.path.dirname(__file__), "..", "evidence")
 os.makedirs(EVIDENCE_DIR, exist_ok=True)
 app.mount("/evidence", StaticFiles(directory=EVIDENCE_DIR), name="evidence")
+
+
+@app.get("/api/v1/evidence/{filename:path}", dependencies=[Depends(get_current_user)])
+def get_evidence_file(filename: str):
+    safe_name = os.path.basename(filename)
+    file_path = os.path.join(EVIDENCE_DIR, safe_name)
+    if not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="Evidence file not found")
+    return FileResponse(file_path)
 
 # ── Include Routers ───────────────────────────────────────────────────────────
 app.include_router(auth_routes.router)
@@ -297,17 +328,6 @@ register_aliases()
 
 
 # ── Analytics routes (v1 + Root level) ─────────────────────────────────────────
-
-from fastapi import Depends, Query
-from sqlalchemy.orm import Session
-from .database import get_db
-from .services.analytics_service import (
-    get_timeline, get_zones, get_weekly_trend,
-    get_camera_activity, get_type_breakdown,
-    _range_filter,
-)
-from sqlalchemy import func
-
 
 # Full analytics
 @app.get("/api/v1/analytics", dependencies=[Depends(get_current_user)])
@@ -443,10 +463,12 @@ async def alert_ws(websocket: WebSocket):
 @app.get("/api/health")
 @app.get("/api/v1/health")
 def health():
+    model_ready = _detection_svc_instance.ready if _detection_svc_instance else False
     return {
         "status":    "ok",
         "service":   "FireGuard AI",
         "version":   "1.0.0",
+        "model_ready": model_ready,
         "timestamp": datetime.utcnow().isoformat(),
     }
 

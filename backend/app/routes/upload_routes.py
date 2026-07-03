@@ -27,7 +27,26 @@ _ws_manager = None
 def get_detection_svc() -> DetectionService:
     if _detection_svc is None:
         raise HTTPException(status_code=503, detail="Detection service not ready")
+    if not _detection_svc.ready:
+        raise HTTPException(
+            status_code=503,
+            detail="Detection model not loaded. Place fire/smoke YOLO weights at models/best.pt",
+        )
     return _detection_svc
+
+
+async def _read_upload_with_limit(file: UploadFile, max_bytes: int) -> bytes:
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await file.read(1024 * 1024)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > max_bytes:
+            raise HTTPException(status_code=413, detail=f"File too large. Max {max_bytes // (1024 * 1024)}MB.")
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 async def _broadcast(
@@ -67,6 +86,10 @@ async def _broadcast(
         })
 
 
+MAX_IMAGE_SIZE = 20 * 1024 * 1024
+MAX_VIDEO_SIZE = 200 * 1024 * 1024
+
+
 # ── Image upload ──────────────────────────────────────────────────────────────
 @router.post("/image", response_model=schemas.ImageUploadResponse)
 async def upload_image(
@@ -83,10 +106,7 @@ async def upload_image(
             detail="Unsupported image format. Allowed: JPG, JPEG, PNG, BMP, WEBP.",
         )
 
-    data = await file.read()
-    MAX_IMAGE_SIZE = 20 * 1024 * 1024
-    if len(data) > MAX_IMAGE_SIZE:
-        raise HTTPException(status_code=413, detail="Image too large. Max 20MB.")
+    data = await _read_upload_with_limit(file, MAX_IMAGE_SIZE)
 
     arr = np.frombuffer(data, np.uint8)
     frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
@@ -175,10 +195,7 @@ async def upload_video(
             detail="Unsupported video format. Allowed: MP4, AVI, MOV, MKV.",
         )
 
-    video_data = await file.read()
-    MAX_VIDEO_SIZE = 100 * 1024 * 1024
-    if len(video_data) > MAX_VIDEO_SIZE:
-        raise HTTPException(status_code=413, detail="Video too large. Max 100MB.")
+    video_data = await _read_upload_with_limit(file, MAX_VIDEO_SIZE)
 
     suffix = os.path.splitext(file.filename)[1] or ".mp4"
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:

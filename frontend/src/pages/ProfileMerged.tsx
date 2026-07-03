@@ -4,7 +4,7 @@ import { Button } from '../components/Common/Button';
 import { Input } from '../components/Common/Input';
 import { useToast } from '../components/ui/Toast';
 import { useAuthStore } from '../store/authStore';
-import { getAuditLogs, updateProfileApi } from '../services/api';
+import { getAuditLogs, updateProfileApi, changePasswordApi } from '../services/api';
 import { User, Shield, Key, LogOut, RefreshCw, Activity } from 'lucide-react';
 
 const ProfileMerged = () => {
@@ -62,12 +62,24 @@ const ProfileMerged = () => {
       toast('New passwords do not match.', 'error');
       return;
     }
+    if (passwordForm.new.length < 8) {
+      toast('Password must be at least 8 characters.', 'error');
+      return;
+    }
     setChangingPassword(true);
-    // Simulate API call
-    await new Promise((r) => setTimeout(r, 1000));
-    setChangingPassword(false);
-    toast('Password changed successfully.', 'success');
-    setPasswordForm({ current: '', new: '', confirm: '' });
+    try {
+      await changePasswordApi({
+        current_password: passwordForm.current,
+        new_password: passwordForm.new,
+        confirm_password: passwordForm.confirm,
+      });
+      toast('Password changed successfully.', 'success');
+      setPasswordForm({ current: '', new: '', confirm: '' });
+    } catch (err: any) {
+      toast(err.message || 'Password change failed.', 'error');
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   return (

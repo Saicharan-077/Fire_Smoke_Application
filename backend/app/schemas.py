@@ -155,7 +155,17 @@ class UserRegister(BaseModel):
     username: str
     email: str
     password: str
-    role: Optional[str] = "operator"  # "admin" | "operator" | "viewer"
+    role: Optional[str] = "operator"
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+    confirm_password: str
 
 
 class IncidentCreate(BaseModel):

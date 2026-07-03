@@ -137,7 +137,7 @@ const Login = () => {
             </label>
             <button
               type="button"
-              onClick={() => toast('Forgot password requested. Please contact the security operations center administrator.', 'info')}
+              onClick={() => navigate('/forgot-password')}
               className="text-xs text-red-500 hover:text-red-400 font-medium hover:underline transition-all"
             >
               Forgot Password?

@@ -1,29 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Flame, Activity, LayoutDashboard, Settings, Moon, Sun, Bell, LogOut, User, Camera, ShieldAlert, BarChart3 } from 'lucide-react';
 import { useAppSettingsStore } from '../store/appSettingsStore';
-import { useWebSocketStore } from '../store/websocketStore';
 import { useAuthStore } from '../store/authStore';
 import { useNotificationsStore } from '../store/notificationsStore';
 import { useToast } from './ui/Toast';
-import { APP_CONFIG } from '../config/appConfig';
 import { NotificationsHub } from './SOC/NotificationsHub';
 
 const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { theme, setTheme } = useAppSettingsStore();
-  const { connect, disconnect, isConnected } = useWebSocketStore();
   const { currentUser, logout } = useAuthStore();
   const { history: notifHistory, unreadCount, markAsRead, markAllAsRead, clearHistory } = useNotificationsStore();
   const { toast } = useToast();
 
   const [showNotifications, setShowNotifications] = useState(false);
-
-  useEffect(() => {
-    connect(APP_CONFIG.websocketUrl);
-    return () => disconnect();
-  }, [connect, disconnect]);
+  const [wsConnected, setWsConnected] = useState(false);
 
   const navItems = [
     { path: '/dashboard', icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
@@ -72,9 +65,9 @@ const Layout = () => {
 
         <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className={`w-2.5 h-2.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'} animate-pulse`}></div>
+            <div className={`w-2.5 h-2.5 rounded-full ${wsConnected ? 'bg-green-500' : 'bg-red-500'} animate-pulse`}></div>
             <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-              {isConnected ? 'System Online' : 'Connecting...'}
+              {wsConnected ? 'System Online' : 'Connecting...'}
             </span>
           </div>
           <button 
@@ -196,9 +189,11 @@ const Layout = () => {
                 {initials}
               </div>
               <button
-                onClick={() => {
+                onClick={async () => {
+                  try { await import('../services/api').then(m => m.logoutApi()); } catch { /* ignore */ }
                   logout();
                   toast('Logged out successfully', 'success');
+                  navigate('/login');
                 }}
                 className="p-2 text-gray-400 hover:text-red-500 dark:hover:text-red-400 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
                 title="Sign Out"
@@ -217,7 +212,7 @@ const Layout = () => {
         </div>
 
         {/* Global overlay — NotificationsHub lives outside the scroll container */}
-        <NotificationsHub />
+        <NotificationsHub onConnectionChange={setWsConnected} />
       </main>
     </div>
   );

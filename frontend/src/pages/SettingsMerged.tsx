@@ -8,7 +8,7 @@ import {
   listCameras, createCamera, patchCamera, deleteCamera, 
   patchCameraStatus, type Camera 
 } from '../services/cameraService';
-import { testCctvConnection } from '../services/api';
+import { testCctvConnection, getSettings, updateSettings } from '../services/api';
 import { 
   Settings, Camera as CameraIcon, Cpu, Bell, 
   User, Plus, Trash2, Edit2,
@@ -26,7 +26,7 @@ const DEFAULT_FORM = {
 
 const SettingsMerged = () => {
   const { toast } = useToast();
-  const { theme, setTheme } = useAppSettingsStore();
+  const { theme, setTheme, setAlertSoundEnabled } = useAppSettingsStore();
 
   const [activeSection, setActiveSection] = useState<'general' | 'ai' | 'thresholds' | 'camera' | 'rtsp' | 'notifications' | 'storage' | 'account'>('general');
 
@@ -125,8 +125,27 @@ const SettingsMerged = () => {
     }
   };
 
-  const handleSaveAllSettings = () => {
-    toast('Settings saved successfully to the system database.', 'success');
+  const handleSaveAllSettings = async () => {
+    try {
+      await updateSettings({
+        system_mode: systemMode,
+        debug_level: debugLevel,
+        yolo_weights: yoloWeights,
+        inference_device: device,
+        fire_min_confidence: String(confFire),
+        smoke_min_confidence: String(confSmoke),
+        nms_threshold: String(nmsThreshold),
+        enable_sound_alerts: String(enableAudio),
+        enable_email_alerts: String(enableEmail),
+        webhook_url: webhookUrl,
+        evidence_storage_path: storagePath,
+        retention_days: String(purgeDays),
+      });
+      setAlertSoundEnabled(enableAudio);
+      toast('Settings saved successfully to the system database.', 'success');
+    } catch (err: any) {
+      toast(err.message || 'Failed to save settings.', 'error');
+    }
   };
 
   const handleResetSettings = () => {
@@ -147,6 +166,26 @@ const SettingsMerged = () => {
 
   useEffect(() => {
     void fetchCameras();
+    void (async () => {
+      try {
+        const settings = await getSettings();
+        const map = Object.fromEntries(settings.map((s) => [s.id, s.value]));
+        if (map.system_mode) setSystemMode(map.system_mode);
+        if (map.debug_level) setDebugLevel(map.debug_level);
+        if (map.yolo_weights) setYoloWeights(map.yolo_weights);
+        if (map.inference_device) setDevice(map.inference_device);
+        if (map.fire_min_confidence) setConfFire(parseFloat(map.fire_min_confidence));
+        if (map.smoke_min_confidence) setConfSmoke(parseFloat(map.smoke_min_confidence));
+        if (map.nms_threshold) setNmsThreshold(parseFloat(map.nms_threshold));
+        if (map.enable_sound_alerts) setEnableAudio(map.enable_sound_alerts === 'true');
+        if (map.enable_email_alerts) setEnableEmail(map.enable_email_alerts === 'true');
+        if (map.webhook_url) setWebhookUrl(map.webhook_url);
+        if (map.evidence_storage_path) setStoragePath(map.evidence_storage_path);
+        if (map.retention_days) setPurgeDays(parseInt(map.retention_days, 10));
+      } catch {
+        // Settings load optional on first run
+      }
+    })();
   }, []);
 
   return (

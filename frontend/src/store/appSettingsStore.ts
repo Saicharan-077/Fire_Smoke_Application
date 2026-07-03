@@ -14,6 +14,7 @@ type AppSettingsState = {
   setTheme: (theme: Theme) => void;
   toggleNotifications: () => void;
   toggleAlertSound: () => void;
+  setAlertSoundEnabled: (enabled: boolean) => void;
   setDefaultGridLayout: (layout: '2x2' | '3x3' | '4x4') => void;
   toggleAutoFocusNewAlerts: () => void;
   setCameraRefreshRate: (rate: number) => void;
@@ -43,6 +44,7 @@ export const useAppSettingsStore = create<AppSettingsState>()(
       },
       toggleNotifications: () => set((state) => ({ notificationsEnabled: !state.notificationsEnabled })),
       toggleAlertSound: () => set((state) => ({ alertSoundEnabled: !state.alertSoundEnabled })),
+      setAlertSoundEnabled: (enabled) => set({ alertSoundEnabled: enabled }),
       setDefaultGridLayout: (layout) => set({ defaultGridLayout: layout }),
       toggleAutoFocusNewAlerts: () => set((state) => ({ autoFocusNewAlerts: !state.autoFocusNewAlerts })),
       setCameraRefreshRate: (rate) => set({ cameraRefreshRate: rate }),

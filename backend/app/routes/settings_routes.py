@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from typing import List, Dict
 
 from ..database import get_db
-from ..routes.auth_routes import get_current_user, log_audit
+from ..routes.auth_routes import get_current_user, log_audit, require_admin
 from .. import models, schemas
 
 router = APIRouter(prefix="/api/v1/settings", tags=["settings"], dependencies=[Depends(get_current_user)])
@@ -38,7 +38,7 @@ def get_settings(db: Session = Depends(get_db)):
     return db.query(models.Setting).all()
 
 
-@router.patch("", response_model=List[schemas.SettingOut])
+@router.patch("", response_model=List[schemas.SettingOut], dependencies=[Depends(require_admin)])
 def update_settings(
     body: Dict[str, str],
     current_user: models.User = Depends(get_current_user),

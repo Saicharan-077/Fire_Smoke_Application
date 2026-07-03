@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '../components/Common/Card';
 import { Button } from '../components/Common/Button';
 import { Badge } from '../components/Common/Badge';
@@ -12,6 +13,8 @@ import {
 
 const LiveMonitoring = () => {
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const cameraIdParam = searchParams.get('cameraId');
   
   // Webcam & RTSP streams state
   const webcamVideoRef = useRef<HTMLVideoElement>(null);
@@ -93,8 +96,26 @@ const LiveMonitoring = () => {
     try {
       const data = await listCameras();
       setCameras(data);
-      if (data.length > 0) {
-        setSelectedRtspCam(data[0]);
+      if (data.length === 0) return;
+
+      const matched = cameraIdParam
+        ? data.find((c) => c.id === cameraIdParam || c.name === cameraIdParam)
+        : null;
+      const selected = matched ?? data[0];
+      setSelectedRtspCam(selected);
+
+      if (matched && selected.stream_url) {
+        setRtspLoading(true);
+        try {
+          await testCctvConnection(selected.stream_url);
+          setRtspConnected(true);
+          setRtspFps(24);
+          setRtspLatency(120);
+        } catch {
+          // Connection may fail for offline cameras
+        } finally {
+          setRtspLoading(false);
+        }
       }
     } catch (e: any) {
       toast('Failed to load CCTV camera list', 'error');

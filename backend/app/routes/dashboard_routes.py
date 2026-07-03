@@ -13,7 +13,11 @@ from ..routes.auth_routes import get_current_user
 from .. import models, schemas
 from ..services.analytics_service import get_timeline, get_zones
 
-router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
+router = APIRouter(
+    prefix="/api/v1/dashboard",
+    tags=["dashboard"],
+    dependencies=[Depends(get_current_user)],
+)
 
 logger = logging.getLogger("fireguard.dashboard")
 

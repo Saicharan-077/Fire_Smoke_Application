@@ -8,7 +8,10 @@ from typing import List, Dict, Tuple, Any
 
 logger = logging.getLogger("fireguard.detection")
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "models", "best.pt")
+_default_model = os.path.join(os.path.dirname(__file__), "..", "..", "models", "best.pt")
+MODEL_PATH = os.environ.get("YOLO_MODEL_PATH", _default_model)
+if not os.path.isabs(MODEL_PATH):
+    MODEL_PATH = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", MODEL_PATH))
 
 CONF_FIRE  = float(os.environ.get("CONF_FIRE", "0.35"))
 CONF_SMOKE = float(os.environ.get("CONF_SMOKE", "0.40"))
@@ -35,18 +38,21 @@ def _map_class(cls_id: int, raw_name: str) -> str | None:
 
 class DetectionService:
     def __init__(self):
-        self.device      = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model       = YOLO(MODEL_PATH)
-        self.model.to(self.device)
-        self.class_names = self.model.names
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.model = None
+        self.class_names: dict = {}
+        self.ready = False
 
-        # Strict Model Validation
-        model_classes = {str(v).lower().strip() for v in self.class_names.values()}
-        is_coco = "person" in model_classes or "car" in model_classes or "dog" in model_classes
-        has_target = "fire" in model_classes or "smoke" in model_classes or "0" in model_classes or "1" in model_classes
-        if is_coco or not has_target:
-            logger.error(f"Invalid model loaded. Classes found: {model_classes}")
-            raise ValueError("Invalid Fire & Smoke model.")
+        if not os.path.isfile(MODEL_PATH):
+            logger.warning(
+                f"[MODEL] Weights not found at {os.path.abspath(MODEL_PATH)}. "
+                "Detection endpoints will return 503 until model is placed."
+            )
+        else:
+            self._load_model()
+
+        if self.ready:
+            self._warmup()
 
         # Modular Preprocessing Pipeline Configuration
         self.config = {
@@ -71,10 +77,46 @@ class DetectionService:
 
         logger.info("=" * 60)
         logger.info(f"[MODEL] Path      : {os.path.abspath(MODEL_PATH)}")
+        logger.info(f"[MODEL] Ready     : {self.ready}")
         logger.info(f"[MODEL] Device    : {self.device.upper()}")
         logger.info(f"[MODEL] Thresholds: fire>={CONF_FIRE}  smoke>={CONF_SMOKE}  (run@{CONF_RUN})")
         logger.info(f"[PREPROCESS] Pipeline: {self.config}")
         logger.info("=" * 60)
+
+    def _load_model(self):
+        self.model = YOLO(MODEL_PATH)
+        self.model.to(self.device)
+        self.class_names = self.model.names
+
+        model_classes = {str(v).lower().strip() for v in self.class_names.values()}
+        is_coco = "person" in model_classes or "car" in model_classes or "dog" in model_classes
+        has_target = (
+            "fire" in model_classes or "smoke" in model_classes
+            or "0" in model_classes or "1" in model_classes
+        )
+        if is_coco or not has_target:
+            logger.error(f"Invalid model loaded. Classes found: {model_classes}")
+            self.model = None
+            self.ready = False
+            return
+
+        self.ready = True
+
+    def _warmup(self):
+        if not self.model:
+            return
+        try:
+            dummy = np.zeros((640, 640, 3), dtype=np.uint8)
+            self.model(dummy, verbose=False, conf=CONF_RUN, device=self.device)
+            logger.info("[MODEL] Warm-up inference completed")
+        except Exception as exc:
+            logger.warning(f"[MODEL] Warm-up failed: {exc}")
+
+    def ensure_ready(self):
+        if not self.ready or self.model is None:
+            raise RuntimeError(
+                f"Detection model not loaded. Place fire/smoke weights at {os.path.abspath(MODEL_PATH)}"
+            )
 
     def _letterbox(self, img: np.ndarray, new_shape: Tuple[int, int] = (640, 640), color: Tuple[int, int, int] = (114, 114, 114)) -> np.ndarray:
         """Resize image preserving aspect ratio with padding."""
@@ -200,12 +242,14 @@ class DetectionService:
         return out
 
     def infer_image(self, frame: np.ndarray) -> Tuple[np.ndarray, List[Dict]]:
+        self.ensure_ready()
         processed, _ = self._preprocess_frame(frame)
         detections = self._run_inference(processed)
         annotated  = self.annotate_frame(processed, detections)
         return annotated, detections
 
     def infer_video(self, video_path: str, consecutive: int = 3):
+        self.ensure_ready()
         cap       = cv2.VideoCapture(video_path)
         frame_num = 0
         counters:  Dict[str, int]  = {"fire": 0, "smoke": 0}

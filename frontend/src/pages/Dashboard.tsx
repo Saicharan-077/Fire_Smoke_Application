@@ -4,6 +4,7 @@ import { Badge } from '../components/Common/Badge';
 import { Button } from '../components/Common/Button';
 import { useToast } from '../components/ui/Toast';
 import { getDashboardStats, getDashboardAnalytics, getIncidents } from '../services/api';
+import { useDashboardStore } from '../store/dashboardStore';
 import { 
   Flame, Wind, Activity, 
   Video, RefreshCw, ShieldAlert, Cpu, Heart, CheckCircle2 
@@ -38,6 +39,8 @@ const Dashboard = () => {
   const [timeline, setTimeline] = useState<any[]>([]);
   const [incidents, setIncidents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const storeRecentAlerts = useDashboardStore((s) => s.recentAlerts);
+  const setStoreStats = useDashboardStore((s) => s.setStats);
 
   const loadDashboardData = async () => {
     try {
@@ -50,6 +53,14 @@ const Dashboard = () => {
       setStats(statsData);
       setTimeline(analyticsData.timeline || []);
       setIncidents(incidentsData.items || []);
+      setStoreStats({
+        totalAlerts: statsData.total_alerts,
+        activeAlerts: statsData.active_alerts,
+        fireAlerts: statsData.fire_alerts,
+        smokeAlerts: statsData.smoke_alerts,
+        connectedCameras: statsData.connected_cameras,
+        recentAlerts: statsData.recent_alerts || [],
+      });
     } catch (e: any) {
       toast(e.message || 'Failed to fetch SOC command metrics.', 'error');
     } finally {
@@ -61,13 +72,25 @@ const Dashboard = () => {
     void loadDashboardData();
   }, []);
 
+  // Merge real-time WebSocket alerts into dashboard view
+  useEffect(() => {
+    if (storeRecentAlerts.length === 0) return;
+    setStats((prev: typeof stats) => ({
+      ...prev,
+      recent_alerts: storeRecentAlerts,
+      active_alerts: Math.max(prev.active_alerts, storeRecentAlerts.filter((a) => a.status === 'active').length),
+      total_alerts: Math.max(prev.total_alerts, storeRecentAlerts.length),
+    }));
+  }, [storeRecentAlerts]);
+
   // Sorted active threats
   const sortedAlerts = useMemo(() => {
-    return [...(stats.recent_alerts || [])].sort((a, b) => {
+    const source = storeRecentAlerts.length > 0 ? storeRecentAlerts : (stats.recent_alerts || []);
+    return [...source].sort((a, b) => {
       if (a.status !== b.status) return a.status === 'active' ? -1 : 1;
       return b.confidence - a.confidence;
     });
-  }, [stats.recent_alerts]);
+  }, [stats.recent_alerts, storeRecentAlerts]);
 
   if (loading) {
     return (

@@ -178,7 +178,8 @@ export const evidenceUrl = (path: string | null) =>
 // ── WebSocket ─────────────────────────────────────────────────────────────────
 export const connectAlertSocket = (onMessage: (data: unknown) => void): WebSocket => {
   const wsBase = BASE.replace(/^http/, 'ws');
-  const ws = new WebSocket(`${wsBase}/ws/alerts`);
+  const token = localStorage.getItem('fg-token') ?? '';
+  const ws = new WebSocket(`${wsBase}/ws/alerts?token=${encodeURIComponent(token)}`);
   ws.onmessage = (e) => {
     try {
       onMessage(JSON.parse((e as MessageEvent).data));
@@ -242,6 +243,17 @@ export const registerApi = (payload: any) =>
 
 export const forgotPasswordApi = (payload: { email: string }) =>
   api<{ status: string; message: string }>('/api/v1/auth/forgot-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+export const changePasswordApi = (payload: {
+  current_password: string;
+  new_password: string;
+  confirm_password: string;
+}) =>
+  api<{ status: string; message: string }>('/api/v1/auth/change-password', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
