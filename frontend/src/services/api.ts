@@ -27,6 +27,11 @@ export interface DashboardStats {
   fire_alerts: number;
   smoke_alerts: number;
   connected_cameras: number;
+  online_cameras?: number;
+  total_cameras?: number;
+  model_ready?: boolean;
+  model_accuracy?: number;
+  system_health?: string;
   recent_alerts: Alert[];
 }
 
@@ -321,4 +326,96 @@ export const testCctvConnection = (streamUrl: string) =>
     body: JSON.stringify({ stream_url: streamUrl }),
   });
 
+// ── Admin ─────────────────────────────────────────────────────────────────────
+export interface AdminUser {
+  id: string;
+  username: string;
+  email: string;
+  role: string;
+  is_active?: string;
+  last_login?: string;
+  created_at?: string;
+}
+
+export const getAdminUsers = (params?: { page?: number; limit?: number; q?: string; role?: string }) =>
+  api<{ items: AdminUser[]; total: number; page: number; limit: number; pages: number }>(
+    `/api/v1/admin/users${toQuery(params)}`
+  );
+
+export const createAdminUser = (payload: { username: string; email: string; password: string; role: string }) =>
+  api<AdminUser>('/api/v1/admin/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+export const updateAdminUser = (userId: string, payload: Partial<AdminUser>) =>
+  api<AdminUser>(`/api/v1/admin/users/${userId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+export const deleteAdminUser = (userId: string) =>
+  api<{ status: string; message: string }>(`/api/v1/admin/users/${userId}`, { method: 'DELETE' });
+
+export const resetAdminUserPassword = (userId: string, new_password: string) =>
+  api<{ status: string; message: string }>(`/api/v1/admin/users/${userId}/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ new_password }),
+  });
+
+export const activateAdminUser = (userId: string) =>
+  api<AdminUser>(`/api/v1/admin/users/${userId}/activate`, { method: 'PATCH' });
+
+export const deactivateAdminUser = (userId: string) =>
+  api<AdminUser>(`/api/v1/admin/users/${userId}/deactivate`, { method: 'PATCH' });
+
+export const getAdminAuditLogs = (params?: { page?: number; limit?: number; action?: string }) =>
+  api<{ items: AuditLog[]; total: number; page: number; limit: number; pages: number }>(
+    `/api/v1/admin/audit-logs${toQuery(params)}`
+  );
+
+export interface SystemLog {
+  id: string;
+  level: string;
+  source: string;
+  message: string;
+  timestamp: string;
+}
+
+export const getAdminSystemLogs = (params?: { page?: number; limit?: number; level?: string; source?: string }) =>
+  api<{ items: SystemLog[]; total: number; page: number; limit: number; pages: number }>(
+    `/api/v1/admin/system-logs${toQuery(params)}`
+  );
+
+export const getAdminSessions = () =>
+  api<{ sessions: Array<{ user_id: string; username: string; email: string; role: string; last_login: string | null; expires_at: string | null }>; count: number }>(
+    '/api/v1/admin/sessions'
+  );
+
+export const revokeAdminSession = (userId: string) =>
+  api<{ status: string; message: string }>(`/api/v1/admin/sessions/${userId}`, { method: 'DELETE' });
+
+export const getAdminHealth = () =>
+  api<{
+    status: string;
+    model_ready: boolean;
+    database: string;
+    users: { total: number; active: number };
+    cameras: { total: number; online: number };
+    alerts: { total: number; active: number };
+    sessions: number;
+    recent_errors: number;
+    timestamp: string;
+  }>('/api/v1/admin/health');
+
+export const getAdminStats = () =>
+  api<{
+    users_by_role: Record<string, number>;
+    incidents: { total: number; active: number };
+    audit_log_count: number;
+    system_log_count: number;
+  }>('/api/v1/admin/stats');
 

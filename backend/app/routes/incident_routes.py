@@ -10,7 +10,7 @@ from typing import Optional, List
 from datetime import datetime
 
 from ..database import get_db
-from ..routes.auth_routes import get_current_user, log_audit, log_system
+from ..routes.auth_routes import get_current_user, log_audit, log_system, require_operator
 from .. import models, schemas
 
 router = APIRouter(prefix="/api/v1/incidents", tags=["incidents"], dependencies=[Depends(get_current_user)])
@@ -61,7 +61,7 @@ def list_incidents(
     }
 
 
-@router.post("", response_model=schemas.IncidentOut)
+@router.post("", response_model=schemas.IncidentOut, dependencies=[Depends(require_operator)])
 def create_incident(
     body: schemas.IncidentCreate,
     current_user: models.User = Depends(get_current_user),
@@ -160,7 +160,7 @@ def get_incident(incident_id: str, db: Session = Depends(get_db)):
     return incident
 
 
-@router.patch("/{incident_id}", response_model=schemas.IncidentOut)
+@router.patch("/{incident_id}", response_model=schemas.IncidentOut, dependencies=[Depends(require_operator)])
 def update_incident(
     incident_id: str,
     body: schemas.IncidentUpdate,
@@ -182,7 +182,7 @@ def update_incident(
     return incident
 
 
-@router.delete("/{incident_id}")
+@router.delete("/{incident_id}", dependencies=[Depends(require_operator)])
 def delete_incident(
     incident_id: str,
     current_user: models.User = Depends(get_current_user),

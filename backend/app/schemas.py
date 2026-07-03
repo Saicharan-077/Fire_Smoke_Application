@@ -18,6 +18,7 @@ class CameraUpdate(BaseModel):
     status: Optional[str] = None
     stream_url: Optional[str] = None
     description: Optional[str] = None
+    assigned_operator_id: Optional[str] = None
 
 
 class CameraStatusUpdate(BaseModel):
@@ -36,6 +37,7 @@ class CameraOut(BaseModel):
     status: str
     stream_url: Optional[str]
     description: Optional[str] = None
+    assigned_operator_id: Optional[str] = None
     last_seen: Optional[datetime]
     created_at: Optional[datetime]
 
@@ -101,6 +103,11 @@ class DashboardStats(BaseModel):
     fire_alerts: int
     smoke_alerts: int
     connected_cameras: int
+    online_cameras: int = 0
+    total_cameras: int = 0
+    model_ready: bool = False
+    model_accuracy: float = 0.0
+    system_health: str = "unknown"
     recent_alerts: List[AlertOut]
 
 
@@ -139,11 +146,63 @@ class UserOut(BaseModel):
     username: str
     email: str
     role: str
+    is_active: Optional[str] = "true"
     last_login: Optional[datetime] = None
     created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
+
+class UserCreate(BaseModel):
+    username: str
+    email: str
+    password: str
+    role: str = "viewer"
+
+    @field_validator('role')
+    @classmethod
+    def validate_role(cls, v: str) -> str:
+        allowed = {'administrator', 'admin', 'operator', 'viewer'}
+        if v.lower() not in allowed:
+            raise ValueError(f"role must be one of: {', '.join(sorted(allowed))}")
+        return 'administrator' if v.lower() == 'admin' else v.lower()
+
+
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    email: Optional[str] = None
+    role: Optional[str] = None
+    is_active: Optional[str] = None
+
+    @field_validator('role')
+    @classmethod
+    def validate_role(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        allowed = {'administrator', 'admin', 'operator', 'viewer'}
+        if v.lower() not in allowed:
+            raise ValueError(f"role must be one of: {', '.join(sorted(allowed))}")
+        return 'administrator' if v.lower() == 'admin' else v.lower()
+
+
+class AdminResetPassword(BaseModel):
+    new_password: str
+
+    @field_validator('new_password')
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return v
+
+
+class PaginatedUsers(BaseModel):
+    items: List[UserOut]
+    total: int
+    page: int
+    limit: int
+    pages: int
 
 
 class TokenResponse(BaseModel):

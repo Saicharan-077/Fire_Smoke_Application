@@ -135,6 +135,12 @@ def login(body: schemas.UserLogin, db: Session = Depends(get_db)):
             detail="Invalid username/email or password",
         )
 
+    if getattr(user, "is_active", "true") == "false":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is deactivated. Contact an administrator.",
+        )
+
     token = uuid.uuid4().hex
     user.session_token = token
     user.session_expires_at = datetime.utcnow() + timedelta(minutes=SESSION_DURATION_MINUTES)

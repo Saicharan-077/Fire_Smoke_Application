@@ -12,6 +12,7 @@ import {
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { usePermissions } from '../hooks/usePermissions';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -26,6 +27,7 @@ const itemVariants = {
 const Dashboard = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
 
   // Metrics states
   const [stats, setStats] = useState<any>({
@@ -126,8 +128,8 @@ const Dashboard = () => {
             <Button variant="outline" size="sm" onClick={loadDashboardData} className="flex items-center gap-1.5">
               <RefreshCw size={14} /> Sync Metrics
             </Button>
-            <Button variant="primary" size="sm" onClick={() => navigate('/detection')} className="flex items-center gap-1.5">
-              <Activity size={14} /> Threat Ingest
+            <Button variant="primary" size="sm" onClick={() => navigate(hasPermission('detection') ? '/detection' : '/alerts-reports')} className="flex items-center gap-1.5">
+              <Activity size={14} /> {hasPermission('detection') ? 'Threat Ingest' : 'View Alerts'}
             </Button>
           </div>
         </div>
@@ -138,10 +140,10 @@ const Dashboard = () => {
         {[
           { label: 'Fire Count', value: stats.fire_alerts, icon: <Flame size={20} className="text-red-500" />, desc: 'Active detections' },
           { label: 'Smoke Count', value: stats.smoke_alerts, icon: <Wind size={20} className="text-orange-500" />, desc: 'Active detections' },
-          { label: "Today's Alerts", value: stats.active_alerts, icon: <ShieldAlert size={20} className="text-yellow-500" />, desc: 'Unresolved queue' },
-          { label: 'Accuracy', value: '99.4%', icon: <Cpu size={20} className="text-green-500" />, desc: 'Model average' },
-          { label: 'System Health', value: 'Nominal', icon: <Heart size={20} className="text-blue-500" />, desc: 'All services active' },
-          { label: 'Cameras Online', value: `${stats.connected_cameras}/${stats.connected_cameras}`, icon: <Video size={20} className="text-indigo-500" />, desc: 'Active CCTV feeds' },
+          { label: 'Active Alerts', value: stats.active_alerts, icon: <ShieldAlert size={20} className="text-yellow-500" />, desc: 'Unresolved queue' },
+          { label: 'Model Accuracy', value: `${stats.model_accuracy ?? 94.2}%`, icon: <Cpu size={20} className="text-green-500" />, desc: stats.model_ready ? 'YOLOv8 ready' : 'Model loading' },
+          { label: 'System Health', value: (stats.system_health ?? 'nominal').charAt(0).toUpperCase() + (stats.system_health ?? 'nominal').slice(1), icon: <Heart size={20} className={stats.system_health === 'nominal' ? 'text-blue-500' : 'text-amber-500'} />, desc: 'All services' },
+          { label: 'Cameras Online', value: `${stats.online_cameras ?? stats.connected_cameras}/${stats.total_cameras ?? stats.connected_cameras}`, icon: <Video size={20} className="text-indigo-500" />, desc: 'Active CCTV feeds' },
         ].map((kpi, idx) => (
           <motion.div key={idx} variants={itemVariants}>
             <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f0f17] hover:scale-[1.02] transition-all">
@@ -208,11 +210,11 @@ const Dashboard = () => {
               <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f0f17] h-full">
                 <CardHeader><CardTitle className="text-sm font-bold text-white">Security Command Actions</CardTitle></CardHeader>
                 <CardContent className="p-5 space-y-3">
-                  <button onClick={() => navigate('/detection')} className="w-full text-left p-3.5 rounded-2xl bg-white/5 border border-white/5 hover:border-red-500/30 transition-all flex items-center justify-between text-xs font-semibold text-white">
+                  <button onClick={() => hasPermission('detection') && navigate('/detection')} className={`w-full text-left p-3.5 rounded-2xl bg-white/5 border border-white/5 hover:border-red-500/30 transition-all flex items-center justify-between text-xs font-semibold text-white ${!hasPermission('detection') ? 'opacity-50 cursor-not-allowed' : ''}`}>
                     <span>Initiate AI Stream Scan</span>
                     <span className="text-red-400">→</span>
                   </button>
-                  <button onClick={() => navigate('/live-monitoring')} className="w-full text-left p-3.5 rounded-2xl bg-white/5 border border-white/5 hover:border-red-500/30 transition-all flex items-center justify-between text-xs font-semibold text-white">
+                  <button onClick={() => hasPermission('live_monitoring') && navigate('/live-monitoring')} className={`w-full text-left p-3.5 rounded-2xl bg-white/5 border border-white/5 hover:border-red-500/30 transition-all flex items-center justify-between text-xs font-semibold text-white ${!hasPermission('live_monitoring') ? 'opacity-50 cursor-not-allowed' : ''}`}>
                     <span>View CCTV Security Grid</span>
                     <span className="text-red-400">→</span>
                   </button>
@@ -262,8 +264,8 @@ const Dashboard = () => {
                 <div className="flex items-center gap-3">
                   <CheckCircle2 className="text-green-500 w-6 h-6 shrink-0" />
                   <div>
-                    <h4 className="font-bold text-xs text-white">Threat Shield Online</h4>
-                    <p className="text-[10px] text-slate-450">Inference pipeline latency: ~12ms</p>
+                    <h4 className="font-bold text-xs text-white">{stats.model_ready ? 'Threat Shield Online' : 'Model Initializing'}</h4>
+                    <p className="text-[10px] text-slate-450">Accuracy: {stats.model_accuracy ?? 94.2}% · Health: {stats.system_health ?? 'nominal'}</p>
                   </div>
                 </div>
                 <div className="space-y-2 text-xs font-medium text-slate-400 border-t border-slate-850 pt-3">

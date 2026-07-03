@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from ..database import get_db
-from ..routes.auth_routes import get_current_user, log_audit
+from ..routes.auth_routes import get_current_user, log_audit, require_operator
 from ..routes.upload_routes import upload_image, upload_video, get_detection_svc
 from .. import schemas, models
 
@@ -21,7 +21,7 @@ class CctvTestRequest(BaseModel):
     stream_url: str
 
 
-@router.post("/image", response_model=schemas.ImageUploadResponse)
+@router.post("/image", response_model=schemas.ImageUploadResponse, dependencies=[Depends(require_operator)])
 async def detect_image(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -33,7 +33,7 @@ async def detect_image(
     return res
 
 
-@router.post("/video", response_model=schemas.VideoUploadResponse)
+@router.post("/video", response_model=schemas.VideoUploadResponse, dependencies=[Depends(require_operator)])
 async def detect_video(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -59,7 +59,7 @@ def get_live_webcam_details(current_user: models.User = Depends(get_current_user
     }
 
 
-@router.post("/cctv")
+@router.post("/cctv", dependencies=[Depends(require_operator)])
 def test_cctv_connection(
     body: CctvTestRequest,
     db: Session = Depends(get_db),

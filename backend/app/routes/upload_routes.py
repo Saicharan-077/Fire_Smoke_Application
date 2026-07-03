@@ -10,7 +10,7 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..routes.auth_routes import get_current_user
+from ..routes.auth_routes import get_current_user, require_operator
 from ..ai.inference_service import DetectionService
 from ..services.storage_service import save_evidence
 from ..services.alert_service import create_alert, create_event
@@ -91,7 +91,7 @@ MAX_VIDEO_SIZE = 200 * 1024 * 1024
 
 
 # ── Image upload ──────────────────────────────────────────────────────────────
-@router.post("/image", response_model=schemas.ImageUploadResponse)
+@router.post("/image", response_model=schemas.ImageUploadResponse, dependencies=[Depends(require_operator)])
 async def upload_image(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -180,7 +180,7 @@ async def upload_image(
 
 
 # ── Video upload ──────────────────────────────────────────────────────────────
-@router.post("/video", response_model=schemas.VideoUploadResponse)
+@router.post("/video", response_model=schemas.VideoUploadResponse, dependencies=[Depends(require_operator)])
 async def upload_video(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),

@@ -11,15 +11,16 @@ def gen_uuid():
 
 class Camera(Base):
     __tablename__ = "cameras"
-    id           = Column(String, primary_key=True, default=gen_uuid)
-    name         = Column(String, nullable=False)
-    location     = Column(String, nullable=True)
-    zone         = Column(String, nullable=True)
-    status       = Column(String, default="online")        # online | offline | maintenance
-    stream_url   = Column(String, nullable=True)
-    description  = Column(Text, nullable=True)
-    last_seen    = Column(DateTime, default=datetime.utcnow)
-    created_at   = Column(DateTime, default=datetime.utcnow)
+    id                    = Column(String, primary_key=True, default=gen_uuid)
+    name                  = Column(String, nullable=False)
+    location              = Column(String, nullable=True)
+    zone                  = Column(String, nullable=True)
+    status                = Column(String, default="online")        # online | offline | maintenance
+    stream_url            = Column(String, nullable=True)
+    description           = Column(Text, nullable=True)
+    assigned_operator_id  = Column(String, ForeignKey("users.id"), nullable=True)
+    last_seen             = Column(DateTime, default=datetime.utcnow)
+    created_at            = Column(DateTime, default=datetime.utcnow)
 
 
     # Relationships
@@ -88,7 +89,8 @@ class User(Base):
     username        = Column(String, unique=True, nullable=False)
     email           = Column(String, unique=True, nullable=False)
     hashed_password = Column(String, nullable=False)
-    role            = Column(String, default="admin")  # "admin" | "operator" | "viewer"
+    role            = Column(String, default="viewer")  # administrator | operator | viewer
+    is_active       = Column(String, default="true")    # "true" | "false" (string for SQLite compat)
     last_login          = Column(DateTime, nullable=True)
     session_token       = Column(String, nullable=True)
     session_expires_at  = Column(DateTime, nullable=True)

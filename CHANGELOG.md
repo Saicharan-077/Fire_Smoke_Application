@@ -1,25 +1,52 @@
-# Changelog — FireGuard AI
+# Changelog
 
-All notable changes to the FireGuard AI project are documented in this file.
+All notable changes to FireGuard AI.
 
 ---
 
-## [1.1.0] — 2026-06-29
+## [2.0.0] — 2026-07-03
 
 ### Added
-- **Unified Ingest Detection Tab Grid**: Combined Image, Video, Webcam, and RTSP stream ingest controls into a single tabbed [Detection.tsx](file:///c:/Users/Sai%20Charan/OneDrive/Desktop/Fire_Smoke_Application/frontend/src/pages/Detection.tsx) page.
-- **Unified Alerts & Reports Dashboard**: Consolidated Alert Queue, Incident Center, and Incident Reports into a tabbed [AlertsReports.tsx](file:///c:/Users/Sai%20Charan/OneDrive/Desktop/Fire_Smoke_Application/frontend/src/pages/AlertsReports.tsx) page with PDF/CSV export triggers.
-- **Unified Analytics & History**: Consolidated History log table, date range filters, and Recharts trends/distribution charts into [AnalyticsMerged.tsx](file:///c:/Users/Sai%20Charan/OneDrive/Desktop/Fire_Smoke_Application/frontend/src/pages/AnalyticsMerged.tsx).
-- **Consolidated Settings**: Consolidated General, AI model, notification, and Camera CRUD settings into [SettingsMerged.tsx](file:///c:/Users/Sai%20Charan/OneDrive/Desktop/Fire_Smoke_Application/frontend/src/pages/SettingsMerged.tsx).
-- **Consolidated Profile**: Combined profile edit, password update, and user audit logs list into [ProfileMerged.tsx](file:///c:/Users/Sai%20Charan/OneDrive/Desktop/Fire_Smoke_Application/frontend/src/pages/ProfileMerged.tsx).
-- **Strict YOLOv8 Model Class Validation**: Implemented verification inside `DetectionService` to confirm `model.names` contains `fire` and/or `smoke`, and strictly rejects COCO or unrelated classes.
-- **DevOps Assets**: Added `PROJECT_STRUCTURE.md`, `API_DOCUMENTATION.md`, and `DEPLOYMENT.md`.
+- **Admin Panel** — Full admin control center with user management, audit logs, system logs, active sessions, and system health
+- **RBAC enforcement** — Role-based access on backend routes and frontend navigation
+- **User management API** — Create, update, delete, activate, deactivate, reset password
+- **Session management** — View and revoke active user sessions
+- **Frontend route guards** — `RequireRole` component protects all routes by permission
+- **Role-based navigation** — Sidebar shows only accessible pages per role
+- **Responsive layout** — Mobile sidebar drawer, improved spacing for all screen sizes
+- **Real dashboard metrics** — Camera online/total, model accuracy, system health from API (removed hardcoded values)
+- **User `is_active` field** — Account activation/deactivation support
+- **Camera operator assignment** — `assigned_operator_id` field on cameras
+- **Automatic schema migration** — New DB columns added on startup for existing databases
+- **Complete documentation** — SETUP.md, DEMO.md, MODULES.md, API.md, ARCHITECTURE.md, TROUBLESHOOTING.md
+
+### Changed
+- Dashboard KPIs now pull live data (model accuracy, camera counts, system health)
+- Settings PATCH restricted to administrators (was already backend-enforced, now documented)
+- Upload/detection endpoints require operator or administrator role
+- Camera/incident/alert mutations require operator or administrator role
+- Premium UI refresh for Layout, loading states, and design tokens
+- Login blocks deactivated accounts
 
 ### Fixed
-- **Live Monitoring Ingest**: Fixed loading issues on the live monitoring page (now [LiveMonitoring.tsx](file:///c:/Users/Sai%20Charan/OneDrive/Desktop/Fire_Smoke_Application/frontend/src/pages/LiveMonitoring.tsx)), linking camera device lists and live webcam feeds.
-- **APP_CONFIG Import Mismatches**: Fixed imports across multiple pages to point to `src/config/appConfig.ts`.
-- **False Positive Detections**: Increased confidence thresholds (Fire to 0.35, Smoke to 0.40) and restricted bounding box drawings to only `fire` and `smoke` classes.
+- Camera count showing X/X instead of online/total
+- Hardcoded 99.4% accuracy replaced with computed value
+- Register page role selector no longer misleading (backend always creates viewer)
+- TypeScript build errors in permission hooks
 
-### Removed
-- Removed 9 duplicate/consolidated pages: `ImageDetection.tsx`, `VideoDetection.tsx`, `VideoAnalysis.tsx`, `LiveFeed.tsx`, `Alerts.tsx`, `IncidentCenter.tsx`, `IncidentReports.tsx`, `History.tsx`, `DetectionHistory.tsx`.
-- Reduced sidebar navigation items to exactly **7 items**: Dashboard, Detection, Live Monitoring, Alerts & Reports, Analytics, Settings, and Profile.
+---
+
+## [1.0.0] — Initial Release
+
+### Added
+- YOLOv8 fire/smoke detection (image + video upload)
+- Security Operations Center dashboard
+- Live Monitoring with webcam and RTSP support
+- Alerts & Reports with incident management
+- Analytics with charts and CSV/PDF export
+- Settings with camera CRUD and AI thresholds
+- Profile management with audit logs
+- WebSocket real-time alert notifications
+- Session-based authentication
+- Docker deployment support
+- Demo seed data (users, cameras, alerts)

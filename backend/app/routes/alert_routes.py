@@ -11,7 +11,7 @@ from typing import Optional, List
 from datetime import datetime
 
 from ..database import get_db
-from ..routes.auth_routes import get_current_user
+from ..routes.auth_routes import get_current_user, require_operator
 from .. import models, schemas
 from ..services.alert_service import update_alert_status
 
@@ -64,7 +64,7 @@ def list_alerts(
     )
 
 
-@router.patch("/{alert_id}/status", response_model=schemas.AlertOut)
+@router.patch("/{alert_id}/status", response_model=schemas.AlertOut, dependencies=[Depends(require_operator)])
 def patch_status(
     alert_id: str,
     body: schemas.AlertStatusUpdate,
@@ -98,7 +98,7 @@ def alert_events(alert_id: str, db: Session = Depends(get_db)):
     )
 
 
-@router.delete("/{alert_id}")
+@router.delete("/{alert_id}", dependencies=[Depends(require_operator)])
 def delete_alert(alert_id: str, db: Session = Depends(get_db)):
     alert = db.query(models.Alert).filter(models.Alert.id == alert_id).first()
     if not alert:

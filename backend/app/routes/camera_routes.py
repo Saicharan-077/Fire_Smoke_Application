@@ -8,7 +8,7 @@ from sqlalchemy import func
 from typing import List
 
 from ..database import get_db
-from ..routes.auth_routes import get_current_user
+from ..routes.auth_routes import get_current_user, require_operator
 from .. import models, schemas
 
 router = APIRouter(prefix="/api/v1/cameras", tags=["cameras"], dependencies=[Depends(get_current_user)])
@@ -22,7 +22,7 @@ def list_cameras(db: Session = Depends(get_db)):
     return db.query(models.Camera).order_by(models.Camera.name).all()
 
 
-@router.post("", response_model=schemas.CameraOut, status_code=201)
+@router.post("", response_model=schemas.CameraOut, status_code=201, dependencies=[Depends(require_operator)])
 def create_camera(body: schemas.CameraCreate, db: Session = Depends(get_db)):
     """Register a new camera."""
     cam = models.Camera(
@@ -90,7 +90,7 @@ def _get_camera_or_404(camera_id: str, db: Session) -> models.Camera:
     return cam
 
 
-@router.patch("/{camera_id}", response_model=schemas.CameraOut)
+@router.patch("/{camera_id}", response_model=schemas.CameraOut, dependencies=[Depends(require_operator)])
 def patch_camera(
     camera_id: str,
     body: schemas.CameraUpdate,
@@ -114,7 +114,7 @@ def patch_camera(
     return cam
 
 
-@router.patch("/{camera_id}/status", response_model=schemas.CameraOut)
+@router.patch("/{camera_id}/status", response_model=schemas.CameraOut, dependencies=[Depends(require_operator)])
 def patch_camera_status(
     camera_id: str,
     body: schemas.CameraStatusUpdate,
@@ -133,7 +133,7 @@ def patch_camera_status(
     return cam
 
 
-@router.patch("/{camera_id}/zone", response_model=schemas.CameraOut)
+@router.patch("/{camera_id}/zone", response_model=schemas.CameraOut, dependencies=[Depends(require_operator)])
 def patch_camera_zone(
     camera_id: str,
     body: schemas.CameraZoneUpdate,
@@ -148,7 +148,7 @@ def patch_camera_zone(
     return cam
 
 
-@router.delete("/{camera_id}")
+@router.delete("/{camera_id}", dependencies=[Depends(require_operator)])
 def delete_camera(camera_id: str, db: Session = Depends(get_db)):
     cam = db.query(models.Camera).filter(models.Camera.id == camera_id).first()
     if not cam:

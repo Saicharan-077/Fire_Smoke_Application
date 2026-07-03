@@ -18,7 +18,8 @@ from .middleware.security import SecurityHeadersMiddleware
 from .middleware.rate_limit import RateLimitMiddleware
 from .routes import (
     auth_routes, upload_routes, alert_routes, dashboard_routes, camera_routes,
-    history_routes, incident_routes, settings_routes, profile_routes, detect_routes
+    history_routes, incident_routes, settings_routes, profile_routes, detect_routes,
+    admin_routes,
 )
 from .routes.auth_routes import get_user_by_websocket_token, get_current_user, get_user_by_token
 from .services.analytics_service import (
@@ -39,6 +40,29 @@ logger = logging.getLogger("fireguard.main")
 # Create DB tables
 Base.metadata.create_all(bind=engine)
 logger.info("[DB] Tables created / verified")
+
+
+def run_schema_migrations():
+    """Add new columns to existing SQLite databases without Alembic."""
+    from sqlalchemy import inspect, text
+    inspector = inspect(engine)
+    if "users" in inspector.get_table_names():
+        user_cols = {c["name"] for c in inspector.get_columns("users")}
+        if "is_active" not in user_cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE users ADD COLUMN is_active VARCHAR DEFAULT 'true'"))
+                conn.commit()
+            logger.info("[DB] Added is_active column to users")
+    if "cameras" in inspector.get_table_names():
+        cam_cols = {c["name"] for c in inspector.get_columns("cameras")}
+        if "assigned_operator_id" not in cam_cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE cameras ADD COLUMN assigned_operator_id VARCHAR"))
+                conn.commit()
+            logger.info("[DB] Added assigned_operator_id column to cameras")
+
+
+run_schema_migrations()
 
 _detection_svc_instance: DetectionService | None = None
 
@@ -290,6 +314,7 @@ app.include_router(incident_routes.router)
 app.include_router(settings_routes.router)
 app.include_router(profile_routes.router)
 app.include_router(detect_routes.router)
+app.include_router(admin_routes.router)
 
 
 # ── Dynamic router aliasing for spec compatibility ───────────────────────────
@@ -303,6 +328,7 @@ def register_aliases():
         (settings_routes.router, "/api/v1/settings", "/settings"),
         (profile_routes.router, "/api/v1/profile", "/profile"),
         (camera_routes.router, "/api/v1/cameras", "/cameras"),
+        (admin_routes.router, "/api/v1/admin", "/admin"),
     ]
     for router_obj, old_prefix, new_prefix in routers_to_alias:
         for route in router_obj.routes:
