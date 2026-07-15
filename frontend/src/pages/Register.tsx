@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Flame, User, Mail, Lock, ShieldCheck, ArrowRight, RefreshCw } from 'lucide-react';
+import { Flame, ArrowRight, RefreshCw } from 'lucide-react';
 import { registerApi } from '../services/api';
 import { useToast } from '../components/ui/Toast';
 import { motion } from 'framer-motion';
@@ -54,122 +54,105 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#06060a] flex items-center justify-center p-6 relative overflow-hidden text-gray-200 select-none">
-      {/* Background blobs */}
-      <div className="absolute top-1/4 left-1/3 w-96 h-96 bg-red-600/10 rounded-full blur-[100px] pointer-events-none"></div>
-      <div className="absolute bottom-1/4 right-1/3 w-96 h-96 bg-orange-600/5 rounded-full blur-[120px] pointer-events-none"></div>
-
+    <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center p-6 text-[var(--text)] font-sans select-none">
       <motion.div 
-        initial={{ y: 20, opacity: 0 }}
+        initial={{ y: 10, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="w-full max-w-md p-8 rounded-3xl bg-[#0d0d14]/80 border border-white/5 shadow-2xl backdrop-blur-md relative z-10"
+        className="w-full max-w-sm p-8 rounded-lg border border-[var(--border)] bg-[var(--surface)] shadow-sm"
       >
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 text-red-500 font-bold text-2xl tracking-tight mb-2">
-            <Flame className="w-8 h-8 fill-current" />
-            <span>FireGuard<span className="text-white font-black ml-1">AI</span></span>
+          <div 
+            onClick={() => navigate('/')}
+            className="inline-flex items-center gap-1.5 text-red-500 font-bold text-lg cursor-pointer hover:scale-[1.02] transition-transform"
+          >
+            <Flame size={18} className="fill-current" />
+            <span className="text-sm font-bold text-[var(--text)]">FireGuard AI</span>
           </div>
-          <p className="text-gray-400 text-sm">Register new security operations operator account</p>
+          <p className="text-[10px] text-[var(--muted)] font-bold uppercase tracking-wider mt-1">Create operator credentials</p>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl text-xs font-semibold">
+          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-md text-xs font-semibold">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Username</label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500"><User size={16} /></span>
+          <div className="space-y-1">
+            <label className="block text-[10px] font-bold text-[var(--text-2)] uppercase tracking-wider">Username</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full input"
+              placeholder="e.g. operator_johndoe"
+              required
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-[10px] font-bold text-[var(--text-2)] uppercase tracking-wider">Email Address</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full input"
+              placeholder="operator@fireguard.ai"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="block text-[10px] font-bold text-[var(--text-2)] uppercase tracking-wider">Password</label>
               <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/5 border border-white/5 focus:border-red-500/30 focus:ring-1 focus:ring-red-500/30 text-white outline-none transition-all text-sm font-semibold"
-                placeholder="operator_johndoe"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full input"
+                placeholder="••••••••"
+                required
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-[10px] font-bold text-[var(--text-2)] uppercase tracking-wider">Confirm</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full input"
+                placeholder="••••••••"
                 required
               />
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Email Address</label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500"><Mail size={16} /></span>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/5 border border-white/5 focus:border-red-500/30 focus:ring-1 focus:ring-red-500/30 text-white outline-none transition-all text-sm font-semibold"
-                placeholder="operator@fireguard.ai"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Password</label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500"><Lock size={16} /></span>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/5 border border-white/5 focus:border-red-500/30 focus:ring-1 focus:ring-red-500/30 text-white outline-none transition-all text-sm font-semibold"
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Confirm</label>
-              <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500"><Lock size={16} /></span>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/5 border border-white/5 focus:border-red-500/30 focus:ring-1 focus:ring-red-500/30 text-white outline-none transition-all text-sm font-semibold"
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">System Access Role</label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500"><ShieldCheck size={16} /></span>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#141420] border border-white/5 focus:border-red-500/30 text-white outline-none transition-all text-sm font-semibold appearance-none"
-              >
-                <option value="operator">Operator (Standard)</option>
-                <option value="viewer">Viewer (Read-Only)</option>
-                <option value="administrator">Administrator (Full Control)</option>
-              </select>
-            </div>
+          <div className="space-y-1">
+            <label className="block text-[10px] font-bold text-[var(--text-2)] uppercase tracking-wider">Access clearance role</label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="w-full input cursor-pointer"
+            >
+              <option value="operator">Operator (Standard)</option>
+              <option value="viewer">Viewer (Read-Only)</option>
+              <option value="administrator">Administrator (Full Control)</option>
+            </select>
           </div>
 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full mt-6 py-3.5 rounded-xl bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400 font-bold text-white text-sm transition-all shadow-[0_0_15px_rgba(239,68,68,0.2)] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-2 btn-primary text-xs uppercase tracking-wider font-bold mt-4 flex items-center justify-center gap-1.5 cursor-pointer"
           >
-            {isLoading ? <RefreshCw className="animate-spin" size={16} /> : 'Complete Registration'}
-            {!isLoading && <ArrowRight size={16} />}
+            {isLoading ? <RefreshCw className="animate-spin" size={13} /> : 'Complete Registration'}
+            {!isLoading && <ArrowRight size={13} />}
           </button>
         </form>
 
-        <div className="text-center mt-6 text-xs font-semibold text-gray-500">
+        <div className="text-center mt-6 text-xs text-[var(--muted)] font-medium">
           Already registered?{' '}
-          <Link to="/login" className="text-red-500 hover:text-red-400 transition-colors">
+          <Link to="/login" className="text-blue-500 hover:underline ml-1 font-bold">
             Sign In here
           </Link>
         </div>

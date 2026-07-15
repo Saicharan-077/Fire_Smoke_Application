@@ -87,17 +87,6 @@ export function NotificationsHub({ onConnectionChange }: NotificationsHubProps) 
       import('../../store/dashboardStore').then((mod) => {
         mod.useDashboardStore.getState().addRecentAlert(alert);
       }).catch(() => {});
-
-      import('../../store/liveMonitoringStore').then((mod) => {
-        mod.useLiveMonitoringStore.getState().upsertLiveAlert(alert);
-      }).catch(() => {});
-
-      import('../../store/incidentStore').then((mod) => {
-        const current = mod.useIncidentStore.getState().incidents;
-        if (!current.some((x) => x.id === alert.id)) {
-          mod.useIncidentStore.getState().setIncidents([alert, ...current]);
-        }
-      }).catch(() => {});
     };
 
     const start = () => {

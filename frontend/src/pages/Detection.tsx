@@ -1,22 +1,37 @@
 import { useState, useRef, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/Common/Card';
-import { Button } from '../components/Common/Button';
-import { Badge } from '../components/Common/Badge';
+import { motion } from 'framer-motion';
 import { useToast } from '../components/ui/Toast';
 import { uploadImage, uploadVideo, testCctvConnection, evidenceUrl } from '../services/api';
-import { 
-  UploadCloud, FileVideo, Camera, MonitorPlay, 
-  Play, Pause, RefreshCw, Download, ShieldAlert, 
-  Volume2, VolumeX, Image as ImageIcon, Film
+import {
+  UploadCloud, FileVideo, Camera, MonitorPlay,
+  Play, Pause, RefreshCw, Download,
+  Volume2, VolumeX, Image as ImageIcon, Film, AlertTriangle,
+  CheckCircle, ShieldOff, Wifi
 } from 'lucide-react';
+
+const fadeUp = {
+  hidden: { y: 8, opacity: 0 },
+  show: { y: 0, opacity: 1, transition: { duration: 0.18 } }
+};
+
+const getConfidenceTier = (c: number) => {
+  if (c >= 0.80) return { label: 'High Confidence', risk: 'CRITICAL', color: 'text-[#e5484d]', bg: 'bg-[#fff1f1] border-[#fecdce]' };
+  if (c >= 0.60) return { label: 'Medium Confidence', risk: 'HIGH', color: 'text-[#e79020]', bg: 'bg-[#fef9ec] border-[#fde68a]' };
+  return { label: 'Low Confidence', risk: 'REVIEW', color: 'text-[#d4a012]', bg: 'bg-[#fefce8] border-[#fde68a]' };
+};
+
+const TABS = [
+  { id: 'image',  label: 'Image',   icon: ImageIcon },
+  { id: 'video',  label: 'Video',   icon: Film },
+  { id: 'webcam', label: 'Webcam',  icon: Camera },
+  { id: 'rtsp',   label: 'RTSP',    icon: MonitorPlay },
+];
 
 const Detection = () => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'image' | 'video' | 'webcam' | 'rtsp'>('image');
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // 1. Image Detection Tab State
-  // ────────────────────────────────────────────────────────────────────────────
+  // ── Image ──
   const imgInputRef = useRef<HTMLInputElement>(null);
   const [imgFile, setImgFile] = useState<File | null>(null);
   const [imgPreview, setImgPreview] = useState<string | null>(null);
@@ -24,693 +39,604 @@ const Detection = () => {
   const [imgLoading, setImgLoading] = useState(false);
   const [imgLatency, setImgLatency] = useState<number | null>(null);
 
-  const handleImgChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
+  const handleImgDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file?.type.startsWith('image/')) {
       setImgFile(file);
       setImgPreview(URL.createObjectURL(file));
       setImgResult(null);
-      setImgLatency(null);
     }
   };
 
   const runImageInference = async () => {
     if (!imgFile) return;
     setImgLoading(true);
-    const start = performance.now();
+    const t0 = performance.now();
     try {
       const res = await uploadImage(imgFile);
       setImgResult(res);
-      setImgLatency(Math.round(performance.now() - start));
-      if (res.detections && res.detections.length > 0) {
-        toast(`Threat detected: ${res.detections.map(d => d.detection_type.toUpperCase()).join(', ')}`, 'error');
+      setImgLatency(Math.round(performance.now() - t0));
+      if (res.detections?.length > 0) {
+        toast(`Detected: ${res.detections.map((d: any) => d.detection_type).join(', ')}`, 'error');
       } else {
-        toast('No Fire or Smoke Detected.', 'success');
+        toast('No fire or smoke detected', 'success');
       }
-    } catch (err: any) {
-      toast(err.message || 'Image analysis failed.', 'error');
+    } catch (e: any) {
+      toast(e.message || 'Analysis failed', 'error');
     } finally {
       setImgLoading(false);
     }
   };
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // 2. Video Detection Tab State
-  // ────────────────────────────────────────────────────────────────────────────
+  // ── Video ──
   const vidInputRef = useRef<HTMLInputElement>(null);
   const [vidFile, setVidFile] = useState<File | null>(null);
   const [vidResult, setVidResult] = useState<any>(null);
   const [vidLoading, setVidLoading] = useState(false);
   const [vidLatency, setVidLatency] = useState<number | null>(null);
   const [vidProgress, setVidProgress] = useState(0);
-  const [vidFps, setVidFps] = useState(0);
-  const [vidProcessedFrames, setVidProcessedFrames] = useState(0);
-
-  const handleVidChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setVidFile(file);
-      setVidResult(null);
-      setVidLatency(null);
-      setVidProgress(0);
-      setVidFps(0);
-      setVidProcessedFrames(0);
-    }
-  };
+  const [vidFps] = useState(28);
+  const [vidFrames, setVidFrames] = useState(0);
 
   const runVideoInference = async () => {
     if (!vidFile) return;
     setVidLoading(true);
     setVidProgress(5);
-    setVidFps(28);
-    const start = performance.now();
-    
-    // Simulate frame-by-frame processing progress
-    const interval = setInterval(() => {
-      setVidProgress((p) => {
-        if (p < 95) {
-          const next = p + Math.floor(Math.random() * 12) + 5;
-          setVidProcessedFrames(Math.round((next / 100) * 450)); // assume 450 frames total
-          return Math.min(next, 95);
+    const t0 = performance.now();
+    const iv = setInterval(() => {
+      setVidProgress(p => {
+        if (p < 92) {
+          const n = Math.min(p + Math.floor(Math.random() * 10) + 4, 92);
+          setVidFrames(Math.round((n / 100) * 450));
+          return n;
         }
         return p;
       });
-    }, 400);
-
+    }, 380);
     try {
       const res = await uploadVideo(vidFile);
-      clearInterval(interval);
+      clearInterval(iv);
       setVidProgress(100);
-      setVidProcessedFrames(450);
+      setVidFrames(450);
       setVidResult(res);
-      setVidLatency(Math.round(performance.now() - start));
-      toast('Video threat processing completed.', 'success');
-    } catch (err: any) {
-      clearInterval(interval);
-      toast(err.message || 'Video analysis failed.', 'error');
+      setVidLatency(Math.round(performance.now() - t0));
+      toast('Video analysis complete', 'success');
+    } catch (e: any) {
+      clearInterval(iv);
+      toast(e.message || 'Video analysis failed', 'error');
     } finally {
       setVidLoading(false);
     }
   };
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // 3. Webcam Tab State
-  // ────────────────────────────────────────────────────────────────────────────
-  const webcamVideoRef = useRef<HTMLVideoElement>(null);
-  const webcamCanvasRef = useRef<HTMLCanvasElement>(null);
-  const [webcamStream, setWebcamStream] = useState<MediaStream | null>(null);
-  const [webcamState, setWebcamState] = useState<'stopped' | 'running' | 'paused'>('stopped');
-  const [webcamThreat, setWebcamThreat] = useState<'fire' | 'smoke' | null>(null);
-  const [webcamFps, setWebcamFps] = useState(0);
-  const [webcamMuted, setWebcamMuted] = useState(true);
-  
-  const audioContextRef = useRef<AudioContext | null>(null);
+  // ── Webcam ──
+  const webVideoRef = useRef<HTMLVideoElement>(null);
+  const webCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [webStream, setWebStream] = useState<MediaStream | null>(null);
+  const [webState, setWebState] = useState<'stopped' | 'running' | 'paused'>('stopped');
+  const [webThreat, setWebThreat] = useState<'fire' | 'smoke' | null>(null);
+  const [webFps, setWebFps] = useState(0);
+  const [muted, setMuted] = useState(true);
   const oscRef = useRef<OscillatorNode | null>(null);
-  const gainRef = useRef<GainNode | null>(null);
+  const audioCtx = useRef<AudioContext | null>(null);
 
-  const startWebcamSiren = () => {
-    if (webcamMuted) return;
+  const siren = (on: boolean) => {
+    if (muted) return;
     try {
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (on) {
+        if (!audioCtx.current) audioCtx.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        if (oscRef.current) return;
+        const osc = audioCtx.current.createOscillator();
+        const g = audioCtx.current.createGain();
+        osc.type = 'sawtooth'; g.gain.value = 0.06;
+        osc.connect(g); g.connect(audioCtx.current.destination);
+        osc.start(); oscRef.current = osc;
+        let up = true;
+        const iv = setInterval(() => {
+          if (!oscRef.current) { clearInterval(iv); return; }
+          osc.frequency.setValueAtTime(up ? 880 : 440, audioCtx.current!.currentTime);
+          osc.frequency.linearRampToValueAtTime(up ? 440 : 880, audioCtx.current!.currentTime + 0.5);
+          up = !up;
+        }, 500);
+      } else {
+        oscRef.current?.stop(); oscRef.current?.disconnect(); oscRef.current = null;
       }
-      const ctx = audioContextRef.current;
-      if (ctx.state === 'suspended') void ctx.resume();
-
-      if (!oscRef.current) {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(850, ctx.currentTime);
-        osc.frequency.linearRampToValueAtTime(450, ctx.currentTime + 0.45);
-        gain.gain.setValueAtTime(0.08, ctx.currentTime);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-
-        let toggle = true;
-        const sirenInterval = setInterval(() => {
-          if (!oscRef.current) {
-            clearInterval(sirenInterval);
-            return;
-          }
-          osc.frequency.setValueAtTime(toggle ? 850 : 450, ctx.currentTime);
-          osc.frequency.linearRampToValueAtTime(toggle ? 450 : 850, ctx.currentTime + 0.45);
-          toggle = !toggle;
-        }, 450);
-
-        oscRef.current = osc;
-        gainRef.current = gain;
-      }
-    } catch (e) {}
-  };
-
-  const stopWebcamSiren = () => {
-    try {
-      if (oscRef.current) {
-        oscRef.current.stop();
-        oscRef.current.disconnect();
-        oscRef.current = null;
-      }
-      if (gainRef.current) {
-        gainRef.current.disconnect();
-        gainRef.current = null;
-      }
-    } catch (e) {}
+    } catch { /**/ }
   };
 
   const startWebcam = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
-      setWebcamStream(stream);
-      if (webcamVideoRef.current) {
-        webcamVideoRef.current.srcObject = stream;
-      }
-      setWebcamState('running');
-      toast('Webcam feed connection initialized.', 'success');
-    } catch (err: any) {
-      toast('Could not access camera: ' + err.message, 'error');
-    }
-  };
-
-  const pauseWebcam = () => {
-    if (webcamVideoRef.current) {
-      webcamVideoRef.current.pause();
-    }
-    setWebcamState('paused');
-    stopWebcamSiren();
-    toast('Webcam feed paused.', 'info');
-  };
-
-  const resumeWebcam = () => {
-    if (webcamVideoRef.current) {
-      void webcamVideoRef.current.play();
-    }
-    setWebcamState('running');
-    if (webcamThreat) startWebcamSiren();
-    toast('Webcam feed resumed.', 'success');
+      const s = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+      setWebStream(s);
+      if (webVideoRef.current) webVideoRef.current.srcObject = s;
+      setWebState('running');
+      toast('Webcam started', 'success');
+    } catch (e: any) { toast('Camera denied: ' + e.message, 'error'); }
   };
 
   const stopWebcam = () => {
-    if (webcamStream) {
-      webcamStream.getTracks().forEach(track => track.stop());
-      setWebcamStream(null);
-    }
-    setWebcamState('stopped');
-    setWebcamThreat(null);
-    stopWebcamSiren();
-    toast('Webcam feed stopped.', 'info');
+    webStream?.getTracks().forEach(t => t.stop());
+    setWebStream(null);
+    setWebState('stopped');
+    setWebThreat(null);
+    siren(false);
   };
 
   useEffect(() => {
-    let animId: number;
-    let lastTime = performance.now();
-    let frames = 0;
-    let tick = 0;
-
+    let raf: number;
+    let last = performance.now();
+    let f = 0, tick = 0;
     const loop = () => {
-      if (webcamState !== 'running' || !webcamVideoRef.current || !webcamCanvasRef.current) return;
-      const video = webcamVideoRef.current;
-      const canvas = webcamCanvasRef.current;
-      const ctx = canvas.getContext('2d');
-
-      if (ctx && video.readyState === video.HAVE_ENOUGH_DATA) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        // Simulation cycle for threat
+      if (webState !== 'running' || !webVideoRef.current || !webCanvasRef.current) return;
+      const v = webVideoRef.current, c = webCanvasRef.current;
+      const ctx = c.getContext('2d');
+      if (ctx && v.readyState === v.HAVE_ENOUGH_DATA) {
+        ctx.drawImage(v, 0, 0, c.width, c.height);
         tick++;
-        let threat: 'fire' | 'smoke' | null = null;
         const cycle = tick % 600;
-        if (cycle > 120 && cycle < 280) {
-          threat = 'fire';
-        } else if (cycle > 340 && cycle < 500) {
-          threat = 'smoke';
+        let threat: 'fire' | 'smoke' | null = null;
+        if (cycle > 120 && cycle < 280) threat = 'fire';
+        else if (cycle > 340 && cycle < 500) threat = 'smoke';
+        if (threat !== webThreat) {
+          setWebThreat(threat);
+          siren(!!threat);
+          if (threat) toast(`${threat.toUpperCase()} detected!`, 'error');
         }
-
-        if (threat !== webcamThreat) {
-          setWebcamThreat(threat);
-          if (threat) {
-            startWebcamSiren();
-            toast(`Threat Detected: ${threat.toUpperCase()} in Webcam view!`, 'error');
-          } else {
-            stopWebcamSiren();
-          }
-        }
-
         if (threat) {
-          const color = threat === 'fire' ? '#ef4444' : '#f97316';
-          ctx.strokeStyle = color;
-          ctx.lineWidth = 3;
-          ctx.strokeRect(180, 120, 280, 240);
-          ctx.fillStyle = color;
-          ctx.fillRect(180, 92, 120, 28);
-          ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 14px sans-serif';
-          ctx.fillText(`${threat.toUpperCase()} ${(threat === 'fire' ? 96 : 89)}%`, 190, 111);
+          const col = threat === 'fire' ? '#e5484d' : '#e79020';
+          ctx.strokeStyle = col; ctx.lineWidth = 2.5;
+          ctx.strokeRect(180, 120, 280, 220);
+          ctx.fillStyle = col; ctx.fillRect(180, 95, 100, 25);
+          ctx.fillStyle = '#fff'; ctx.font = 'bold 11px sans-serif';
+          ctx.fillText(`${threat.toUpperCase()} ${threat === 'fire' ? 96 : 89}%`, 187, 111);
         }
-
-        frames++;
+        f++;
         const now = performance.now();
-        if (now - lastTime >= 1000) {
-          setWebcamFps(frames);
-          frames = 0;
-          lastTime = now;
-        }
+        if (now - last >= 1000) { setWebFps(f); f = 0; last = now; }
       }
-      animId = requestAnimationFrame(loop);
+      raf = requestAnimationFrame(loop);
     };
+    if (webState === 'running') raf = requestAnimationFrame(loop);
+    else siren(false);
+    return () => { cancelAnimationFrame(raf); };
+  }, [webState, webThreat, muted]);
 
-    if (webcamState === 'running') {
-      animId = requestAnimationFrame(loop);
-    } else {
-      stopWebcamSiren();
-    }
+  useEffect(() => () => stopWebcam(), []);
 
-    return () => {
-      cancelAnimationFrame(animId);
-      stopWebcamSiren();
-    };
-  }, [webcamState, webcamThreat, webcamMuted]);
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // 4. RTSP CCTV Tab State
-  // ────────────────────────────────────────────────────────────────────────────
+  // ── RTSP ──
   const [rtspUrl, setRtspUrl] = useState('rtsp://192.168.1.100:554/live');
-  const [rtspConnected, setRtspConnected] = useState(false);
+  const [rtspConn, setRtspConn] = useState(false);
   const [rtspLoading, setRtspLoading] = useState(false);
-  const [rtspFps, setRtspFps] = useState(0);
   const [rtspLatency, setRtspLatency] = useState<number | null>(null);
 
   const connectRtsp = async () => {
     setRtspLoading(true);
-    const start = performance.now();
+    const t0 = performance.now();
     try {
       const res = await testCctvConnection(rtspUrl);
-      setRtspConnected(true);
-      setRtspLatency(Math.round(performance.now() - start));
-      setRtspFps(24);
-      toast(res.message || 'CCTV connected successfully', 'success');
-    } catch (err: any) {
-      toast(err.message || 'CCTV connection failed', 'error');
-    } finally {
-      setRtspLoading(false);
-    }
+      setRtspConn(true);
+      setRtspLatency(Math.round(performance.now() - t0));
+      toast(res.message || 'Connected', 'success');
+    } catch (e: any) {
+      toast(e.message || 'Connection failed', 'error');
+    } finally { setRtspLoading(false); }
   };
-
-  const disconnectRtsp = () => {
-    setRtspConnected(false);
-    setRtspFps(0);
-    setRtspLatency(null);
-    toast('CCTV stream disconnected', 'info');
-  };
-
-  const reconnectRtsp = () => {
-    disconnectRtsp();
-    void connectRtsp();
-  };
-
-  useEffect(() => {
-    return () => {
-      stopWebcam();
-    };
-  }, []);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto p-4 select-none">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">AI Threat Detection</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Perform live computer vision diagnostics across multiple ingest streams.
-        </p>
-      </div>
+    <motion.div className="space-y-6" initial="hidden" animate="show" variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } }}>
+
+      {/* Header */}
+      <motion.div variants={fadeUp}>
+        <h1 className="text-[22px] font-bold text-[#1a1a1a] tracking-tight">Detection</h1>
+        <p className="text-[13px] text-[#6b6b6b] mt-0.5">AI-powered fire & smoke analysis — image, video, webcam, and RTSP streams</p>
+      </motion.div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2 overflow-x-auto pb-2">
-        {[
-          { id: 'image', label: 'Image Detection', icon: <ImageIcon size={16} /> },
-          { id: 'video', label: 'Video Detection', icon: <Film size={16} /> },
-          { id: 'webcam', label: 'Webcam Detection', icon: <Camera size={16} /> },
-          { id: 'rtsp', label: 'CCTV RTSP Detection', icon: <MonitorPlay size={16} /> }
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => {
-              stopWebcam();
-              setActiveTab(tab.id as any);
-            }}
-            className={`px-5 py-2.5 rounded-xl text-sm font-semibold capitalize transition-all shrink-0 ${
-              activeTab === tab.id 
-                ? 'bg-red-500/10 text-red-500 border border-red-500/20 shadow-sm' 
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/20'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              {tab.icon}
+      <motion.div variants={fadeUp} className="flex items-center gap-1 bg-white border border-[#e5e5e2] rounded-xl p-1 w-fit">
+        {TABS.map(tab => {
+          const Icon = tab.icon;
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => { stopWebcam(); setActiveTab(tab.id as any); }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-medium transition-all ${
+                active ? 'bg-[#f0f0ed] text-[#1a1a1a] font-semibold shadow-sm' : 'text-[#6b6b6b] hover:text-[#1a1a1a]'
+              }`}
+            >
+              <Icon size={14} />
               {tab.label}
-            </div>
-          </button>
-        ))}
-      </div>
+            </button>
+          );
+        })}
+      </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="overflow-hidden border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f0f17]">
-            <CardContent className="p-6">
-              
-              {/* IMAGE TAB */}
-              {activeTab === 'image' && (
-                <div className="space-y-6">
-                  <div 
-                    onClick={() => !imgLoading && imgInputRef.current?.click()}
-                    className="border-2 border-dashed border-slate-800 rounded-2xl p-10 text-center cursor-pointer hover:border-red-500/30 transition-colors"
-                  >
-                    <input type="file" ref={imgInputRef} className="hidden" accept="image/*" onChange={handleImgChange} />
-                    {imgPreview ? (
-                      <div className="flex flex-col items-center">
-                        <img src={imgPreview} alt="Original Image" className="max-h-[350px] rounded-xl object-contain mb-4" />
-                        <p className="text-xs text-slate-450 font-bold">{imgFile?.name}</p>
+      {/* Content */}
+      <motion.div variants={fadeUp} className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+
+        {/* Main panel — 3 cols */}
+        <div className="lg:col-span-3 bg-white border border-[#e5e5e2] rounded-xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#e5e5e2] bg-[#f9f9f8]">
+            <p className="text-[13px] font-semibold text-[#1a1a1a]">
+              {activeTab === 'image' && 'Image Analysis'}
+              {activeTab === 'video' && 'Video Analysis'}
+              {activeTab === 'webcam' && 'Webcam Monitor'}
+              {activeTab === 'rtsp' && 'RTSP Stream'}
+            </p>
+          </div>
+
+          <div className="p-5 space-y-5">
+
+            {/* IMAGE */}
+            {activeTab === 'image' && (
+              <div className="space-y-5">
+                <div
+                  onClick={() => !imgLoading && imgInputRef.current?.click()}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={handleImgDrop}
+                  className={`border-2 border-dashed rounded-xl transition-all cursor-pointer ${
+                    imgPreview ? 'border-[#e5e5e2]' : 'border-[#e5e5e2] hover:border-[#0070f3] hover:bg-[#eff6ff]/30'
+                  }`}
+                >
+                  <input type="file" ref={imgInputRef} className="hidden" accept="image/*" onChange={e => {
+                    const f = e.target.files?.[0];
+                    if (f) { setImgFile(f); setImgPreview(URL.createObjectURL(f)); setImgResult(null); }
+                  }} />
+                  {imgPreview ? (
+                    <div className="p-4 flex flex-col items-center">
+                      <img src={imgPreview} alt="Preview" className="max-h-72 rounded-lg object-contain border border-[#e5e5e2]" />
+                      <p className="text-[11px] text-[#a0a0a0] font-mono mt-3">{imgFile?.name}</p>
+                    </div>
+                  ) : (
+                    <div className="py-14 flex flex-col items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-[#f0f0ed] flex items-center justify-center text-[#a0a0a0]">
+                        <UploadCloud size={18} />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[13px] font-semibold text-[#1a1a1a]">Drop image here or click to upload</p>
+                        <p className="text-[11px] text-[#a0a0a0] mt-1">PNG, JPG, WEBP supported</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {imgFile && !imgLoading && (
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => { setImgFile(null); setImgPreview(null); setImgResult(null); }} className="px-3 py-2 border border-[#e5e5e2] rounded-lg text-[12px] font-medium text-[#6b6b6b] hover:bg-[#f0f0ed] transition-colors">
+                      Clear
+                    </button>
+                    <button onClick={runImageInference} className="px-4 py-2 bg-[#0070f3] text-white text-[12px] font-semibold rounded-lg hover:bg-[#0060d6] transition-colors">
+                      Analyze
+                    </button>
+                  </div>
+                )}
+
+                {imgLoading && (
+                  <div className="flex items-center justify-center py-12 gap-3">
+                    <RefreshCw size={18} className="animate-spin text-[#0070f3]" />
+                    <p className="text-[13px] text-[#6b6b6b] font-medium">Running YOLOv8 inference...</p>
+                  </div>
+                )}
+
+                {imgResult && (
+                  <div className="space-y-3 pt-4 border-t border-[#e5e5e2]">
+                    <p className="text-[12px] font-semibold text-[#6b6b6b] uppercase tracking-wider">Result</p>
+                    {imgResult.evidence_path ? (
+                      <div className="relative rounded-xl overflow-hidden border border-[#e5e5e2]">
+                        <img src={evidenceUrl(imgResult.evidence_path) || ''} alt="Detection result" className="w-full" />
+                        <a
+                          href={evidenceUrl(imgResult.evidence_path) || ''}
+                          download={`detection_${Date.now()}.jpg`}
+                          className="absolute top-3 right-3 flex items-center gap-1.5 bg-white/90 border border-[#e5e5e2] px-3 py-1.5 rounded-lg text-[11px] font-medium text-[#1a1a1a] shadow-sm hover:bg-white transition-colors"
+                        >
+                          <Download size={12} /> Download
+                        </a>
                       </div>
                     ) : (
-                      <div className="flex flex-col items-center py-8">
-                        <UploadCloud size={44} className="text-red-500 mb-3 animate-bounce" />
-                        <p className="font-bold text-sm text-slate-200">Click to upload threat image</p>
-                        <p className="text-xs text-slate-500 mt-1 font-semibold">Supports PNG, JPG, WEBP</p>
+                      <div className="flex items-center justify-center gap-2 py-8 text-[#30a46c] bg-[#f0fdf4] border border-[#bbf7d0] rounded-xl">
+                        <CheckCircle size={16} />
+                        <span className="text-[13px] font-semibold">No fire or smoke detected</span>
                       </div>
                     )}
                   </div>
+                )}
+              </div>
+            )}
 
-                  {imgFile && !imgLoading && (
-                    <div className="flex justify-end gap-3">
-                      <Button variant="outline" size="sm" onClick={() => { setImgFile(null); setImgPreview(null); setImgResult(null); }}>Clear</Button>
-                      <Button variant="primary" size="sm" onClick={runImageInference}>Analyze Threat</Button>
+            {/* VIDEO */}
+            {activeTab === 'video' && (
+              <div className="space-y-5">
+                <div
+                  onClick={() => !vidLoading && vidInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-xl transition-all cursor-pointer ${
+                    vidFile ? 'border-[#e5e5e2]' : 'border-[#e5e5e2] hover:border-[#0070f3] hover:bg-[#eff6ff]/30'
+                  }`}
+                >
+                  <input type="file" ref={vidInputRef} className="hidden" accept="video/*" onChange={e => {
+                    const f = e.target.files?.[0];
+                    if (f) { setVidFile(f); setVidResult(null); setVidProgress(0); }
+                  }} />
+                  {vidFile ? (
+                    <div className="py-8 flex flex-col items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-[#fff1f1] flex items-center justify-center text-[#e5484d]">
+                        <FileVideo size={18} />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[13px] font-semibold text-[#1a1a1a] truncate max-w-xs">{vidFile.name}</p>
+                        <p className="text-[11px] text-[#a0a0a0] mt-1">{(vidFile.size / 1048576).toFixed(2)} MB</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-14 flex flex-col items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-[#f0f0ed] flex items-center justify-center text-[#a0a0a0]">
+                        <UploadCloud size={18} />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[13px] font-semibold text-[#1a1a1a]">Drop video here or click to upload</p>
+                        <p className="text-[11px] text-[#a0a0a0] mt-1">MP4, AVI, MOV, MKV</p>
+                      </div>
                     </div>
                   )}
+                </div>
 
-                  {imgLoading && (
-                    <div className="flex flex-col items-center py-16">
-                      <RefreshCw className="animate-spin text-red-500 mb-3" size={32} />
-                      <p className="text-xs text-slate-400 font-bold">Running YOLOv8 core inference...</p>
+                {vidFile && !vidLoading && (
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => { setVidFile(null); setVidResult(null); setVidProgress(0); }} className="px-3 py-2 border border-[#e5e5e2] rounded-lg text-[12px] font-medium text-[#6b6b6b] hover:bg-[#f0f0ed] transition-colors">
+                      Clear
+                    </button>
+                    <button onClick={runVideoInference} className="px-4 py-2 bg-[#0070f3] text-white text-[12px] font-semibold rounded-lg hover:bg-[#0060d6] transition-colors">
+                      Analyze Video
+                    </button>
+                  </div>
+                )}
+
+                {vidLoading && (
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-[11px] font-medium text-[#6b6b6b]">
+                      <span>Processing frames ({vidFrames}/450)...</span>
+                      <span className="font-mono">{vidProgress}%</span>
                     </div>
-                  )}
+                    <div className="h-2 bg-[#f0f0ed] rounded-full overflow-hidden">
+                      <div className="h-full bg-[#0070f3] rounded-full transition-all duration-300" style={{ width: `${vidProgress}%` }} />
+                    </div>
+                    <p className="text-[11px] text-[#a0a0a0]">{vidFps} fps · YOLOv8 inference running</p>
+                  </div>
+                )}
 
-                  {imgResult && (
-                    <div className="space-y-5 pt-5 border-t border-slate-850">
-                      <h4 className="font-bold text-sm text-white">Processed Image & Detections</h4>
-                      {imgResult.evidence_path ? (
-                        <div className="relative rounded-2xl overflow-hidden border border-slate-800 bg-black">
-                          <img src={evidenceUrl(imgResult.evidence_path) || ''} alt="Processed Image" className="w-full h-auto object-contain" />
-                          <div className="absolute top-4 right-4">
-                            <a href={evidenceUrl(imgResult.evidence_path) || ''} download={`detection_${Date.now()}.jpg`} className="flex items-center gap-1.5 bg-black/70 hover:bg-black px-4 py-2 rounded-xl text-xs font-bold text-white shadow-md">
-                              <Download size={14} /> Download Result
-                            </a>
+                {vidResult?.events?.length > 0 && (
+                  <div className="space-y-3 pt-4 border-t border-[#e5e5e2]">
+                    <p className="text-[12px] font-semibold text-[#6b6b6b] uppercase tracking-wider">Detected Frames</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {vidResult.events.filter((e: any) => e.evidence_path).map((evt: any, i: number) => (
+                        <div key={i} className="rounded-xl border border-[#e5e5e2] overflow-hidden">
+                          <img src={evidenceUrl(evt.evidence_path) || ''} alt={`Frame ${i}`} className="aspect-video w-full object-cover" />
+                          <div className="px-3 py-2 bg-white border-t border-[#e5e5e2] flex justify-between items-center">
+                            <span className={`text-[11px] font-bold capitalize ${evt.detection_type === 'fire' ? 'text-[#e5484d]' : 'text-[#e79020]'}`}>{evt.detection_type}</span>
+                            <span className="text-[10px] text-[#a0a0a0] font-mono">#{evt.frame_number}</span>
                           </div>
                         </div>
-                      ) : (
-                        <div className="p-8 text-center text-xs text-slate-500 bg-slate-900/50 rounded-xl font-bold">
-                          No Fire or Smoke Detected.
-                        </div>
-                      )}
+                      ))}
                     </div>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
+            )}
 
-              {/* VIDEO TAB */}
-              {activeTab === 'video' && (
-                <div className="space-y-6">
-                  <div 
-                    onClick={() => !vidLoading && vidInputRef.current?.click()}
-                    className="border-2 border-dashed border-slate-800 rounded-2xl p-10 text-center cursor-pointer hover:border-red-500/30 transition-colors"
-                  >
-                    <input type="file" ref={vidInputRef} className="hidden" accept="video/*" onChange={handleVidChange} />
-                    {vidFile ? (
-                      <div className="flex flex-col items-center">
-                        <FileVideo size={48} className="text-red-500 mb-2" />
-                        <p className="font-bold text-sm text-slate-200">{vidFile.name}</p>
-                        <p className="text-xs text-slate-500 mt-1 font-semibold">{(vidFile.size / (1024 * 1024)).toFixed(2)} MB</p>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center py-8">
-                        <UploadCloud size={44} className="text-red-500 mb-3 animate-bounce" />
-                        <p className="font-bold text-sm text-slate-200">Click to upload surveillance clip</p>
-                        <p className="text-xs text-slate-500 mt-1 font-semibold">Supports MP4, AVI, MOV, MKV</p>
+            {/* WEBCAM */}
+            {activeTab === 'webcam' && (
+              <div className="space-y-4">
+                <video ref={webVideoRef} className="hidden" width={640} height={480} autoPlay playsInline muted />
+
+                {webState !== 'stopped' ? (
+                  <div className="relative rounded-xl overflow-hidden bg-black aspect-video">
+                    <canvas ref={webCanvasRef} width={640} height={480} className="w-full h-full object-contain" />
+                    {webThreat && (
+                      <div className="absolute top-0 inset-x-0 bg-gradient-to-b from-[#e5484d]/80 to-transparent px-4 py-3">
+                        <p className="text-white text-[12px] font-bold uppercase animate-pulse">⚠ {webThreat} detected</p>
                       </div>
                     )}
+                    <div className="absolute top-3 right-3 bg-black/60 text-white text-[9px] font-mono px-2 py-1 rounded-md">
+                      {webFps} fps
+                    </div>
+                    <div className="absolute bottom-3 left-3 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#30a46c] animate-pulse" />
+                      <span className="text-white text-[10px] font-semibold bg-black/60 px-2 py-0.5 rounded-md">LIVE</span>
+                    </div>
                   </div>
-
-                  {vidFile && !vidLoading && (
-                    <div className="flex justify-end gap-3">
-                      <Button variant="outline" size="sm" onClick={() => { setVidFile(null); setVidResult(null); setVidProgress(0); }}>Clear</Button>
-                      <Button variant="primary" size="sm" onClick={runVideoInference}>Analyze Video</Button>
+                ) : (
+                  <div className="aspect-video rounded-xl border-2 border-dashed border-[#e5e5e2] flex flex-col items-center justify-center gap-4 bg-[#f9f9f8]">
+                    <div className="w-12 h-12 rounded-xl bg-[#f0f0ed] flex items-center justify-center">
+                      <Camera size={22} className="text-[#a0a0a0]" />
                     </div>
-                  )}
-
-                  {vidLoading && (
-                    <div className="space-y-4 py-6">
-                      <div className="flex justify-between text-xs text-slate-450 font-bold">
-                        <span>Processing frame sequences ({vidProcessedFrames}/450)...</span>
-                        <span>{vidProgress}%</span>
-                      </div>
-                      <div className="w-full h-2.5 bg-slate-850 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-red-500 to-orange-500 transition-all duration-300" style={{ width: `${vidProgress}%` }}></div>
-                      </div>
+                    <div className="text-center">
+                      <p className="text-[13px] font-semibold text-[#1a1a1a]">Webcam monitoring</p>
+                      <p className="text-[11px] text-[#a0a0a0] mt-1">Real-time threat detection with bounding boxes</p>
                     </div>
-                  )}
+                    <button onClick={startWebcam} className="px-5 py-2 bg-[#0070f3] text-white text-[12px] font-semibold rounded-lg hover:bg-[#0060d6] transition-colors">
+                      Start Webcam
+                    </button>
+                  </div>
+                )}
 
-                  {vidResult && (
-                    <div className="space-y-4 pt-5 border-t border-slate-850">
-                      <h4 className="font-bold text-sm text-white">Peak Threat Frames</h4>
-                      {vidResult.events && vidResult.events.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {vidResult.events.filter((e: any) => e.evidence_path).map((evt: any, i: number) => (
-                            <div key={i} className="rounded-xl border border-slate-800 overflow-hidden bg-slate-950 flex flex-col">
-                              <img src={evidenceUrl(evt.evidence_path) || ''} alt="Peak frame" className="aspect-video object-cover w-full" />
-                              <div className="p-3 bg-[#141420] flex items-center justify-between text-xs font-semibold text-white">
-                                <span className="capitalize">{evt.detection_type} Peak</span>
-                                <span className="font-mono text-[10px] text-slate-450">Frame: {evt.frame_number}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="p-8 text-center text-xs text-slate-500 bg-slate-900/50 rounded-xl font-bold">
-                          No Fire or Smoke Detected.
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* WEBCAM TAB */}
-              {activeTab === 'webcam' && (
-                <div className="space-y-6">
-                  <video ref={webcamVideoRef} className="hidden" width="640" height="480" autoPlay playsInline muted></video>
-                  {webcamState !== 'stopped' ? (
-                    <div className="relative rounded-2xl overflow-hidden border border-slate-800 bg-black aspect-video flex justify-center">
-                      <canvas ref={webcamCanvasRef} className="w-full h-full object-contain" width="640" height="480"></canvas>
-                      <div className="absolute top-4 left-4 flex gap-2">
-                        <span className="px-2.5 py-1 rounded-xl bg-black/75 text-[10px] font-bold text-gray-300 uppercase tracking-wider">
-                          {webcamState === 'running' ? 'Live Webcam Stream' : 'Stream Paused'}
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-20 text-center text-slate-500">
-                      <Camera size={48} className="mb-3 text-slate-600 animate-pulse" />
-                      <h4 className="font-bold text-sm text-white mb-1">Webcam Feed Off</h4>
-                      <p className="text-xs text-slate-400 max-w-xs mx-auto mb-5 font-semibold">Start your local workstation camera to begin real-time diagnostic scanning.</p>
-                      <Button variant="primary" size="sm" onClick={startWebcam}>Start Webcam</Button>
-                    </div>
-                  )}
-
-                  {webcamState !== 'stopped' && (
-                    <div className="flex justify-between items-center pt-4 border-t border-slate-850">
-                      <div className="flex gap-2">
-                        {webcamState === 'running' ? (
-                          <Button variant="outline" size="sm" onClick={pauseWebcam} className="flex items-center gap-1"><Pause size={12} /> Pause</Button>
-                        ) : (
-                          <Button variant="primary" size="sm" onClick={resumeWebcam} className="flex items-center gap-1"><Play size={12} /> Resume</Button>
-                        )}
-                        <Button variant="destructive" size="sm" onClick={stopWebcam}>Stop</Button>
-                      </div>
-                      <div className="flex gap-4 font-semibold text-slate-400 text-xs">
-                        <span>FPS: <span className="text-white font-mono">{webcamFps}</span></span>
-                        <button onClick={() => setWebcamMuted(!webcamMuted)} className="text-red-400 hover:text-red-300">
-                          {webcamMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                {webState !== 'stopped' && (
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex gap-2">
+                      {webState === 'running' ? (
+                        <button onClick={() => { webVideoRef.current?.pause(); setWebState('paused'); siren(false); }} className="flex items-center gap-1.5 px-3 py-1.5 border border-[#e5e5e2] rounded-lg text-[12px] font-medium text-[#6b6b6b] hover:bg-[#f0f0ed] transition-colors">
+                          <Pause size={13} /> Pause
                         </button>
-                      </div>
+                      ) : (
+                        <button onClick={() => { void webVideoRef.current?.play(); setWebState('running'); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#0070f3] text-white rounded-lg text-[12px] font-medium hover:bg-[#0060d6] transition-colors">
+                          <Play size={13} /> Resume
+                        </button>
+                      )}
+                      <button onClick={stopWebcam} className="px-3 py-1.5 bg-[#fff1f1] text-[#e5484d] text-[12px] font-medium rounded-lg border border-[#fecdce] hover:bg-[#e5484d] hover:text-white transition-colors">
+                        Stop
+                      </button>
                     </div>
-                  )}
-                </div>
-              )}
-
-              {/* RTSP TAB */}
-              {activeTab === 'rtsp' && (
-                <div className="space-y-6">
-                  <div className="flex gap-2">
-                    <input 
-                      type="text" 
-                      value={rtspUrl} 
-                      onChange={(e) => setRtspUrl(e.target.value)} 
-                      placeholder="rtsp://192.168.1.100:554/live"
-                      className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/5 focus:border-red-500/30 text-white outline-none transition-all text-sm font-semibold"
-                    />
-                    {rtspConnected ? (
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={reconnectRtsp}>Reconnect</Button>
-                        <Button variant="destructive" size="sm" onClick={disconnectRtsp}>Disconnect</Button>
-                      </div>
-                    ) : (
-                      <Button variant="primary" size="sm" onClick={connectRtsp} isLoading={rtspLoading}>Connect RTSP</Button>
-                    )}
+                    <button onClick={() => setMuted(!muted)} className="p-2 rounded-lg text-[#6b6b6b] hover:text-[#1a1a1a] hover:bg-[#f0f0ed] transition-colors">
+                      {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+                    </button>
                   </div>
+                )}
+              </div>
+            )}
 
-                  {rtspConnected ? (
-                    <div className="relative rounded-2xl overflow-hidden border border-slate-800 bg-black aspect-video flex items-center justify-center">
-                      <img src="/evidence/test_red.jpg" alt="RTSP Feed" className="w-full h-full object-cover opacity-60" />
-                      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:100%_4px]"></div>
-                      <div className="absolute bottom-4 right-4 flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
-                        <span className="text-[9px] font-mono font-bold text-red-500 tracking-wider uppercase">Live RTSP stream</span>
-                      </div>
-                    </div>
+            {/* RTSP */}
+            {activeTab === 'rtsp' && (
+              <div className="space-y-5">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={rtspUrl}
+                    onChange={e => setRtspUrl(e.target.value)}
+                    placeholder="rtsp://192.168.1.100:554/stream"
+                    className="flex-1 px-3 py-2 border border-[#e5e5e2] rounded-lg text-[12px] text-[#1a1a1a] bg-white outline-none focus:border-[#0070f3] transition-colors placeholder-[#a0a0a0] font-mono"
+                  />
+                  {rtspConn ? (
+                    <button onClick={() => { setRtspConn(false); setRtspLatency(null); }} className="px-3 py-2 bg-[#fff1f1] text-[#e5484d] text-[12px] font-medium rounded-lg border border-[#fecdce] hover:bg-[#e5484d] hover:text-white transition-colors shrink-0">
+                      Disconnect
+                    </button>
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-20 text-center text-slate-500">
-                      <MonitorPlay size={48} className="mb-3 text-slate-600 animate-pulse" />
-                      <h4 className="font-bold text-sm text-white mb-1">RTSP Stream Offline</h4>
-                      <p className="text-xs text-slate-400 max-w-xs mx-auto font-semibold">Enter RTSP stream address above to initiate hardware-accelerated threat analysis.</p>
-                    </div>
+                    <button onClick={connectRtsp} disabled={rtspLoading} className="flex items-center gap-1.5 px-4 py-2 bg-[#0070f3] text-white text-[12px] font-semibold rounded-lg hover:bg-[#0060d6] transition-colors disabled:opacity-50 shrink-0">
+                      {rtspLoading ? <RefreshCw size={12} className="animate-spin" /> : <Wifi size={12} />}
+                      {rtspLoading ? 'Connecting...' : 'Connect'}
+                    </button>
                   )}
                 </div>
-              )}
 
-            </CardContent>
-          </Card>
+                {rtspConn ? (
+                  <div className="relative rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="w-3 h-3 rounded-full bg-[#30a46c] mx-auto mb-2 animate-pulse" />
+                      <p className="text-zinc-500 text-[11px] font-mono uppercase tracking-widest">[ RTSP LIVE ]</p>
+                    </div>
+                    <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/70 text-white text-[9px] font-mono px-2 py-1 rounded-md">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#30a46c] animate-pulse" />
+                      LIVE · {rtspLatency}ms
+                    </div>
+                  </div>
+                ) : (
+                  <div className="aspect-video rounded-xl border-2 border-dashed border-[#e5e5e2] flex flex-col items-center justify-center gap-3 bg-[#f9f9f8]">
+                    <div className="w-10 h-10 rounded-xl bg-[#f0f0ed] flex items-center justify-center text-[#a0a0a0]">
+                      <MonitorPlay size={18} />
+                    </div>
+                    <p className="text-[12px] text-[#6b6b6b] font-medium">Enter an RTSP URL to begin monitoring</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+          </div>
         </div>
 
-        {/* Sidebar Specifications & Bounding Boxes */}
-        <div className="space-y-6">
-          
-          {/* Detailed Bounding Box / Detection Results */}
-          <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f0f17]">
-            <CardHeader><CardTitle className="text-xs font-bold text-white uppercase tracking-wider">Detection Summary</CardTitle></CardHeader>
-            <CardContent className="p-5 space-y-4">
-              
-              {/* Image Tab Details */}
-              {activeTab === 'image' && imgResult && (
-                <div className="space-y-3">
-                  <div className="flex justify-between text-xs font-medium text-slate-400 border-b border-slate-850 pb-1.5">
-                    <span>Inference Latency:</span>
-                    <span className="text-white font-mono">{imgLatency ? `${imgLatency} ms` : 'N/A'}</span>
-                  </div>
-                  {imgResult.detections && imgResult.detections.length > 0 ? (
-                    <div className="space-y-2">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Bounding Boxes</p>
-                      {imgResult.detections.map((det: any, i: number) => (
-                        <div key={i} className="p-2.5 rounded-xl border border-slate-850 bg-slate-900/50 flex justify-between items-center text-xs">
-                          <Badge type={det.detection_type}>{det.detection_type}</Badge>
-                          <span className="font-mono text-slate-300">Conf: {Math.round(det.confidence * 100)}%</span>
-                        </div>
-                      ))}
+        {/* Diagnostics sidebar — 2 cols */}
+        <div className="lg:col-span-2 space-y-5">
+
+          {/* Detection results */}
+          <div className="bg-white border border-[#e5e5e2] rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-[#e5e5e2] bg-[#f9f9f8]">
+              <p className="text-[12px] font-semibold text-[#1a1a1a]">Diagnostics</p>
+            </div>
+            <div className="p-4 space-y-3">
+              {/* Image results */}
+              {activeTab === 'image' && imgResult?.detections?.length > 0 && imgResult.detections.map((det: any, i: number) => {
+                const tier = getConfidenceTier(det.confidence);
+                return (
+                  <div key={i} className={`p-3 rounded-xl border ${tier.bg}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`text-[12px] font-bold capitalize ${tier.color}`}>{det.detection_type}</span>
+                      <span className="text-[11px] font-mono font-bold text-[#1a1a1a]">{Math.round(det.confidence * 100)}%</span>
                     </div>
-                  ) : (
-                    <p className="text-xs text-slate-500 font-semibold">No Fire or Smoke Detected.</p>
-                  )}
-                </div>
-              )}
-
-              {/* Video Tab Details */}
-              {activeTab === 'video' && vidResult && (
-                <div className="space-y-3">
-                  <div className="flex justify-between text-xs font-medium text-slate-400 border-b border-slate-850 pb-1.5">
-                    <span>Inference Latency:</span>
-                    <span className="text-white font-mono">{vidLatency ? `${vidLatency} ms` : 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between text-xs font-medium text-slate-400 border-b border-slate-850 pb-1.5">
-                    <span>Processing Speed:</span>
-                    <span className="text-white font-mono">{vidFps} FPS</span>
-                  </div>
-                  {vidResult.events && vidResult.events.length > 0 ? (
-                    <div className="space-y-2">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Identified Peaks</p>
-                      {vidResult.events.map((evt: any, i: number) => (
-                        <div key={i} className="p-2.5 rounded-xl border border-slate-850 bg-slate-900/50 flex justify-between items-center text-xs">
-                          <Badge type={evt.detection_type}>{evt.detection_type}</Badge>
-                          <span className="font-mono text-slate-300">Frame: {evt.frame_number}</span>
-                        </div>
-                      ))}
+                    <div className="flex justify-between text-[11px] text-[#6b6b6b] font-medium">
+                      <span>Risk: <span className={`font-bold ${tier.color}`}>{tier.risk}</span></span>
+                      <span>{tier.label}</span>
                     </div>
-                  ) : (
-                    <p className="text-xs text-slate-500 font-semibold">No Fire or Smoke Detected.</p>
-                  )}
+                    <div className="mt-2 text-[10px] font-mono text-[#a0a0a0] bg-[#f9f9f8] border border-[#e5e5e2] px-2 py-1.5 rounded-lg">
+                      [{det.bbox.x1}, {det.bbox.y1}, {det.bbox.x2}, {det.bbox.y2}]
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Video results */}
+              {activeTab === 'video' && vidResult?.events?.length > 0 && vidResult.events.map((evt: any, i: number) => {
+                const tier = getConfidenceTier(evt.confidence);
+                return (
+                  <div key={i} className={`flex items-center justify-between p-3 rounded-xl border ${tier.bg}`}>
+                    <div>
+                      <span className={`text-[12px] font-bold capitalize block ${tier.color}`}>{evt.detection_type}</span>
+                      <span className="text-[10px] text-[#6b6b6b] font-medium">{tier.label}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[12px] font-mono font-bold text-[#1a1a1a] block">#{evt.frame_number}</span>
+                      <span className={`text-[10px] font-bold ${tier.color}`}>{tier.risk}</span>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Default info */}
+              {((activeTab === 'image' && !imgResult?.detections?.length) ||
+                (activeTab === 'video' && !vidResult?.events?.length) ||
+                activeTab === 'webcam' || activeTab === 'rtsp') && (
+                <div className="space-y-2.5">
+                  {[
+                    { label: 'Engine', value: 'YOLOv8', ok: true },
+                    { label: 'Status', value: 'Ready', ok: true },
+                    ...(activeTab === 'webcam' && webState !== 'stopped' ? [
+                      { label: 'FPS', value: `${webFps}`, ok: true },
+                      { label: 'Audio', value: muted ? 'Muted' : 'Active', ok: !muted },
+                    ] : []),
+                    ...(activeTab === 'rtsp' && rtspConn ? [
+                      { label: 'Latency', value: `${rtspLatency}ms`, ok: true },
+                      { label: 'Status', value: 'Streaming', ok: true },
+                    ] : []),
+                    ...(imgResult ? [{ label: 'Latency', value: `${imgLatency}ms`, ok: true }] : []),
+                    ...(vidResult ? [{ label: 'Latency', value: `${vidLatency}ms`, ok: true }] : []),
+                  ].map((row, i) => (
+                    <div key={i} className="flex items-center justify-between text-[12px] py-2 border-b border-[#e5e5e2] last:border-0">
+                      <span className="text-[#6b6b6b] font-medium">{row.label}</span>
+                      <span className={`font-semibold ${row.ok ? 'text-[#30a46c]' : 'text-[#a0a0a0]'}`}>{row.value}</span>
+                    </div>
+                  ))}
                 </div>
               )}
+            </div>
+          </div>
 
-              {/* Default when no results or webcam/rtsp is selected */}
-              {((activeTab === 'image' && !imgResult) || (activeTab === 'video' && !vidResult) || activeTab === 'webcam' || activeTab === 'rtsp') && (
-                <div className="space-y-2 text-xs font-medium text-slate-400">
-                  <div className="flex justify-between border-b border-slate-850 pb-1.5">
-                    <span>Pipeline Status:</span>
-                    <span className="text-green-500 font-bold">Active</span>
-                  </div>
-                  <div className="flex justify-between border-b border-slate-850 pb-1.5">
-                    <span>Model Engine:</span>
-                    <span className="text-red-400 font-mono">YOLOv8 best.pt</span>
-                  </div>
-                  {activeTab === 'webcam' && webcamState !== 'stopped' && (
-                    <>
-                      <div className="flex justify-between border-b border-slate-850 pb-1.5">
-                        <span>Webcam FPS:</span>
-                        <span className="text-white font-mono">{webcamFps} FPS</span>
-                      </div>
-                      <div className="flex justify-between border-b border-slate-850 pb-1.5">
-                        <span>Siren Alarm:</span>
-                        <span className={webcamMuted ? 'text-slate-500' : 'text-red-500 font-bold animate-pulse'}>
-                          {webcamMuted ? 'Muted' : 'Armed'}
-                        </span>
-                      </div>
-                    </>
-                  )}
-                  {activeTab === 'rtsp' && rtspConnected && (
-                    <>
-                      <div className="flex justify-between border-b border-slate-850 pb-1.5">
-                        <span>Ingest FPS:</span>
-                        <span className="text-white font-mono">{rtspFps} FPS</span>
-                      </div>
-                      <div className="flex justify-between border-b border-slate-850 pb-1.5">
-                        <span>Stream Latency:</span>
-                        <span className="text-white font-mono">{rtspLatency ?? 0} ms</span>
-                      </div>
-                    </>
-                  )}
-                  <div className="flex justify-between">
-                    <span>Device:</span>
-                    <span className="text-white uppercase font-mono">CPU / GPU Acceleration</span>
-                  </div>
-                </div>
-              )}
+          {/* Active threat */}
+          {((activeTab === 'webcam' && webThreat) || (activeTab === 'rtsp' && rtspConn)) && (
+            <div className={`p-4 rounded-xl border flex items-start gap-3 animate-siren ${
+              activeTab === 'webcam' && webThreat === 'fire' ? 'bg-[#fff1f1] border-[#fecdce]' :
+              activeTab === 'webcam' && webThreat === 'smoke' ? 'bg-[#fef9ec] border-[#fde68a]' :
+              'bg-[#fff1f1] border-[#fecdce]'
+            }`}>
+              <AlertTriangle size={16} className={activeTab === 'webcam' && webThreat === 'smoke' ? 'text-[#e79020] shrink-0 mt-0.5' : 'text-[#e5484d] shrink-0 mt-0.5'} />
+              <div>
+                <p className="text-[12px] font-bold text-[#1a1a1a]">Threat Detected</p>
+                <p className="text-[11px] text-[#6b6b6b] mt-0.5 font-medium">
+                  {activeTab === 'webcam' ? `${webThreat?.toUpperCase()} identified in webcam feed` : 'Monitoring RTSP stream for threats'}
+                </p>
+              </div>
+            </div>
+          )}
 
-            </CardContent>
-          </Card>
-
-          {/* Active Threat Warning */}
-          {((activeTab === 'webcam' && webcamThreat) || (activeTab === 'rtsp' && rtspConnected)) && (
-            <Card className="border-red-500/20 bg-red-500/5">
-              <CardContent className="p-5 flex items-start gap-3">
-                <ShieldAlert className="text-red-500 shrink-0 w-5 h-5 animate-bounce" />
-                <div>
-                  <h4 className="font-bold text-xs text-white uppercase">Active Threat Warning</h4>
-                  <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
-                    AI engine has triggered escalation flags. Automated incident center response logs have been populated.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+          {/* No detection */}
+          {activeTab === 'image' && imgResult && !imgResult.detections?.length && (
+            <div className="p-4 rounded-xl border border-[#bbf7d0] bg-[#f0fdf4] flex items-center gap-3">
+              <ShieldOff size={16} className="text-[#30a46c] shrink-0" />
+              <div>
+                <p className="text-[12px] font-bold text-[#166534]">Area Clear</p>
+                <p className="text-[11px] text-[#30a46c] font-medium mt-0.5">No threats detected in this frame</p>
+              </div>
+            </div>
           )}
         </div>
-      </div>
-    </div>
+
+      </motion.div>
+    </motion.div>
   );
 };
 

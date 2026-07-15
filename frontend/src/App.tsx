@@ -13,10 +13,11 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Detection = lazy(() => import('./pages/Detection'));
 const LiveMonitoring = lazy(() => import('./pages/LiveMonitoring'));
 const AlertsReports = lazy(() => import('./pages/AlertsReports'));
-const AnalyticsMerged = lazy(() => import('./pages/AnalyticsMerged'));
-const SettingsMerged = lazy(() => import('./pages/SettingsMerged'));
-const ProfileMerged = lazy(() => import('./pages/ProfileMerged'));
+const Analytics = lazy(() => import('./pages/Analytics'));
+const Settings = lazy(() => import('./pages/Settings'));
+const Profile = lazy(() => import('./pages/Profile'));
 const AdminPanel = lazy(() => import('./pages/AdminPanel'));
+const Documentation = lazy(() => import('./pages/Documentation'));
 
 const Unauthorized = lazy(() => import('./pages/Unauthorized'));
 const Forbidden = lazy(() => import('./pages/Forbidden'));
@@ -58,6 +59,7 @@ function App() {
           <Route path="/unauthorized" element={<Unauthorized />} />
           <Route path="/forbidden" element={<Forbidden />} />
           <Route path="/server-error" element={<ServerError />} />
+          <Route path="/documentation" element={<Documentation />} />
 
           <Route element={<RequireAuth />}>
             <Route element={<Layout />}>
@@ -65,10 +67,10 @@ function App() {
               <Route path="/detection" element={<RequireRole permission="detection"><Detection /></RequireRole>} />
               <Route path="/live-monitoring" element={<RequireRole permission="live_monitoring"><LiveMonitoring /></RequireRole>} />
               <Route path="/alerts-reports" element={<RequireRole permission="alerts_reports"><AlertsReports /></RequireRole>} />
-              <Route path="/analytics" element={<RequireRole permission="analytics"><AnalyticsMerged /></RequireRole>} />
-              <Route path="/settings" element={<RequireRole permission="settings"><SettingsMerged /></RequireRole>} />
+              <Route path="/analytics" element={<RequireRole permission="analytics"><Analytics /></RequireRole>} />
+              <Route path="/settings" element={<RequireRole permission="settings"><Settings /></RequireRole>} />
               <Route path="/admin" element={<RequireRole permission="admin"><AdminPanel /></RequireRole>} />
-              <Route path="/profile" element={<RequireRole permission="profile"><ProfileMerged /></RequireRole>} />
+              <Route path="/profile" element={<RequireRole permission="profile"><Profile /></RequireRole>} />
             </Route>
           </Route>
 
@@ -80,3 +82,4 @@ function App() {
 }
 
 export default App;
+

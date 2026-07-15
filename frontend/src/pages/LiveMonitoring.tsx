@@ -42,6 +42,7 @@ const LiveMonitoring = () => {
   const pushPopup = useNotificationsStore((s) => s.pushPopup);
 
   const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
+  const [gridSize, setGridSize] = useState<1 | 2 | 4>(2); // Layout selector: 1x1, 2x2, etc.
 
   const [isFullscreenWebcam, setIsFullscreenWebcam] = useState(false);
   const [isFullscreenRtsp, setIsFullscreenRtsp] = useState(false);
@@ -63,7 +64,7 @@ const LiveMonitoring = () => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  const toggleFullscreen = (ref: React.RefObject<HTMLDivElement>) => {
+  const toggleFullscreen = (ref: React.RefObject<HTMLDivElement | null>) => {
     if (!document.fullscreenElement) {
       ref.current?.requestFullscreen().catch(err => {
         toast(`Error attempting to enable fullscreen: ${err.message}`, 'error');
@@ -279,15 +280,15 @@ const LiveMonitoring = () => {
         }
 
         if (threat) {
-          const color = threat === 'fire' ? '#ef4444' : '#f97316';
+          const color = threat === 'fire' ? '#eb5757' : '#f2994a';
           ctx.strokeStyle = color;
           ctx.lineWidth = 3;
           ctx.strokeRect(200, 140, 240, 200);
           ctx.fillStyle = color;
           ctx.fillRect(200, 112, 110, 28);
           ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 13px sans-serif';
-          ctx.fillText(`${threat.toUpperCase()} ${(threat === 'fire' ? 95 : 87)}%`, 208, 131);
+          ctx.font = 'bold 12px sans-serif';
+          ctx.fillText(`${threat.toUpperCase()} ${(threat === 'fire' ? 95 : 87)}%`, 208, 130);
         }
 
         frames++;
@@ -322,29 +323,42 @@ const LiveMonitoring = () => {
   }, []);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto p-4 select-none">
+    <div className="space-y-6 max-w-7xl mx-auto text-[#37352f] select-none">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Live Operations Center</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Real-time CCTV and local camera matrix with autonomous AI threat evaluation.</p>
+          <h2 className="text-xl font-bold tracking-tight uppercase tracking-wider">Live Monitoring Screen</h2>
+          <p className="text-xs text-[#7c7b77] mt-1 font-semibold leading-relaxed">Real-time surveillance feeds matrix with autonomous visual threat validation layers.</p>
         </div>
-        <div className="flex gap-2">
-          <div className="bg-slate-100 dark:bg-slate-900 p-1 rounded-lg flex mr-2">
+        <div className="flex items-center gap-2">
+          {viewMode === 'grid' && (
+            <div className="bg-[#f7f7f5] border border-[#e9e9e6] p-1 rounded-xl flex gap-1 mr-2">
+              {[1, 2, 4].map(sz => (
+                <button 
+                  key={sz}
+                  onClick={() => setGridSize(sz as any)}
+                  className={`px-3 py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${gridSize === sz ? 'bg-white text-[#006fee] border border-[#e9e9e6] shadow-sm' : 'text-[#7c7b77] hover:text-[#37352f]'}`}
+                >
+                  {sz === 1 ? '1x1' : sz === 2 ? '2x2' : '4x4'}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="bg-[#f7f7f5] border border-[#e9e9e6] p-1 rounded-xl flex gap-1">
             <button 
               onClick={() => setViewMode('grid')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-md flex items-center gap-1.5 transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+              className={`px-3 py-1.5 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-white text-[#006fee] border border-[#e9e9e6] shadow-sm' : 'text-[#7c7b77] hover:text-[#37352f]'}`}
             >
-              <Grid size={14} /> Matrix View
+              <Grid size={13} /> Matrix Grid
             </button>
             <button 
               onClick={() => setViewMode('map')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-md flex items-center gap-1.5 transition-all ${viewMode === 'map' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+              className={`px-3 py-1.5 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${viewMode === 'map' ? 'bg-white text-[#006fee] border border-[#e9e9e6] shadow-sm' : 'text-[#7c7b77] hover:text-[#37352f]'}`}
             >
-              <MapIcon size={14} /> Facility Map
+              <MapIcon size={13} /> Facility Map
             </button>
           </div>
-          <Button variant="outline" size="sm" onClick={loadRecentAlerts} className="flex items-center gap-1.5 border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f0f17]">
-            <RefreshCw size={14} /> Refresh Logs
+          <Button variant="outline" size="sm" onClick={loadRecentAlerts} className="flex items-center gap-1.5 bg-white border border-[#e9e9e6] text-xs">
+            <RefreshCw size={12} /> Sync Logs
           </Button>
         </div>
       </div>
@@ -355,56 +369,56 @@ const LiveMonitoring = () => {
         {/* Left/Main Panel */}
         <div className="xl:col-span-3 space-y-6">
           {viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className={`grid grid-cols-1 ${gridSize > 1 ? 'md:grid-cols-2' : ''} gap-6`}>
             
             {/* 1. Live Webcam Feed */}
-            <Card className="overflow-hidden border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f0f17]">
+            <Card className="overflow-hidden bg-white border-[#e9e9e6] shadow-sm">
               <CardContent className="p-4 space-y-4">
                 <div className="flex justify-between items-center">
-                  <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                    <Camera size={16} className="text-red-500" /> Station Webcam
+                  <h3 className="font-bold text-xs text-[#37352f] uppercase tracking-wider flex items-center gap-2">
+                    <Camera size={14} className="text-[#eb5757]" /> Local Webcam Scanner
                   </h3>
-                  <Badge type={webcamActive ? 'default' : 'danger'}>{webcamActive ? 'Active' : 'Offline'}</Badge>
+                  <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border ${webcamActive ? 'bg-[#edf7f1] text-[#27ae60] border-[#c5ebd4]' : 'bg-[#fdebeb] text-[#eb5757] border-[#f8cfcf]'}`}>{webcamActive ? 'Active' : 'Stopped'}</span>
                 </div>
                 
                 <video ref={webcamVideoRef} className="hidden" width="640" height="480" autoPlay playsInline muted></video>
                 
                 {webcamActive ? (
-                  <div ref={webcamContainerRef} className="relative rounded-xl overflow-hidden border border-slate-800 bg-black aspect-video flex justify-center group">
+                  <div ref={webcamContainerRef} className="relative rounded-xl overflow-hidden border border-[#e9e9e6] bg-black aspect-video flex justify-center group shadow-inner">
                     <canvas ref={webcamCanvasRef} className="w-full h-full object-contain" width="640" height="480"></canvas>
                     
                     {/* Notification Bar Overlay */}
-                    <div className={`absolute top-0 left-0 right-0 p-3 flex justify-between items-start transition-opacity duration-300 ${webcamThreat ? 'bg-gradient-to-b from-red-900/90 to-transparent opacity-100' : 'bg-gradient-to-b from-black/80 to-transparent opacity-0 group-hover:opacity-100'}`}>
+                    <div className={`absolute top-0 left-0 right-0 p-3.5 flex justify-between items-start transition-opacity duration-300 ${webcamThreat ? 'bg-gradient-to-b from-red-950/80 to-transparent opacity-100' : 'bg-gradient-to-b from-black/80 to-transparent opacity-0 group-hover:opacity-100'}`}>
                       <div className="flex flex-col">
-                        <span className={`font-bold text-xs flex items-center gap-2 ${webcamThreat ? 'text-red-400' : 'text-white'}`}>
-                          <span className={`w-2 h-2 rounded-full animate-pulse ${webcamThreat ? 'bg-red-500' : 'bg-green-500'}`}></span>
-                          {webcamThreat ? `ALERT: ${webcamThreat.toUpperCase()} DETECTED!` : 'LIVE: Station Webcam'}
+                        <span className={`font-bold text-[10px] uppercase tracking-wider flex items-center gap-2 ${webcamThreat ? 'text-red-400 font-black animate-pulse' : 'text-white'}`}>
+                          <span className={`w-2 h-2 rounded-full ${webcamThreat ? 'bg-red-500' : 'bg-emerald-500'}`}></span>
+                          {webcamThreat ? `WARNING: ${webcamThreat.toUpperCase()} DETECTED!` : 'INGEST: Local Video Feed'}
                         </span>
-                        <span className="text-[10px] text-slate-300 font-mono mt-0.5">{currentTime}</span>
+                        <span className="text-[9px] text-zinc-400 font-mono mt-1 font-bold">{currentTime}</span>
                       </div>
                       <button 
                         onClick={() => toggleFullscreen(webcamContainerRef)} 
-                        className="p-1.5 bg-black/50 hover:bg-black/80 rounded text-white transition-colors"
+                        className="p-2 bg-black/60 hover:bg-black/90 rounded-xl text-white border border-white/5 transition-all"
                       >
-                        {isFullscreenWebcam ? <Minimize size={14} /> : <Maximize size={14} />}
+                        {isFullscreenWebcam ? <Minimize size={13} /> : <Maximize size={13} />}
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="aspect-video rounded-xl bg-slate-900/40 border border-slate-800 flex flex-col items-center justify-center text-center text-slate-500">
-                    <Camera size={36} className="mb-2 text-slate-600" />
-                    <p className="text-xs">Webcam feed inactive</p>
-                    <Button variant="primary" size="sm" onClick={startWebcam} className="mt-3">Start Feed</Button>
+                  <div className="aspect-video rounded-xl bg-[#f7f7f5]/30 border border-[#e9e9e6] flex flex-col items-center justify-center text-center text-[#7c7b77]">
+                    <Camera size={30} className="mb-3 text-[#7c7b77]" />
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-4">Webcam stream disarmed</p>
+                    <Button variant="primary" size="sm" onClick={startWebcam} className="text-xs">Arm local scanner</Button>
                   </div>
                 )}
 
                 {webcamActive && (
                   <div className="flex justify-between items-center text-xs">
-                    <Button variant="destructive" size="sm" onClick={stopWebcam}>Stop</Button>
-                    <div className="flex gap-4 font-semibold text-slate-400">
-                      <span>FPS: <span className="text-white font-mono">{webcamFps}</span></span>
-                      <button onClick={() => setWebcamMuted(!webcamMuted)} className="text-red-400 hover:text-red-300">
-                        {webcamMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                    <Button variant="destructive" size="sm" onClick={stopWebcam} className="text-xs">Disarm scanner</Button>
+                    <div className="flex gap-4 font-bold text-[#7c7b77] text-[10px] uppercase tracking-wider">
+                      <span>Ingest FPS: <span className="text-[#37352f] font-mono">{webcamFps}</span></span>
+                      <button onClick={() => setWebcamMuted(!webcamMuted)} className="text-[#eb5757] hover:text-[#eb5757]/80">
+                        {webcamMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
                       </button>
                     </div>
                   </div>
@@ -413,14 +427,14 @@ const LiveMonitoring = () => {
             </Card>
 
             {/* 2. RTSP Camera Feed */}
-            <Card className="overflow-hidden border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f0f17]">
+            <Card className="overflow-hidden bg-white border-[#e9e9e6] shadow-sm">
               <CardContent className="p-4 space-y-4">
                 <div className="flex justify-between items-center">
-                  <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                    <MonitorPlay size={16} className="text-red-500" /> RTSP Ingest
+                  <h3 className="font-bold text-xs text-[#37352f] uppercase tracking-wider flex items-center gap-2">
+                    <MonitorPlay size={14} className="text-[#eb5757]" /> Ingress CCTV RTSP Feed
                   </h3>
                   <select 
-                    className="bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-xs text-white outline-none"
+                    className="bg-[#f7f7f5] border border-[#e9e9e6] rounded-lg px-2.5 py-1.5 text-[10px] text-[#37352f] font-bold outline-none cursor-pointer"
                     value={selectedRtspCam?.id || ''}
                     onChange={(e) => {
                       const match = cameras.find(c => c.id === e.target.value);
@@ -437,41 +451,41 @@ const LiveMonitoring = () => {
                 </div>
 
                 {rtspConnected ? (
-                  <div ref={rtspContainerRef} className="relative rounded-xl overflow-hidden border border-slate-800 bg-black aspect-video flex items-center justify-center group">
+                  <div ref={rtspContainerRef} className="relative rounded-xl overflow-hidden border border-[#e9e9e6] bg-black aspect-video flex items-center justify-center group shadow-inner">
                     <img src="/evidence/test_red.jpg" alt="RTSP Feed" className="w-full h-full object-cover opacity-60" />
                     <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none"></div>
                     
                     {/* Notification Bar Overlay */}
-                    <div className={`absolute top-0 left-0 right-0 p-3 flex justify-between items-start transition-opacity duration-300 ${recentAlerts.some(a => a.camera_id === selectedRtspCam?.id && a.status === 'active') ? 'bg-gradient-to-b from-red-900/90 to-transparent opacity-100' : 'bg-gradient-to-b from-black/80 to-transparent opacity-0 group-hover:opacity-100'}`}>
+                    <div className={`absolute top-0 left-0 right-0 p-3.5 flex justify-between items-start transition-opacity duration-300 ${recentAlerts.some(a => a.camera_id === selectedRtspCam?.id && a.status === 'active') ? 'bg-gradient-to-b from-[#eb5757]/80 to-transparent opacity-100' : 'bg-gradient-to-b from-black/80 to-transparent opacity-0 group-hover:opacity-100'}`}>
                       <div className="flex flex-col">
-                        <span className={`font-bold text-xs flex items-center gap-2 ${recentAlerts.some(a => a.camera_id === selectedRtspCam?.id && a.status === 'active') ? 'text-red-400' : 'text-white'}`}>
-                          <span className={`w-2 h-2 rounded-full animate-pulse ${recentAlerts.some(a => a.camera_id === selectedRtspCam?.id && a.status === 'active') ? 'bg-red-500' : 'bg-green-500'}`}></span>
-                          {recentAlerts.some(a => a.camera_id === selectedRtspCam?.id && a.status === 'active') ? 'ALERT: THREAT DETECTED!' : `LIVE: ${selectedRtspCam?.name || 'RTSP Stream'}`}
+                        <span className={`font-bold text-[10px] uppercase tracking-wider flex items-center gap-2 ${recentAlerts.some(a => a.camera_id === selectedRtspCam?.id && a.status === 'active') ? 'text-red-400 font-black animate-pulse' : 'text-white'}`}>
+                          <span className={`w-2 h-2 rounded-full ${recentAlerts.some(a => a.camera_id === selectedRtspCam?.id && a.status === 'active') ? 'bg-red-500' : 'bg-emerald-500'}`}></span>
+                          {recentAlerts.some(a => a.camera_id === selectedRtspCam?.id && a.status === 'active') ? 'WARNING: THREAT DETECTED!' : `LIVE: ${selectedRtspCam?.name}`}
                         </span>
-                        <span className="text-[10px] text-slate-300 font-mono mt-0.5">{currentTime}</span>
+                        <span className="text-[9px] text-zinc-400 font-mono mt-1 font-bold">{currentTime}</span>
                       </div>
                       <button 
                         onClick={() => toggleFullscreen(rtspContainerRef)} 
-                        className="p-1.5 bg-black/50 hover:bg-black/80 rounded text-white transition-colors"
+                        className="p-2 bg-black/60 hover:bg-black/90 rounded-xl text-white border border-white/5 transition-all"
                       >
-                        {isFullscreenRtsp ? <Minimize size={14} /> : <Maximize size={14} />}
+                        {isFullscreenRtsp ? <Minimize size={13} /> : <Maximize size={13} />}
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="aspect-video rounded-xl bg-slate-900/40 border border-slate-800 flex flex-col items-center justify-center text-center text-slate-500">
-                    <MonitorPlay size={36} className="mb-2 text-slate-600" />
-                    <p className="text-xs">RTSP stream disconnected</p>
-                    <Button variant="primary" size="sm" onClick={connectRtsp} isLoading={rtspLoading} className="mt-3">Connect Ingest</Button>
+                  <div className="aspect-video rounded-xl bg-[#f7f7f5]/30 border border-[#e9e9e6] flex flex-col items-center justify-center text-center text-[#7c7b77]">
+                    <MonitorPlay size={30} className="mb-3 text-[#7c7b77]" />
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-4">RTSP stream disconnected</p>
+                    <Button variant="primary" size="sm" onClick={connectRtsp} isLoading={rtspLoading} className="text-xs">Connect Ingest</Button>
                   </div>
                 )}
 
                 {rtspConnected && (
                   <div className="flex justify-between items-center text-xs">
-                    <Button variant="destructive" size="sm" onClick={disconnectRtsp}>Disconnect</Button>
-                    <div className="flex gap-4 font-semibold text-slate-400">
-                      <span>FPS: <span className="text-white font-mono">{rtspFps}</span></span>
-                      <span>Latency: <span className="text-white font-mono">{rtspLatency} ms</span></span>
+                    <Button variant="destructive" size="sm" onClick={disconnectRtsp} className="text-xs">Disconnect Ingest</Button>
+                    <div className="flex gap-4 font-bold text-[#7c7b77] text-[10px] uppercase tracking-wider">
+                      <span>Decoder FPS: <span className="text-[#37352f] font-mono">{rtspFps}</span></span>
+                      <span>Telemetry Latency: <span className="text-[#37352f] font-mono">{rtspLatency} ms</span></span>
                     </div>
                   </div>
                 )}
@@ -484,8 +498,8 @@ const LiveMonitoring = () => {
                 id: c.id, 
                 name: c.name, 
                 zone: c.zone || `Zone ${String.fromCharCode(65 + (i % 5))}`,
-                x: 10 + ((i * 35) % 80),
-                y: 20 + ((i * 25) % 60)
+                x: 15 + ((i * 30) % 75),
+                y: 25 + ((i * 20) % 55)
               }))} 
               activeAlerts={[
                 ...recentAlerts.filter(a => a.status === 'active').map(a => a.camera_id),
@@ -503,18 +517,18 @@ const LiveMonitoring = () => {
           )}
 
           {/* Current Detections Banner */}
-          <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f0f17]">
-            <CardContent className="p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <Card className="bg-white border-[#e9e9e6] shadow-sm">
+            <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <Activity className="text-red-500 animate-pulse w-6 h-6" />
+                <Activity className="text-[#eb5757] animate-pulse w-5 h-5" />
                 <div>
-                  <h4 className="font-bold text-sm text-white">Active Threat Detection Pipeline</h4>
-                  <p className="text-xs text-slate-400 mt-0.5">Global YOLOv8 model inference engine is active and scanning input buffers.</p>
+                  <h4 className="font-bold text-xs text-[#37352f] uppercase tracking-wider">Live Detection Ingestion Pipeline</h4>
+                  <p className="text-[10px] text-[#7c7b77] mt-0.5 font-semibold">Global YOLOv8 core engine is scanning surveillance memory buffers in real-time.</p>
                 </div>
               </div>
-              <div className="flex gap-4 text-xs font-semibold text-slate-400">
-                <span>Active Threat: <span className={webcamThreat ? 'text-red-500 font-bold' : 'text-green-500'}>{webcamThreat ? webcamThreat.toUpperCase() : 'NONE'}</span></span>
-                <span>Confidence: <span className="text-white font-mono">{webcamThreat ? (webcamThreat === 'fire' ? '95%' : '87%') : 'N/A'}</span></span>
+              <div className="flex gap-4 text-xs font-bold text-[#7c7b77] uppercase tracking-wider">
+                <span>Active Threat: <span className={webcamThreat ? 'text-[#eb5757] font-bold animate-pulse' : 'text-[#27ae60] font-bold'}>{webcamThreat ? webcamThreat.toUpperCase() : 'NONE'}</span></span>
+                <span>Confidence: <span className="text-[#37352f] font-mono">{webcamThreat ? (webcamThreat === 'fire' ? '95%' : '87%') : 'N/A'}</span></span>
               </div>
             </CardContent>
           </Card>
@@ -522,53 +536,53 @@ const LiveMonitoring = () => {
 
         {/* Sidebar: Recent Alerts & System Status */}
         <div className="space-y-6">
-          <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f0f17]">
+          <Card className="bg-white border-[#e9e9e6] shadow-sm">
             <CardContent className="p-5 space-y-4">
-              <h3 className="font-bold text-sm text-white">System Status</h3>
-              <div className="space-y-2 text-xs font-semibold text-slate-400">
-                <div className="flex justify-between border-b border-slate-800 pb-1.5">
-                  <span>Inference Engine:</span>
-                  <span className="text-green-500">Active</span>
+              <h3 className="font-bold text-xs text-[#7c7b77] uppercase tracking-widest">Surveillance Node Telemetry</h3>
+              <div className="space-y-2.5 text-xs font-semibold text-[#7c7b77]">
+                <div className="flex justify-between border-b border-[#e9e9e6] pb-2">
+                  <span>AI Inference:</span>
+                  <span className="text-[#27ae60] font-bold">Active</span>
                 </div>
-                <div className="flex justify-between border-b border-slate-800 pb-1.5">
-                  <span>DB Status:</span>
-                  <span className="text-green-500 font-mono">SQLite Connected</span>
+                <div className="flex justify-between border-b border-[#e9e9e6] pb-2">
+                  <span>DB Connection:</span>
+                  <span className="text-[#27ae60] font-mono text-[10px]">SQLite OK</span>
                 </div>
-                <div className="flex justify-between border-b border-slate-800 pb-1.5">
-                  <span>Webcam Stream:</span>
-                  <span className={webcamActive ? 'text-green-500' : 'text-slate-500'}>{webcamActive ? 'Online' : 'Offline'}</span>
+                <div className="flex justify-between border-b border-[#e9e9e6] pb-2">
+                  <span>Webcam Scanner:</span>
+                  <span className={webcamActive ? 'text-[#27ae60]' : 'text-[#7c7b77]'}>{webcamActive ? 'ONLINE' : 'OFFLINE'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>RTSP Stream:</span>
-                  <span className={rtspConnected ? 'text-green-500' : 'text-slate-500'}>{rtspConnected ? 'Online' : 'Offline'}</span>
+                  <span>RTSP Ingress:</span>
+                  <span className={rtspConnected ? 'text-[#27ae60]' : 'text-[#7c7b77]'}>{rtspConnected ? 'ONLINE' : 'OFFLINE'}</span>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f0f17]">
-            <CardContent className="p-5 space-y-3">
-              <h3 className="font-bold text-sm text-white">Recent SOC Alerts</h3>
+          <Card className="bg-white border-[#e9e9e6] shadow-sm">
+            <CardContent className="p-5 space-y-3.5">
+              <h3 className="font-bold text-xs text-[#7c7b77] uppercase tracking-widest">Recent SOC Warnings</h3>
               
               {isLoadingAlerts ? (
-                <div className="py-8 text-center text-xs text-slate-500">Loading alerts...</div>
+                <div className="py-10 text-center text-xs text-[#7c7b77] font-semibold">Syncing alerts...</div>
               ) : recentAlerts.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-500 flex flex-col items-center justify-center gap-1">
-                  <ShieldCheck className="text-slate-600" size={24} />
-                  <span>No active threats</span>
+                <div className="py-10 text-center text-xs text-[#7c7b77] flex flex-col items-center justify-center gap-2">
+                  <ShieldCheck className="text-[#27ae60] animate-radar" size={28} />
+                  <span className="font-semibold text-zinc-450 uppercase tracking-wider text-[10px]">No Active Warnings</span>
                 </div>
               ) : (
                 <div className="space-y-2.5 max-h-[300px] overflow-y-auto custom-scrollbar">
                   {recentAlerts.map((alert) => (
-                    <div key={alert.id} className="p-3 rounded-xl border border-slate-800/80 bg-slate-900/40 flex items-center justify-between gap-3">
+                    <div key={alert.id} className="p-3 rounded-lg border border-[#e9e9e6] bg-[#f7f7f5]/20 hover:border-[#eb5757]/20 transition-all flex items-center justify-between gap-3 cursor-pointer">
                       <div>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-2">
                           <Badge type={alert.detection_type}>{alert.detection_type}</Badge>
-                          <span className="text-[10px] font-mono text-slate-400">{(alert.confidence * 100).toFixed(0)}%</span>
+                          <span className="text-[9px] font-mono font-bold text-[#7c7b77]">{(alert.confidence * 100).toFixed(0)}%</span>
                         </div>
-                        <span className="text-[9px] font-mono text-slate-500 block mt-1">{new Date(alert.timestamp).toLocaleTimeString()}</span>
+                        <span className="text-[9px] font-mono text-[#7c7b77] block mt-1.5">{new Date(alert.timestamp).toLocaleTimeString()}</span>
                       </div>
-                      <span className={`w-2 h-2 rounded-full ${alert.status === 'active' ? 'bg-red-500 animate-ping' : 'bg-slate-600'}`}></span>
+                      <span className={`w-2 h-2 rounded-full ${alert.status === 'active' ? 'bg-[#eb5757] animate-pulse shadow-[0_0_6px_rgba(235,87,87,0.3)]' : 'bg-[#a4a3a0]'}`}></span>
                     </div>
                   ))}
                 </div>

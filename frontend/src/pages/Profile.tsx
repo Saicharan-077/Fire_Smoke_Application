@@ -7,7 +7,7 @@ import { useAuthStore } from '../store/authStore';
 import { getAuditLogs, updateProfileApi, changePasswordApi } from '../services/api';
 import { User, Shield, Key, LogOut, RefreshCw, Activity } from 'lucide-react';
 
-const ProfileMerged = () => {
+const Profile = () => {
   const { toast } = useToast();
   const { currentUser, logout } = useAuthStore();
   
@@ -211,4 +211,4 @@ const ProfileMerged = () => {
   );
 };
 
-export default ProfileMerged;
+export default Profile;

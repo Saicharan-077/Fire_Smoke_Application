@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Flame, Shield, Activity, Video, ArrowRight, Database, Server, Cpu } from 'lucide-react';
+import { Flame, Shield, Activity, Video, ArrowRight, ChevronDown } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 
 const Landing = () => {
@@ -7,220 +7,209 @@ const Landing = () => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   const features = [
-    { icon: <Flame className="w-5 h-5 text-red-500" />, title: 'Real-time YOLOv8 AI', desc: 'Custom vision models identify active fire & smoke incidents with millisecond latency.' },
-    { icon: <Activity className="w-5 h-5 text-orange-500" />, title: 'SOC Console', desc: 'Integrated console displaying real-time warning indicators, live feeds, and alerts feed.' },
-    { icon: <Video className="w-5 h-5 text-blue-500" />, title: 'Multi-stream CCTV Grid', desc: 'CCTV feed processing, deep linking parameters, and simple fullscreen camera grids.' },
-    { icon: <Shield className="w-5 h-5 text-green-500" />, title: 'Audited Incident Log', desc: 'Instant warning flags trigger evidence captures, database audits, and PDF tickets.' },
+    { 
+      icon: <Flame className="w-5 h-5 text-[#eb5757]" />, 
+      title: 'YOLOv8 Real-Time AI Inference', 
+      desc: 'Custom vision models evaluate camera streams with millisecond latency, minimizing false alarms.' 
+    },
+    { 
+      icon: <Activity className="w-5 h-5 text-[#f2994a]" />, 
+      title: 'Operations Command Center', 
+      desc: 'High-stress dashboard with warning triggers, live feeds, and real-time telemetry metrics.' 
+    },
+    { 
+      icon: <Video className="w-5 h-5 text-[#006fee]" />, 
+      title: 'Multi-Stream CCTV Grid', 
+      desc: 'Seamless camera grid systems supporting local webcam captures and RTSP network streams.' 
+    },
+    { 
+      icon: <Shield className="w-5 h-5 text-[#27ae60]" />, 
+      title: 'Security Auditing & Escalation', 
+      desc: 'Automated logging of threats into an incident reporting workspace with PDF ticket exports.' 
+    },
   ];
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] font-sans relative overflow-x-hidden selection:bg-blue-100 dark:selection:bg-blue-900/30">
+    <div className="min-h-screen bg-white text-[#37352f] font-sans relative overflow-x-hidden selection:bg-[#006fee]/10 selection:text-[#006fee]">
       
-      {/* Header bar */}
-      <header className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between border-b border-[var(--border)]">
-        <div className="flex items-center gap-2 text-red-500 font-bold select-none cursor-pointer" onClick={() => navigate('/')}>
-          <Flame size={16} className="fill-current" />
-          <span className="text-sm font-bold text-[var(--text)]">FireGuard AI</span>
+      {/* Notion-style Top Navigation Header */}
+      <header className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between border-b border-[#e9e9e6] relative z-20">
+        <div className="flex items-center gap-6">
+          {/* Logo */}
+          <div className="flex items-center gap-2 font-bold cursor-pointer select-none" onClick={() => navigate('/')}>
+            <div className="p-1.5 rounded bg-[#eb5757]/10 text-[#eb5757] border border-[#eb5757]/20 flex items-center justify-center shrink-0">
+              <Flame size={15} className="fill-current" />
+            </div>
+            <span className="text-sm font-bold tracking-tight text-[#37352f]">FireGuard AI</span>
+          </div>
+
+          {/* Links (Replicating Notion reference image navigation links) */}
+          <nav className="hidden lg:flex items-center gap-5 text-xs font-semibold text-[#7c7b77]">
+            <span className="hover:text-[#37352f] cursor-pointer flex items-center gap-0.5">Product <ChevronDown size={11} /></span>
+            <span className="hover:text-[#37352f] cursor-pointer flex items-center gap-0.5">Solutions <ChevronDown size={11} /></span>
+            <span className="hover:text-[#37352f] cursor-pointer flex items-center gap-0.5">Resources <ChevronDown size={11} /></span>
+            <span className="hover:text-[#37352f] cursor-pointer">Developers</span>
+            <span className="hover:text-[#37352f] cursor-pointer">Enterprise</span>
+            <span className="hover:text-[#37352f] cursor-pointer">Pricing</span>
+            <span className="hover:text-[#37352f] cursor-pointer">Request a demo</span>
+          </nav>
         </div>
-        <div className="flex items-center gap-4">
+
+        <div className="flex items-center gap-4 text-xs font-semibold">
           {isAuthenticated ? (
             <button 
               onClick={() => navigate('/dashboard')}
-              className="px-3.5 py-1.5 rounded-md bg-[#2383e2] hover:bg-[#1a6ec2] text-white font-medium text-xs tracking-wide transition-colors cursor-pointer flex items-center gap-1"
+              className="px-3.5 py-1.5 rounded-lg bg-[#006fee] hover:bg-[#005bc5] text-white transition-all cursor-pointer flex items-center gap-1 shadow-sm"
             >
-              Go to Console <ArrowRight size={12} />
+              Command Center <ArrowRight size={12} />
             </button>
           ) : (
-            <>
+            <div className="flex items-center gap-3">
               <button 
                 onClick={() => navigate('/login')}
-                className="text-xs font-semibold text-[var(--text-2)] hover:text-[var(--text)] cursor-pointer"
+                className="px-3 py-1.5 text-[#7c7b77] hover:text-[#37352f] transition-all cursor-pointer"
               >
                 Log in
               </button>
               <button 
                 onClick={() => navigate('/register')}
-                className="px-3.5 py-1.5 rounded-md bg-[#2383e2] hover:bg-[#1a6ec2] text-white font-medium text-xs transition-all cursor-pointer"
+                className="px-3.5 py-1.5 rounded-lg bg-[#006fee] hover:bg-[#005bc5] text-white transition-all shadow-sm cursor-pointer"
               >
                 Get FireGuard free
               </button>
-            </>
+            </div>
           )}
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="max-w-4xl mx-auto px-6 pt-20 pb-20 text-center space-y-6">
-        {/* Notion header avatar block */}
-        <div className="flex justify-center items-center gap-1.5 py-2 select-none pointer-events-none">
-          <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 flex items-center justify-center text-red-500 font-bold">
-            🔥
-          </div>
-          <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/50 flex items-center justify-center text-orange-500 font-bold">
-            🛡️
-          </div>
-          <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 flex items-center justify-center text-blue-500 font-bold">
-            👁️
-          </div>
-        </div>
-
-        <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-[var(--text)] leading-tight max-w-3xl mx-auto">
-          Where fire safety and <br />
-          <span className="underline decoration-[#2383e2] decoration-4 underline-offset-4">AI jam together.</span>
-        </h1>
-
-        <p className="text-[var(--text-2)] text-base md:text-lg max-w-xl mx-auto font-normal leading-relaxed">
-          Capture context, find answers, and automate security tasks with computer vision built for your operations team.
-        </p>
-
-        <div className="flex justify-center gap-3 pt-2">
-          <button
-            onClick={() => navigate(isAuthenticated ? '/dashboard' : '/login')}
-            className="px-5 py-2 rounded-md bg-[#2383e2] hover:bg-[#1a6ec2] text-white font-semibold text-xs uppercase tracking-wider transition-colors flex items-center gap-1.5 cursor-pointer"
-          >
-            Get FireGuard free <ArrowRight size={13} />
-          </button>
-          <button
-            onClick={() => navigate('/login')}
-            className="px-5 py-2 rounded-md bg-[var(--bg-alt)] hover:bg-black/[0.05] dark:hover:bg-white/[0.05] border border-[var(--border)] text-[var(--text)] font-semibold text-xs uppercase tracking-wider transition-colors cursor-pointer"
-          >
-            Request a demo
-          </button>
-        </div>
-
-        {/* Flat Dashboard Preview Panel */}
-        <div className="mt-16 border border-[var(--border)] bg-[var(--bg-alt)] rounded-lg p-3 shadow-sm max-w-4xl mx-auto relative overflow-hidden">
-          <div className="h-5 flex items-center gap-1.5 border-b border-[var(--border)] pb-3 px-1 select-none">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f56]"></span>
-            <span className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]"></span>
-            <span className="w-2.5 h-2.5 rounded-full bg-[#27c93f]"></span>
-            <span className="text-[9px] font-mono text-[var(--muted)] ml-3">FIREGUARD_WORKSPACE_DASHBOARD_LIVE</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 text-left">
-            <div className="md:col-span-2 rounded-lg bg-[var(--bg)] aspect-video relative overflow-hidden border border-[var(--border)] flex items-center justify-center select-none font-mono text-[10px] text-[var(--muted)]">
-              [ CCTV CAMERA STREAM INGEST SIMULATOR ]
-              <div className="absolute inset-0 border border-red-500/40 m-6 rounded-lg flex items-start p-2 bg-red-500/5">
-                <span className="px-1.5 py-0.5 rounded bg-red-500 text-[8px] font-bold text-white uppercase tracking-wider">FIRE 96%</span>
+      <main className="max-w-6xl mx-auto px-6 pt-16 pb-32 relative z-10 space-y-16">
+        
+        {/* Title, Subtitle, and CTAs (Replicating Notion reference style) */}
+        <div className="text-center max-w-3xl mx-auto space-y-6 flex flex-col items-center">
+          
+          {/* Avatar bubbles representation */}
+          <div className="flex -space-x-1.5 overflow-hidden py-2 select-none">
+            {['👨‍✈️', '🤖', '👩‍💻', '👮', '👨‍🚒'].map((emoji, idx) => (
+              <div key={idx} className="inline-block h-9 w-9 rounded-full bg-[#f7f7f5] border-2 border-white flex items-center justify-center text-lg shadow-sm">
+                {emoji}
               </div>
-            </div>
-            <div className="flex flex-col gap-3">
-              <div className="p-4 rounded-lg bg-[var(--bg)] border border-[var(--border)] space-y-1">
-                <p className="text-[9px] text-[var(--muted)] font-bold uppercase tracking-wider">System Threat Status</p>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                  <span className="text-red-500 font-bold text-xs font-mono uppercase">Threat Discovered</span>
-                </div>
-              </div>
-              <div className="p-4 rounded-lg bg-[var(--bg)] border border-[var(--border)] space-y-2 flex-1 flex flex-col justify-center font-mono text-[10px] text-[var(--text-2)]">
-                <div className="flex justify-between border-b border-[var(--border)] pb-1"><span>Model:</span><span className="text-orange-500 font-bold">YOLOv8s</span></div>
-                <div className="flex justify-between border-b border-[var(--border)] pb-1"><span>Latency:</span><span>24ms</span></div>
-                <div className="flex justify-between border-b border-[var(--border)] pb-1"><span>Status:</span><span className="text-red-500 font-bold">Alerting</span></div>
-              </div>
-            </div>
+            ))}
           </div>
-        </div>
-      </section>
 
-      {/* Feature Grid */}
-      <section className="max-w-5xl mx-auto px-6 py-16 border-t border-[var(--border)]">
-        <h2 className="text-xl font-bold text-center mb-12 text-[var(--text)]">Designed for modern security operations</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {features.map((f, i) => (
-            <div
-              key={i}
-              className="p-5 rounded-lg border border-[var(--border)] hover:bg-[var(--bg-alt)] transition-colors duration-150 flex flex-col gap-3"
+          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.15] text-[#37352f] max-w-2xl">
+            Where safety and agents <span className="bg-[#fff0d4] px-3 py-1 rounded-2xl border border-[#fae8b8] text-[#b38b00] inline-block mt-2">Build together.</span>
+          </h1>
+
+          <p className="text-sm sm:text-base text-[#7c7b77] max-w-lg mx-auto font-semibold leading-relaxed">
+            Autonomous computer vision pipeline built to scan industrial campuses, factories, and CCTV channels for real-time fire and smoke warnings.
+          </p>
+
+          <div className="pt-2 flex justify-center gap-3 font-semibold">
+            <button 
+              onClick={() => navigate('/login')}
+              className="px-5 py-2.5 rounded-lg bg-[#006fee] hover:bg-[#005bc5] text-xs text-white transition-all shadow-sm cursor-pointer flex items-center gap-1.5"
             >
-              <div className="w-8 h-8 rounded bg-[var(--bg-alt)] border border-[var(--border)] flex items-center justify-center shrink-0">
-                {f.icon}
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-bold text-xs text-[var(--text)]">{f.title}</h3>
-                <p className="text-[11px] text-[var(--text-2)] leading-relaxed">{f.desc}</p>
-              </div>
-            </div>
-          ))}
+              Get FireGuard free <ArrowRight size={13} />
+            </button>
+            <button 
+              onClick={() => navigate('/documentation')}
+              className="px-5 py-2.5 rounded-lg bg-[#efefe5]/50 hover:bg-[#efefe5] border border-[#e9e9e6] text-xs text-[#37352f] transition-all cursor-pointer"
+            >
+              Request a demo
+            </button>
+          </div>
         </div>
-      </section>
 
-      {/* Technology & Architecture Section */}
-      <section className="max-w-5xl mx-auto px-6 py-16 border-t border-[var(--border)]">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-[var(--text)]">Platform Infrastructure</h2>
-            <p className="text-xs text-[var(--text-2)] leading-relaxed font-medium">
-              FireGuard AI processes video feeds locally or in private networks with minimal computing footprints. The server communicates warning events to your operations team via real-time sockets.
-            </p>
-            <div className="space-y-4 pt-2">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded bg-[var(--bg-alt)] border border-[var(--border)] flex items-center justify-center shrink-0">
-                  <Database size={14} className="text-zinc-500" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-xs text-[var(--text)]">SQL Database Persistence</h4>
-                  <p className="text-[10px] text-[var(--text-2)] mt-0.5">Logs and index records are persisted in a fast, robust database.</p>
+        {/* Dashboard Mockup (Notion-style clean interface) */}
+        <div className="rounded-xl border border-[#e9e9e6] bg-[#f7f7f5] p-3 shadow-md max-w-4xl mx-auto overflow-hidden">
+          <div className="rounded-lg bg-white border border-[#e9e9e6] p-4 shadow-sm space-y-4">
+            
+            {/* Mock Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-[#e9e9e6] text-[10px] font-bold text-[#7c7b77]">
+              <div className="flex gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#eb5757]" />
+                <span className="w-2 h-2 rounded-full bg-[#f2994a]" />
+                <span className="w-2 h-2 rounded-full bg-[#27ae60]" />
+              </div>
+              <span className="uppercase tracking-wider font-mono">WORKSPACE COMMAND MONITOR</span>
+            </div>
+            
+            {/* Mock Dashboard Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-3.5 rounded-lg border border-[#e9e9e6] bg-[#f7f7f5]/30 space-y-1.5">
+                <span className="text-[9px] font-bold text-[#eb5757] uppercase tracking-wider">AI Accuracy</span>
+                <p className="text-xl font-bold font-mono text-[#37352f]">99.4%</p>
+                <div className="w-full h-1 bg-[#e9e9e6] rounded-full overflow-hidden">
+                  <div className="h-full bg-[#eb5757] w-[99%]" />
                 </div>
               </div>
-
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded bg-[var(--bg-alt)] border border-[var(--border)] flex items-center justify-center shrink-0">
-                  <Server size={14} className="text-zinc-500" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-xs text-[var(--text)]">FastAPI Telemetry</h4>
-                  <p className="text-[10px] text-[var(--text-2)] mt-0.5">Pushes instantaneous alert updates to active browsers over WebSockets.</p>
+              <div className="p-3.5 rounded-lg border border-[#e9e9e6] bg-[#f7f7f5]/30 space-y-1.5">
+                <span className="text-[9px] font-bold text-[#f2994a] uppercase tracking-wider">Inference Speed</span>
+                <p className="text-xl font-bold font-mono text-[#37352f]">12 ms</p>
+                <div className="w-full h-1 bg-[#e9e9e6] rounded-full overflow-hidden">
+                  <div className="h-full bg-[#f2994a] w-[20%]" />
                 </div>
               </div>
-
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded bg-[var(--bg-alt)] border border-[var(--border)] flex items-center justify-center shrink-0">
-                  <Cpu size={14} className="text-zinc-500" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-xs text-[var(--text)]">YOLOv8 Pre-trained Network</h4>
-                  <p className="text-[10px] text-[var(--text-2)] mt-0.5">Identifies bounding boxes and fire probability scores in real-time.</p>
+              <div className="p-3.5 rounded-lg border border-[#e9e9e6] bg-[#f7f7f5]/30 space-y-1.5">
+                <span className="text-[9px] font-bold text-[#006fee] uppercase tracking-wider">Active Channels</span>
+                <p className="text-xl font-bold font-mono text-[#37352f]">SECURE</p>
+                <div className="w-full h-1 bg-[#e9e9e6] rounded-full overflow-hidden">
+                  <div className="h-full bg-[#006fee] w-[100%]" />
                 </div>
               </div>
             </div>
           </div>
-          <div className="p-6 rounded-lg bg-[var(--bg-alt)] border border-[var(--border)] font-mono text-[10px] text-[var(--text-2)] space-y-4 shadow-sm">
-            <h3 className="font-bold text-[var(--text)] border-b border-[var(--border)] pb-2 text-xs flex items-center gap-1.5 select-none">
-              <span className="w-2 h-2 rounded-full bg-red-500"></span>
-              Threat Ingestion Pipeline Flow
-            </h3>
-            <div className="space-y-3.5 border-l border-[var(--border)] pl-4 ml-2">
-              <div className="relative">
-                <div className="absolute -left-6 top-1 w-4 h-4 rounded bg-[var(--bg)] border border-[var(--border)] flex items-center justify-center font-sans text-[8px] font-bold text-[var(--text)]">1</div>
-                <p className="font-bold text-[var(--text)]">Ingestion</p>
-                <p className="text-[9px] mt-0.5">Video payloads or camera feeds are captured and sliced into frame intervals.</p>
-              </div>
-              <div className="relative">
-                <div className="absolute -left-6 top-1 w-4 h-4 rounded bg-[var(--bg)] border border-[var(--border)] flex items-center justify-center font-sans text-[8px] font-bold text-[var(--text)]">2</div>
-                <p className="font-bold text-[var(--text)]">AI Core Inference</p>
-                <p className="text-[9px] mt-0.5">YOLOv8 process analyzes frames and calculates fire/smoke confidence metrics.</p>
-              </div>
-              <div className="relative">
-                <div className="absolute -left-6 top-1 w-4 h-4 rounded bg-[var(--bg)] border border-[var(--border)] flex items-center justify-center font-sans text-[8px] font-bold text-[var(--text)]">3</div>
-                <p className="font-bold text-[var(--text)]">Telemetry Broadcast</p>
-                <p className="text-[9px] mt-0.5">Active logs save to local store, and alert updates push via active socket.</p>
-              </div>
-            </div>
-          </div>
         </div>
-      </section>
 
-      {/* Footer */}
-      <footer className="border-t border-[var(--border)] bg-[var(--bg-alt)] py-10 px-6 mt-16 select-none">
-        <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-1.5 text-xs text-[var(--text)] font-bold">
-            <Flame size={14} className="text-red-500 fill-current" />
-            <span>FireGuard AI</span>
+        {/* Feature Grid */}
+        <div className="space-y-10 pt-10">
+          <div className="text-center max-w-xl mx-auto space-y-2">
+            <h2 className="text-xl font-bold tracking-tight text-[#37352f]">Enterprise Security Integrations</h2>
+            <p className="text-xs text-[#7c7b77] font-semibold">FireGuard layers directly over existing facility monitoring networks.</p>
           </div>
-          <div className="flex flex-wrap justify-center gap-4 text-[11px] text-[var(--text-2)] font-semibold uppercase tracking-wider">
-            <button onClick={() => navigate('/documentation')} className="hover:text-[var(--text)] transition-colors cursor-pointer">Documentation</button>
-            <span className="text-[var(--border)]">|</span>
-            <span className="text-[var(--muted)] normal-case font-normal">© {new Date().getFullYear()} FireGuard AI. All rights reserved.</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {features.map((f, i) => (
+              <div key={i} className="p-5 rounded-xl border border-[#e9e9e6] bg-white hover:border-[#7c7b77]/40 hover:shadow-md transition-all space-y-3">
+                <div className="p-2.5 rounded-lg bg-[#f7f7f5] border border-[#e9e9e6] w-fit">
+                  {f.icon}
+                </div>
+                <h3 className="font-bold text-xs tracking-tight text-[#37352f]">{f.title}</h3>
+                <p className="text-[11px] text-[#7c7b77] font-semibold leading-relaxed">{f.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
+
+        {/* Target Industries */}
+        <div className="py-10 border-y border-[#e9e9e6] text-center space-y-4">
+          <p className="text-[9px] font-bold uppercase tracking-wider text-[#a4a3a0]">Trusted by Operational Managers</p>
+          <div className="flex flex-wrap justify-center gap-4 sm:gap-6 text-[11px] font-semibold text-[#7c7b77]">
+            {['Industrial Factories', 'Cargo Airports', 'Logistics Warehouses', 'Campuses', 'Server Rooms', 'Hospitals'].map((ind, i) => (
+              <span key={i} className="px-3.5 py-1.5 rounded-lg bg-[#f7f7f5] border border-[#e9e9e6]">{ind}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer Call to Action */}
+        <div className="rounded-2xl border border-[#e9e9e6] bg-[#f7f7f5] p-8 sm:p-12 text-center max-w-3xl mx-auto space-y-5 relative overflow-hidden">
+          <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-[#37352f]">Begin securing your space today</h2>
+          <p className="text-xs text-[#7c7b77] max-w-md mx-auto leading-relaxed font-semibold">
+            Integrate local webcam channels or connect RTSP CCTV cameras immediately from the main command workspace.
+          </p>
+          <div className="flex justify-center">
+            <button 
+              onClick={() => navigate('/login')}
+              className="px-5 py-2.5 rounded-lg bg-[#006fee] hover:bg-[#005bc5] text-xs font-bold text-white transition-all shadow-sm cursor-pointer flex items-center gap-1.5"
+            >
+              Get FireGuard free <ArrowRight size={13} />
+            </button>
+          </div>
+        </div>
+      </main>
+
+      <footer className="text-center py-8 border-t border-[#e9e9e6] text-[10px] text-[#a4a3a0] font-semibold tracking-wide">
+        &copy; {new Date().getFullYear()} FireGuard AI, Inc. All rights reserved.
       </footer>
     </div>
   );
