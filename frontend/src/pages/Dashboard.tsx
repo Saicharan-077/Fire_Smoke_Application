@@ -7,12 +7,15 @@ import { getDashboardStats, getDashboardAnalytics, getIncidents } from '../servi
 import { useDashboardStore } from '../store/dashboardStore';
 import { 
   Flame, Wind, Activity, 
-  Video, RefreshCw, ShieldAlert, Cpu, Heart, CheckCircle2 
+  Video,  RefreshCw, AlertTriangle, ChevronRight, BarChart3, Clock, 
+  MapPin, ShieldAlert, Target, Cpu, Heart, CheckCircle2
 } from 'lucide-react';
+import { HeroBackground } from '../components/Dashboard/HeroBackground';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { usePermissions } from '../hooks/usePermissions';
+import { AnimatedCounter } from '../components/Common/AnimatedCounter';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -111,8 +114,9 @@ const Dashboard = () => {
       animate="visible"
     >
       {/* Premium Defender Banner */}
-      <motion.div variants={itemVariants} className="relative rounded-3xl overflow-hidden border border-red-500/10 bg-gradient-to-br from-red-500/5 via-slate-900/40 to-[#0c0c14] p-8">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(239,68,68,0.08),transparent_50%)] pointer-events-none"></div>
+      <motion.div variants={itemVariants} className="relative rounded-3xl overflow-hidden border border-red-500/10 bg-[#0c0c14] p-8 shadow-2xl">
+        <HeroBackground />
+        
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/15 border border-red-500/25 text-xs font-bold text-red-500">
@@ -138,12 +142,12 @@ const Dashboard = () => {
       {/* SOC KPIs Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-5">
         {[
-          { label: 'Fire Count', value: stats.fire_alerts, icon: <Flame size={20} className="text-red-500" />, desc: 'Active detections' },
-          { label: 'Smoke Count', value: stats.smoke_alerts, icon: <Wind size={20} className="text-orange-500" />, desc: 'Active detections' },
-          { label: 'Active Alerts', value: stats.active_alerts, icon: <ShieldAlert size={20} className="text-yellow-500" />, desc: 'Unresolved queue' },
-          { label: 'Model Accuracy', value: `${stats.model_accuracy ?? 94.2}%`, icon: <Cpu size={20} className="text-green-500" />, desc: stats.model_ready ? 'YOLOv8 ready' : 'Model loading' },
+          { label: 'Fire Count', value: <AnimatedCounter value={stats.fire_alerts} />, icon: <Flame size={20} className="text-red-500" />, desc: 'Active detections' },
+          { label: 'Smoke Count', value: <AnimatedCounter value={stats.smoke_alerts} />, icon: <Wind size={20} className="text-orange-500" />, desc: 'Active detections' },
+          { label: 'Active Alerts', value: <AnimatedCounter value={stats.active_alerts} />, icon: <ShieldAlert size={20} className="text-yellow-500" />, desc: 'Unresolved queue' },
+          { label: 'Model Accuracy', value: <AnimatedCounter value={stats.model_accuracy ?? 94.2} suffix="%" decimals={1} />, icon: <Cpu size={20} className="text-green-500" />, desc: stats.model_ready ? 'YOLOv8 ready' : 'Model loading' },
           { label: 'System Health', value: (stats.system_health ?? 'nominal').charAt(0).toUpperCase() + (stats.system_health ?? 'nominal').slice(1), icon: <Heart size={20} className={stats.system_health === 'nominal' ? 'text-blue-500' : 'text-amber-500'} />, desc: 'All services' },
-          { label: 'Cameras Online', value: `${stats.online_cameras ?? stats.connected_cameras}/${stats.total_cameras ?? stats.connected_cameras}`, icon: <Video size={20} className="text-indigo-500" />, desc: 'Active CCTV feeds' },
+          { label: 'Cameras Online', value: <><AnimatedCounter value={stats.online_cameras ?? stats.connected_cameras} />/<AnimatedCounter value={stats.total_cameras ?? stats.connected_cameras} /></>, icon: <Video size={20} className="text-indigo-500" />, desc: 'Active CCTV feeds' },
         ].map((kpi, idx) => (
           <motion.div key={idx} variants={itemVariants}>
             <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f0f17] hover:scale-[1.02] transition-all">
@@ -153,7 +157,7 @@ const Dashboard = () => {
                   {kpi.icon}
                 </div>
                 <div>
-                  <h3 className="text-2xl font-black text-white">{kpi.value}</h3>
+                  <h3 className="text-2xl font-black text-slate-900 dark:text-white">{kpi.value}</h3>
                   <p className="text-[10px] text-slate-500 mt-1 font-semibold">{kpi.desc}</p>
                 </div>
               </CardContent>
@@ -172,7 +176,7 @@ const Dashboard = () => {
           <motion.div variants={itemVariants}>
             <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f0f17]">
               <CardHeader className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 pb-4">
-                <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
+                <CardTitle className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <Activity size={16} className="text-red-500" /> Real-Time Threat Activity Timeline (24h)
                 </CardTitle>
               </CardHeader>
@@ -208,18 +212,34 @@ const Dashboard = () => {
             {/* Quick Actions */}
             <motion.div variants={itemVariants}>
               <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f0f17] h-full">
-                <CardHeader><CardTitle className="text-sm font-bold text-white">Security Command Actions</CardTitle></CardHeader>
-                <CardContent className="p-5 space-y-3">
-                  <button onClick={() => hasPermission('detection') && navigate('/detection')} className={`w-full text-left p-3.5 rounded-2xl bg-white/5 border border-white/5 hover:border-red-500/30 transition-all flex items-center justify-between text-xs font-semibold text-white ${!hasPermission('detection') ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                    <span>Initiate AI Stream Scan</span>
+                <CardHeader><CardTitle className="text-sm font-bold text-slate-900 dark:text-white">Security Command Actions</CardTitle></CardHeader>
+                <CardContent className="p-5 grid grid-cols-1 gap-3">
+                  <button onClick={() => hasPermission('detection') && navigate('/detection')} className={`w-full text-left p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:border-red-500/30 transition-all flex items-center justify-between text-xs font-semibold text-slate-800 dark:text-white ${!hasPermission('detection') ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                    <div className="flex items-center gap-2">
+                      <Video size={16} className="text-red-500" />
+                      <span>Initiate AI Stream Scan</span>
+                    </div>
                     <span className="text-red-400">→</span>
                   </button>
-                  <button onClick={() => hasPermission('live_monitoring') && navigate('/live-monitoring')} className={`w-full text-left p-3.5 rounded-2xl bg-white/5 border border-white/5 hover:border-red-500/30 transition-all flex items-center justify-between text-xs font-semibold text-white ${!hasPermission('live_monitoring') ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                    <span>View CCTV Security Grid</span>
+                  <button onClick={() => hasPermission('live_monitoring') && navigate('/live-monitoring')} className={`w-full text-left p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:border-red-500/30 transition-all flex items-center justify-between text-xs font-semibold text-slate-800 dark:text-white ${!hasPermission('live_monitoring') ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                    <div className="flex items-center gap-2">
+                      <Activity size={16} className="text-blue-500" />
+                      <span>View CCTV Security Grid</span>
+                    </div>
                     <span className="text-red-400">→</span>
                   </button>
-                  <button onClick={() => navigate('/alerts-reports')} className="w-full text-left p-3.5 rounded-2xl bg-white/5 border border-white/5 hover:border-red-500/30 transition-all flex items-center justify-between text-xs font-semibold text-white">
-                    <span>Export Incident PDF Audit</span>
+                  <button onClick={() => navigate('/alerts-reports')} className="w-full text-left p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:border-red-500/30 transition-all flex items-center justify-between text-xs font-semibold text-slate-800 dark:text-white">
+                    <div className="flex items-center gap-2">
+                      <ShieldAlert size={16} className="text-yellow-500" />
+                      <span>Audit Alerts & Incidents</span>
+                    </div>
+                    <span className="text-red-400">→</span>
+                  </button>
+                  <button onClick={() => navigate('/analytics')} className="w-full text-left p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:border-red-500/30 transition-all flex items-center justify-between text-xs font-semibold text-slate-800 dark:text-white">
+                    <div className="flex items-center gap-2">
+                      <Cpu size={16} className="text-green-500" />
+                      <span>Analyze Threat Analytics</span>
+                    </div>
                     <span className="text-red-400">→</span>
                   </button>
                 </CardContent>
@@ -229,21 +249,27 @@ const Dashboard = () => {
             {/* Recent Incidents */}
             <motion.div variants={itemVariants}>
               <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f0f17] h-full">
-                <CardHeader><CardTitle className="text-sm font-bold text-white">Recent Logged Incidents</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-sm font-bold text-slate-900 dark:text-white">Recent Logged Incidents</CardTitle></CardHeader>
                 <CardContent className="p-5 space-y-3 max-h-[220px] overflow-y-auto custom-scrollbar">
                   {incidents.length === 0 ? (
                     <p className="text-xs text-slate-500 text-center py-6">No incidents filed.</p>
                   ) : (
-                    incidents.map((inc) => (
-                      <div key={inc.id} className="flex justify-between items-center p-2.5 rounded-xl border border-slate-850 bg-slate-900/30">
+                    incidents.map((inc, i) => (
+                      <motion.div 
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        key={inc.id} 
+                        className="flex justify-between items-center p-2.5 rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-900/30 hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors"
+                      >
                         <div className="space-y-0.5 max-w-[70%]">
-                          <p className="text-xs font-bold text-white truncate">{inc.title}</p>
-                          <p className="text-[9px] text-slate-450 truncate">{inc.description}</p>
+                          <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{inc.title}</p>
+                          <p className="text-[9px] text-slate-500 dark:text-slate-450 truncate">{inc.description}</p>
                         </div>
                         <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
                           inc.severity === 'critical' ? 'bg-red-500/10 text-red-500' : 'bg-yellow-500/10 text-yellow-500'
                         }`}>{inc.severity}</span>
-                      </div>
+                      </motion.div>
                     ))
                   )}
                 </CardContent>
@@ -285,7 +311,7 @@ const Dashboard = () => {
           {/* Recent Activity Feed */}
           <motion.div variants={itemVariants}>
             <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f0f17]">
-              <CardHeader><CardTitle className="text-sm font-bold text-white">Recent SOC Activity Feed</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-sm font-bold text-slate-900 dark:text-white">Recent SOC Activity Feed</CardTitle></CardHeader>
               <CardContent className="p-5 space-y-3.5 max-h-[340px] overflow-y-auto custom-scrollbar">
                 {sortedAlerts.length === 0 ? (
                   <p className="text-xs text-slate-500 text-center py-6">No recent alert events logged.</p>
@@ -297,7 +323,7 @@ const Dashboard = () => {
                           <Badge type={alert.detection_type}>{alert.detection_type}</Badge>
                           <span className="text-[9px] font-mono text-slate-400">{(alert.confidence * 100).toFixed(0)}% Match</span>
                         </div>
-                        <p className="text-[10px] font-bold text-white">Camera: {alert.camera_id || 'Upload Source'}</p>
+                        <p className="text-[10px] font-bold text-slate-900 dark:text-white">Camera: {alert.camera_id || 'Upload Source'}</p>
                         <p className="text-[9px] text-slate-550">{new Date(alert.timestamp).toLocaleTimeString()}</p>
                       </div>
                       <span className={`w-2 h-2 rounded-full ${alert.status === 'active' ? 'bg-red-500 animate-pulse' : 'bg-slate-650'}`}></span>

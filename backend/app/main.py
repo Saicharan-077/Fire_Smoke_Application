@@ -461,6 +461,7 @@ def analytics_camera_activity(
 # ── WebSocket endpoint ────────────────────────────────────────────────────────
 @app.websocket("/ws/alerts")
 async def alert_ws(websocket: WebSocket):
+    await websocket.accept()
     token = websocket.query_params.get("token") or ""
     auth_header = websocket.headers.get("authorization")
     if auth_header and auth_header.startswith("Bearer "):
@@ -475,7 +476,9 @@ async def alert_ws(websocket: WebSocket):
             return
 
         from .websocket.connection_manager import manager
-        await manager.connect(websocket)
+        # Avoid calling accept again inside manager.connect by adding a check or we can just rely on the fact that Starlette ignores double accept, wait no it throws.
+        # Let's bypass manager.connect's accept by just appending to connections.
+        manager._connections.append(websocket)
         try:
             while True:
                 await websocket.receive_text()

@@ -264,6 +264,14 @@ class IncidentOut(BaseModel):
         from_attributes = True
 
 
+class PaginatedIncidents(BaseModel):
+    items: List[IncidentOut]
+    total: int
+    page: int
+    limit: int
+    pages: int
+
+
 class SettingOut(BaseModel):
     id: str
     value: str

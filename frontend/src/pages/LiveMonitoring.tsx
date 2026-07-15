@@ -8,8 +8,11 @@ import { getAlerts, testCctvConnection } from '../services/api';
 import { listCameras } from '../services/cameraService';
 import { 
   Camera, MonitorPlay, ShieldCheck, 
-  Activity, Volume2, VolumeX, RefreshCw 
+  Activity, Volume2, VolumeX, RefreshCw,
+  Map as MapIcon, Grid, Maximize, Minimize
 } from 'lucide-react';
+import { FacilityMap } from '../components/SOC/FacilityMap';
+import { useNotificationsStore } from '../store/notificationsStore';
 
 const LiveMonitoring = () => {
   const { toast } = useToast();
@@ -34,6 +37,41 @@ const LiveMonitoring = () => {
 
   const [recentAlerts, setRecentAlerts] = useState<any[]>([]);
   const [isLoadingAlerts, setIsLoadingAlerts] = useState(false);
+  
+  const historyAdd = useNotificationsStore((s) => s.addNotification);
+  const pushPopup = useNotificationsStore((s) => s.pushPopup);
+
+  const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
+
+  const [isFullscreenWebcam, setIsFullscreenWebcam] = useState(false);
+  const [isFullscreenRtsp, setIsFullscreenRtsp] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
+  const webcamContainerRef = useRef<HTMLDivElement>(null);
+  const rtspContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreenWebcam(document.fullscreenElement === webcamContainerRef.current);
+      setIsFullscreenRtsp(document.fullscreenElement === rtspContainerRef.current);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = (ref: React.RefObject<HTMLDivElement>) => {
+    if (!document.fullscreenElement) {
+      ref.current?.requestFullscreen().catch(err => {
+        toast(`Error attempting to enable fullscreen: ${err.message}`, 'error');
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
 
   // Audio synthesis helper for warning siren
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -218,6 +256,23 @@ const LiveMonitoring = () => {
             toast(`Threat Warning: ${threat.toUpperCase()} identified!`, 'error');
             // Dynamically refresh alerts list
             void loadRecentAlerts();
+
+            // Push to global notification bar
+            const mockAlert = {
+              id: `webcam-${Date.now()}`,
+              alertType: threat,
+              cameraId: 'webcam-01',
+              cameraName: 'Station Webcam',
+              zone: 'Local Command',
+              confidence: threat === 'fire' ? 0.95 : 0.87,
+              timestamp: new Date().toISOString(),
+              evidenceUrl: null,
+              severity: threat === 'fire' ? 'critical' : 'warning',
+              isRead: false,
+            } as any;
+            historyAdd(mockAlert);
+            pushPopup(mockAlert);
+            
           } else {
             stopSiren();
           }
@@ -274,18 +329,33 @@ const LiveMonitoring = () => {
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Real-time CCTV and local camera matrix with autonomous AI threat evaluation.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={loadRecentAlerts} className="flex items-center gap-1.5">
+          <div className="bg-slate-100 dark:bg-slate-900 p-1 rounded-lg flex mr-2">
+            <button 
+              onClick={() => setViewMode('grid')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-md flex items-center gap-1.5 transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+            >
+              <Grid size={14} /> Matrix View
+            </button>
+            <button 
+              onClick={() => setViewMode('map')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-md flex items-center gap-1.5 transition-all ${viewMode === 'map' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+            >
+              <MapIcon size={14} /> Facility Map
+            </button>
+          </div>
+          <Button variant="outline" size="sm" onClick={loadRecentAlerts} className="flex items-center gap-1.5 border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f0f17]">
             <RefreshCw size={14} /> Refresh Logs
           </Button>
         </div>
       </div>
 
-      {/* Main Grid */}
+      {/* Main Container */}
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         
-        {/* Streams Panel */}
+        {/* Left/Main Panel */}
         <div className="xl:col-span-3 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             {/* 1. Live Webcam Feed */}
             <Card className="overflow-hidden border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f0f17]">
@@ -300,8 +370,25 @@ const LiveMonitoring = () => {
                 <video ref={webcamVideoRef} className="hidden" width="640" height="480" autoPlay playsInline muted></video>
                 
                 {webcamActive ? (
-                  <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-black aspect-video flex justify-center">
+                  <div ref={webcamContainerRef} className="relative rounded-xl overflow-hidden border border-slate-800 bg-black aspect-video flex justify-center group">
                     <canvas ref={webcamCanvasRef} className="w-full h-full object-contain" width="640" height="480"></canvas>
+                    
+                    {/* Notification Bar Overlay */}
+                    <div className={`absolute top-0 left-0 right-0 p-3 flex justify-between items-start transition-opacity duration-300 ${webcamThreat ? 'bg-gradient-to-b from-red-900/90 to-transparent opacity-100' : 'bg-gradient-to-b from-black/80 to-transparent opacity-0 group-hover:opacity-100'}`}>
+                      <div className="flex flex-col">
+                        <span className={`font-bold text-xs flex items-center gap-2 ${webcamThreat ? 'text-red-400' : 'text-white'}`}>
+                          <span className={`w-2 h-2 rounded-full animate-pulse ${webcamThreat ? 'bg-red-500' : 'bg-green-500'}`}></span>
+                          {webcamThreat ? `ALERT: ${webcamThreat.toUpperCase()} DETECTED!` : 'LIVE: Station Webcam'}
+                        </span>
+                        <span className="text-[10px] text-slate-300 font-mono mt-0.5">{currentTime}</span>
+                      </div>
+                      <button 
+                        onClick={() => toggleFullscreen(webcamContainerRef)} 
+                        className="p-1.5 bg-black/50 hover:bg-black/80 rounded text-white transition-colors"
+                      >
+                        {isFullscreenWebcam ? <Minimize size={14} /> : <Maximize size={14} />}
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="aspect-video rounded-xl bg-slate-900/40 border border-slate-800 flex flex-col items-center justify-center text-center text-slate-500">
@@ -350,9 +437,26 @@ const LiveMonitoring = () => {
                 </div>
 
                 {rtspConnected ? (
-                  <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-black aspect-video flex items-center justify-center">
+                  <div ref={rtspContainerRef} className="relative rounded-xl overflow-hidden border border-slate-800 bg-black aspect-video flex items-center justify-center group">
                     <img src="/evidence/test_red.jpg" alt="RTSP Feed" className="w-full h-full object-cover opacity-60" />
-                    <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:100%_4px]"></div>
+                    <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none"></div>
+                    
+                    {/* Notification Bar Overlay */}
+                    <div className={`absolute top-0 left-0 right-0 p-3 flex justify-between items-start transition-opacity duration-300 ${recentAlerts.some(a => a.camera_id === selectedRtspCam?.id && a.status === 'active') ? 'bg-gradient-to-b from-red-900/90 to-transparent opacity-100' : 'bg-gradient-to-b from-black/80 to-transparent opacity-0 group-hover:opacity-100'}`}>
+                      <div className="flex flex-col">
+                        <span className={`font-bold text-xs flex items-center gap-2 ${recentAlerts.some(a => a.camera_id === selectedRtspCam?.id && a.status === 'active') ? 'text-red-400' : 'text-white'}`}>
+                          <span className={`w-2 h-2 rounded-full animate-pulse ${recentAlerts.some(a => a.camera_id === selectedRtspCam?.id && a.status === 'active') ? 'bg-red-500' : 'bg-green-500'}`}></span>
+                          {recentAlerts.some(a => a.camera_id === selectedRtspCam?.id && a.status === 'active') ? 'ALERT: THREAT DETECTED!' : `LIVE: ${selectedRtspCam?.name || 'RTSP Stream'}`}
+                        </span>
+                        <span className="text-[10px] text-slate-300 font-mono mt-0.5">{currentTime}</span>
+                      </div>
+                      <button 
+                        onClick={() => toggleFullscreen(rtspContainerRef)} 
+                        className="p-1.5 bg-black/50 hover:bg-black/80 rounded text-white transition-colors"
+                      >
+                        {isFullscreenRtsp ? <Minimize size={14} /> : <Maximize size={14} />}
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="aspect-video rounded-xl bg-slate-900/40 border border-slate-800 flex flex-col items-center justify-center text-center text-slate-500">
@@ -373,8 +477,30 @@ const LiveMonitoring = () => {
                 )}
               </CardContent>
             </Card>
-
           </div>
+          ) : (
+            <FacilityMap 
+              cameras={cameras.map((c, i) => ({
+                id: c.id, 
+                name: c.name, 
+                zone: c.zone || `Zone ${String.fromCharCode(65 + (i % 5))}`,
+                x: 10 + ((i * 35) % 80),
+                y: 20 + ((i * 25) % 60)
+              }))} 
+              activeAlerts={[
+                ...recentAlerts.filter(a => a.status === 'active').map(a => a.camera_id),
+                ...(webcamThreat ? ['local-webcam'] : [])
+              ]}
+              selectedCameraId={selectedRtspCam?.id}
+              onCameraSelect={(id) => {
+                const match = cameras.find(c => c.id === id);
+                if (match) {
+                  setSelectedRtspCam(match);
+                  setViewMode('grid');
+                }
+              }}
+            />
+          )}
 
           {/* Current Detections Banner */}
           <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f0f17]">

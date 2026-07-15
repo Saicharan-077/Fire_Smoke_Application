@@ -161,7 +161,8 @@ export const getAlerts = (params?: {
   status?: string;
   date_from?: string;
   date_to?: string;
-}) => api<Alert[]>(`/api/v1/alerts${toQuery(params)}`);
+  limit?: number;
+}) => api<{ items: Alert[] }>(`/api/v1/alerts${toQuery(params)}`).then(res => res.items);
 
 export const updateAlertStatus = (alertId: string, status: Alert['status']) =>
   api<Alert>(`/api/v1/alerts/${alertId}/status`, {

@@ -14,9 +14,10 @@ import {
   RefreshCw, Award, Activity 
 } from 'lucide-react';
 import { 
-  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, 
+  ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, PieChart as ReChartsPieChart, Pie, Cell 
 } from 'recharts';
+import { PredictiveHeatmap } from '../components/Analytics/PredictiveHeatmap';
 
 const toDateLocalInput = (d: Date) => {
   const yyyy = d.getFullYear();
@@ -265,6 +266,9 @@ const AnalyticsMerged = () => {
             </Card>
 
           </div>
+
+          {/* Predictive Heatmap Row */}
+          <PredictiveHeatmap />
         </div>
       )}
 

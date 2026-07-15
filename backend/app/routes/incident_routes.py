@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/v1/incidents", tags=["incidents"], dependencies=
 logger = logging.getLogger("fireguard.incidents")
 
 
-@router.get("", response_model=dict)
+@router.get("", response_model=schemas.PaginatedIncidents)
 def list_incidents(
     status: Optional[str] = Query(None),
     severity: Optional[str] = Query(None),

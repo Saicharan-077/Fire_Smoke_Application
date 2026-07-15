@@ -11,8 +11,8 @@ import {
 import { testCctvConnection, getSettings, updateSettings } from '../services/api';
 import { 
   Settings, Camera as CameraIcon, Cpu, Bell, 
-  User, Plus, Trash2, Edit2,
-  Sliders, Database, Save, RotateCcw
+  User, Plus, Trash2, Edit2, ShieldCheck,
+  Sliders, Database, Save, RotateCcw, Zap
 } from 'lucide-react';
 import { useAppSettingsStore } from '../store/appSettingsStore';
 
@@ -28,7 +28,7 @@ const SettingsMerged = () => {
   const { toast } = useToast();
   const { theme, setTheme, setAlertSoundEnabled } = useAppSettingsStore();
 
-  const [activeSection, setActiveSection] = useState<'general' | 'ai' | 'thresholds' | 'camera' | 'rtsp' | 'notifications' | 'storage' | 'account'>('general');
+  const [activeSection, setActiveSection] = useState<'general' | 'ai' | 'thresholds' | 'camera' | 'rtsp' | 'notifications' | 'storage' | 'account' | 'triggers'>('general');
 
   // ── 1. General & AI States ───────────────────────────────────────────────────
   const [systemMode, setSystemMode] = useState('surveillance');
@@ -43,6 +43,11 @@ const SettingsMerged = () => {
   const [webhookUrl, setWebhookUrl] = useState('http://localhost:9000/webhook');
   const [storagePath, setStoragePath] = useState('./evidence');
   const [purgeDays, setPurgeDays] = useState(30);
+
+  // ── Emergency Triggers State
+  const [triggerSprinklers, setTriggerSprinklers] = useState(false);
+  const [triggerAlarm, setTriggerAlarm] = useState(true);
+  const [triggerLockdown, setTriggerLockdown] = useState(false);
 
   // ── 2. Camera Management State ───────────────────────────────────────────────
   const [cameras, setCameras] = useState<Camera[]>([]);
@@ -216,6 +221,7 @@ const SettingsMerged = () => {
             { id: 'camera', label: 'Camera Configuration', icon: <CameraIcon size={16} /> },
             { id: 'rtsp', label: 'RTSP Configuration', icon: <MonitorPlayIcon size={16} /> },
             { id: 'notifications', label: 'Notifications', icon: <Bell size={16} /> },
+            { id: 'triggers', label: 'Emergency Triggers', icon: <Zap size={16} /> },
             { id: 'storage', label: 'Storage & Purging', icon: <Database size={16} /> },
             { id: 'account', label: 'Theme & Account', icon: <User size={16} /> },
           ].map((sec) => (
@@ -459,6 +465,42 @@ const SettingsMerged = () => {
                   value={webhookUrl} 
                   onChange={(e) => setWebhookUrl(e.target.value)} 
                 />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* TRIGGERS SECTION */}
+          {activeSection === 'triggers' && (
+            <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f0f17]">
+              <CardHeader><CardTitle>Automated Emergency Responses</CardTitle></CardHeader>
+              <CardContent className="p-6 space-y-6">
+                <div className="flex justify-between items-center p-4 border border-red-500/20 bg-red-500/5 rounded-xl">
+                  <div>
+                    <h4 className="font-semibold text-xs text-white flex items-center gap-2"><Zap size={14} className="text-red-500"/> Activate Sprinkler System</h4>
+                    <p className="text-[10px] text-slate-400 mt-1 max-w-sm">Automatically trigger fire suppression via IoT integration if fire confidence is {'>'}90% for 5 seconds.</p>
+                  </div>
+                  <input type="checkbox" checked={triggerSprinklers} onChange={(e) => setTriggerSprinklers(e.target.checked)} className="accent-red-500 w-5 h-5 cursor-pointer" />
+                </div>
+                <div className="flex justify-between items-center p-4 border border-orange-500/20 bg-orange-500/5 rounded-xl">
+                  <div>
+                    <h4 className="font-semibold text-xs text-white flex items-center gap-2"><Bell size={14} className="text-orange-500"/> Sound General Facility Alarm</h4>
+                    <p className="text-[10px] text-slate-400 mt-1 max-w-sm">Dispatch general evacuation alarm across all connected PA speakers.</p>
+                  </div>
+                  <input type="checkbox" checked={triggerAlarm} onChange={(e) => setTriggerAlarm(e.target.checked)} className="accent-orange-500 w-5 h-5 cursor-pointer" />
+                </div>
+                <div className="flex justify-between items-center p-4 border border-indigo-500/20 bg-indigo-500/5 rounded-xl">
+                  <div>
+                    <h4 className="font-semibold text-xs text-white flex items-center gap-2"><ShieldCheck size={14} className="text-indigo-500"/> Initiate Building Lockdown</h4>
+                    <p className="text-[10px] text-slate-400 mt-1 max-w-sm">Seal fire doors and override access control systems in the affected zone.</p>
+                  </div>
+                  <input type="checkbox" checked={triggerLockdown} onChange={(e) => setTriggerLockdown(e.target.checked)} className="accent-indigo-500 w-5 h-5 cursor-pointer" />
+                </div>
+                
+                <div className="pt-4 border-t border-slate-800">
+                  <Button variant="outline" className="w-full text-red-500 border-red-500/30 hover:bg-red-500/10 hover:border-red-500">
+                    TEST EMERGENCY TRIGGERS
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}
