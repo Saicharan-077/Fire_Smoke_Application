@@ -94,10 +94,11 @@ MAX_VIDEO_SIZE = 200 * 1024 * 1024
 @router.post("/image", response_model=schemas.ImageUploadResponse, dependencies=[Depends(require_operator)])
 async def upload_image(
     file: UploadFile = File(...),
+    source_id: str | None = None,
     db: Session = Depends(get_db),
     svc: DetectionService = Depends(get_detection_svc),
 ):
-    logger.info(f"Image received: {file.filename}")
+    logger.info(f"Image received: {file.filename} (source: {source_id})")
 
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in [".jpg", ".jpeg", ".png", ".bmp", ".webp"]:
@@ -114,7 +115,14 @@ async def upload_image(
         raise HTTPException(status_code=400, detail="Could not decode image file")
 
     logger.debug(f"Decoded shape: {frame.shape}")
-    annotated, detections = svc.infer_image(frame)
+    if source_id:
+        annotated, detections, did_infer = svc.infer_frame(frame, source_id)
+        if not did_infer:
+            return schemas.ImageUploadResponse(
+                detections=[], alert_ids=[], evidence_path=None, file_name=file.filename
+            )
+    else:
+        annotated, detections = svc.infer_image(frame)
     logger.info(f"Detections: {len(detections)}")
 
     if not detections:

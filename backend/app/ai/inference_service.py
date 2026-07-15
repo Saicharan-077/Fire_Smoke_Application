@@ -42,6 +42,7 @@ class DetectionService:
         self.model = None
         self.class_names: dict = {}
         self.ready = False
+        self.prev_frames: Dict[str, np.ndarray] = {}
 
         if not os.path.isfile(MODEL_PATH):
             logger.warning(
@@ -141,10 +142,63 @@ class DetectionService:
         ratio = non_zero / (frame.shape[0] * frame.shape[1])
         return ratio > threshold
 
-    def _preprocess_frame(self, frame: np.ndarray, prev_frame: np.ndarray | None = None) -> Tuple[np.ndarray, bool]:
+    def _load_db_settings(self) -> dict:
+        """Loads and returns dynamic settings from the database, falling back to env/defaults."""
+        settings = {
+            "confidence_threshold": CONF_FIRE,  # default fallback
+            "iou_threshold": 0.45,
+            "frame_skip": 0,
+            "save_evidence": True,
+            "enable_motion_filtering": self.config["enable_motion_filtering"]
+        }
+        try:
+            from ..database import SessionLocal
+            from ..models import Setting
+            db = SessionLocal()
+            try:
+                # Load general confidence threshold if set
+                c_set = db.query(Setting).filter(Setting.id == "confidence_threshold").first()
+                if c_set and c_set.value:
+                    settings["confidence_threshold"] = float(c_set.value)
+                else:
+                    # check class specific
+                    fire_set = db.query(Setting).filter(Setting.id == "fire_min_confidence").first()
+                    if fire_set and fire_set.value:
+                        settings["confidence_threshold"] = float(fire_set.value)
+
+                # Load iou threshold
+                iou_set = db.query(Setting).filter(Setting.id == "iou_threshold").first()
+                if iou_set and iou_set.value:
+                    settings["iou_threshold"] = float(iou_set.value)
+
+                # Load frame skip
+                skip_set = db.query(Setting).filter(Setting.id == "frame_skip").first()
+                if skip_set and skip_set.value:
+                    settings["frame_skip"] = int(skip_set.value)
+
+                # Load save evidence
+                save_set = db.query(Setting).filter(Setting.id == "save_evidence").first()
+                if save_set and save_set.value:
+                    settings["save_evidence"] = save_set.value.lower() == "true"
+
+                # Load motion filtering
+                motion_set = db.query(Setting).filter(Setting.id == "enable_motion_filtering").first()
+                if motion_set and motion_set.value:
+                    settings["enable_motion_filtering"] = motion_set.value.lower() == "true"
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"[MODEL] Failed to load DB settings: {e}")
+        return settings
+
+    def _preprocess_frame(self, frame: np.ndarray, prev_frame: np.ndarray | None = None, db_settings: dict | None = None) -> Tuple[np.ndarray, bool]:
         """Runs the modular preprocessing pipeline on the input frame."""
+        if db_settings is None:
+            db_settings = self._load_db_settings()
+
         # 1. Motion filtering
-        if self.config["enable_motion_filtering"] and prev_frame is not None:
+        enable_motion = db_settings.get("enable_motion_filtering", self.config["enable_motion_filtering"])
+        if enable_motion and prev_frame is not None:
             if not self._check_motion(frame, prev_frame, self.config["motion_threshold"]):
                 return frame, False
 
@@ -186,8 +240,14 @@ class DetectionService:
 
         return out, True
 
-    def _run_inference(self, frame: np.ndarray) -> List[Dict[str, Any]]:
-        results    = self.model(frame, verbose=False, conf=CONF_RUN, device=self.device)
+    def _run_inference(self, frame: np.ndarray, db_settings: dict | None = None) -> List[Dict[str, Any]]:
+        if db_settings is None:
+            db_settings = self._load_db_settings()
+
+        threshold = db_settings.get("confidence_threshold", CONF_FIRE)
+        iou_threshold = db_settings.get("iou_threshold", 0.45)
+
+        results    = self.model(frame, verbose=False, conf=CONF_RUN, iou=iou_threshold, device=self.device)
         detections = []
 
         for r in results:
@@ -201,10 +261,7 @@ class DetectionService:
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
                 mapped   = _map_class(cls_id, raw_name)
 
-                threshold = PER_CLASS_THRESHOLD.get(mapped, 0.25) if mapped else 0.25
-                passes    = conf >= threshold
-
-                if mapped is None or not passes:
+                if mapped is None or conf < threshold:
                     continue
 
                 detections.append({
@@ -243,19 +300,21 @@ class DetectionService:
 
     def infer_image(self, frame: np.ndarray) -> Tuple[np.ndarray, List[Dict]]:
         self.ensure_ready()
-        processed, _ = self._preprocess_frame(frame)
-        detections = self._run_inference(processed)
+        db_settings = self._load_db_settings()
+        processed, _ = self._preprocess_frame(frame, db_settings=db_settings)
+        detections = self._run_inference(processed, db_settings=db_settings)
         annotated  = self.annotate_frame(processed, detections)
         return annotated, detections
 
     def infer_video(self, video_path: str, consecutive: int = 3):
         self.ensure_ready()
+        db_settings = self._load_db_settings()
         cap       = cv2.VideoCapture(video_path)
         frame_num = 0
         counters:  Dict[str, int]  = {"fire": 0, "smoke": 0}
         triggered: Dict[str, bool] = {"fire": False, "smoke": False}
         prev_frame = None
-        skip_interval = self.config["frame_skipping_interval"]
+        skip_interval = db_settings.get("frame_skip", 0)
 
         while cap.isOpened():
             ret, frame = cap.read()
@@ -265,14 +324,14 @@ class DetectionService:
             if skip_interval > 0 and frame_num % (skip_interval + 1) != 1:
                 continue
 
-            processed, should_infer = self._preprocess_frame(frame, prev_frame)
-            if self.config["enable_motion_filtering"]:
+            processed, should_infer = self._preprocess_frame(frame, prev_frame, db_settings=db_settings)
+            if db_settings.get("enable_motion_filtering", self.config["enable_motion_filtering"]):
                 prev_frame = frame.copy()
 
             if not should_infer:
                 continue
 
-            detections     = self._run_inference(processed)
+            detections     = self._run_inference(processed, db_settings=db_settings)
             detected_types = {d["detection_type"] for d in detections}
 
             for cls in ("fire", "smoke"):
@@ -290,6 +349,27 @@ class DetectionService:
                     yield frame_num, cls_dets, annotated
 
         cap.release()
+
+    def infer_frame(self, frame: np.ndarray, source_id: str) -> Tuple[np.ndarray, List[Dict], bool]:
+        """Runs modular preprocessing and inference on continuous frame sources,
+           respecting motion filtering (by caching previous frames for source_id).
+           Returns (annotated_frame, detections, did_infer).
+        """
+        self.ensure_ready()
+        db_settings = self._load_db_settings()
+        prev_frame = self.prev_frames.get(source_id)
+
+        processed, should_infer = self._preprocess_frame(frame, prev_frame=prev_frame, db_settings=db_settings)
+
+        # Cache copy of original frame
+        self.prev_frames[source_id] = frame.copy()
+
+        if not should_infer:
+            return frame, [], False
+
+        detections = self._run_inference(processed, db_settings=db_settings)
+        annotated  = self.annotate_frame(processed, detections)
+        return annotated, detections, True
 
     def get_class_map(self) -> dict:
         return {

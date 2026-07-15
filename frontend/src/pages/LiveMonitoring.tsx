@@ -4,7 +4,7 @@ import { Card, CardContent } from '../components/Common/Card';
 import { Button } from '../components/Common/Button';
 import { Badge } from '../components/Common/Badge';
 import { useToast } from '../components/ui/Toast';
-import { getAlerts, testCctvConnection } from '../services/api';
+import { getAlerts, testCctvConnection, getSettings, uploadImage } from '../services/api';
 import { listCameras } from '../services/cameraService';
 import { 
   Camera, MonitorPlay, ShieldCheck, 
@@ -27,6 +27,10 @@ const LiveMonitoring = () => {
   const [webcamThreat, setWebcamThreat] = useState<'fire' | 'smoke' | null>(null);
   const [webcamFps, setWebcamFps] = useState(0);
   const [webcamMuted, setWebcamMuted] = useState(true);
+
+  const [simulationMode, setSimulationMode] = useState(false);
+  const [detections, setDetections] = useState<any[]>([]);
+  const [frameSkip, setFrameSkip] = useState(3);
 
   const [cameras, setCameras] = useState<any[]>([]);
   const [selectedRtspCam, setSelectedRtspCam] = useState<any>(null);
@@ -224,12 +228,23 @@ const LiveMonitoring = () => {
     toast('RTSP stream disconnected', 'info');
   };
 
+  // Sync refs for the canvas loop to prevent flicker or re-binding lags
+  const simModeRef = useRef(simulationMode);
+  useEffect(() => { simModeRef.current = simulationMode; }, [simulationMode]);
+  const frameSkipRef = useRef(frameSkip);
+  useEffect(() => { frameSkipRef.current = frameSkip; }, [frameSkip]);
+  const webcamThreatRef = useRef(webcamThreat);
+  useEffect(() => { webcamThreatRef.current = webcamThreat; }, [webcamThreat]);
+  const detectionsRef = useRef(detections);
+  useEffect(() => { detectionsRef.current = detections; }, [detections]);
+
   // Loop for Webcam canvas drawing & threat simulation
   useEffect(() => {
     let animId: number;
     let lastTime = performance.now();
     let frames = 0;
     let tick = 0;
+    let isProcessing = false;
 
     const render = () => {
       if (!webcamActive || !webcamVideoRef.current || !webcamCanvasRef.current) return;
@@ -239,56 +254,120 @@ const LiveMonitoring = () => {
 
       if (ctx && video.readyState === video.HAVE_ENOUGH_DATA) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        // Simulation cycle
         tick++;
-        let threat: 'fire' | 'smoke' | null = null;
-        const cycle = tick % 500;
-        if (cycle > 120 && cycle < 260) {
-          threat = 'fire';
-        } else if (cycle > 300 && cycle < 440) {
-          threat = 'smoke';
-        }
 
-        if (threat !== webcamThreat) {
-          setWebcamThreat(threat);
+        // Simulation Mode
+        if (simModeRef.current) {
+          const cycle = tick % 600;
+          let threat: 'fire' | 'smoke' | null = null;
+          if (cycle > 150 && cycle < 280) threat = 'fire';
+          else if (cycle > 360 && cycle < 490) threat = 'smoke';
+
+          if (threat !== webcamThreatRef.current) {
+            setWebcamThreat(threat);
+            if (threat) {
+              startSiren();
+              const mock = {
+                id: `wc-${Date.now()}`,
+                alertType: threat,
+                cameraId: 'webcam-01',
+                cameraName: 'Station Webcam',
+                zone: 'Local Command',
+                confidence: threat === 'fire' ? 0.95 : 0.87,
+                timestamp: new Date().toISOString(),
+                severity: threat === 'fire' ? 'critical' : 'warning',
+                isRead: false
+              } as any;
+              historyAdd(mock);
+              pushPopup(mock);
+              void loadRecentAlerts();
+            } else {
+              stopSiren();
+            }
+          }
+
           if (threat) {
-            startSiren();
-            toast(`Threat Warning: ${threat.toUpperCase()} identified!`, 'error');
-            // Dynamically refresh alerts list
-            void loadRecentAlerts();
-
-            // Push to global notification bar
-            const mockAlert = {
-              id: `webcam-${Date.now()}`,
-              alertType: threat,
-              cameraId: 'webcam-01',
-              cameraName: 'Station Webcam',
-              zone: 'Local Command',
+            const mockDets = [{
+              detection_type: threat,
               confidence: threat === 'fire' ? 0.95 : 0.87,
-              timestamp: new Date().toISOString(),
-              evidenceUrl: null,
-              severity: threat === 'fire' ? 'critical' : 'warning',
-              isRead: false,
-            } as any;
-            historyAdd(mockAlert);
-            pushPopup(mockAlert);
-            
+              bbox: { x1: 180, y1: 130, x2: 460, y2: 330 }
+            } as any];
+            setDetections(mockDets);
           } else {
-            stopSiren();
+            setDetections([]);
           }
         }
+        // Real AI Mode
+        else if (tick % frameSkipRef.current === 0 && !isProcessing) {
+          isProcessing = true;
+          canvas.toBlob(async (blob) => {
+            if (!blob) {
+              isProcessing = false;
+              return;
+            }
+            try {
+              const file = new File([blob], "frame.jpg", { type: "image/jpeg" });
+              const res = await uploadImage(file, 'webcam-01');
+              if (res && res.detections) {
+                setDetections(res.detections);
+                const hasFire = res.detections.some(d => d.detection_type === 'fire');
+                const hasSmoke = res.detections.some(d => d.detection_type === 'smoke');
 
-        if (threat) {
-          const color = threat === 'fire' ? '#eb5757' : '#f2994a';
-          ctx.strokeStyle = color;
-          ctx.lineWidth = 3;
-          ctx.strokeRect(200, 140, 240, 200);
-          ctx.fillStyle = color;
-          ctx.fillRect(200, 112, 110, 28);
-          ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 12px sans-serif';
-          ctx.fillText(`${threat.toUpperCase()} ${(threat === 'fire' ? 95 : 87)}%`, 208, 130);
+                if (hasFire || hasSmoke) {
+                  const threat = hasFire ? 'fire' : 'smoke';
+                  if (threat !== webcamThreatRef.current) {
+                    setWebcamThreat(threat);
+                    startSiren();
+
+                    const newAlert = {
+                      id: res.alert_ids[0] || `wc-${Date.now()}`,
+                      alertType: threat,
+                      cameraId: 'webcam-01',
+                      cameraName: 'Station Webcam',
+                      zone: 'Local Command',
+                      confidence: Math.max(...res.detections.map(d => d.confidence)),
+                      timestamp: new Date().toISOString(),
+                      severity: threat === 'fire' ? 'critical' : 'warning',
+                      isRead: false
+                    } as any;
+                    historyAdd(newAlert);
+                    pushPopup(newAlert);
+                    void loadRecentAlerts();
+                  }
+                } else {
+                  if (webcamThreatRef.current) {
+                    setWebcamThreat(null);
+                    stopSiren();
+                  }
+                }
+              }
+            } catch (err) {
+              console.error("Webcam AI inference failed:", err);
+            } finally {
+              isProcessing = false;
+            }
+          }, 'image/jpeg', 0.85);
+        }
+
+        // Draw bounding boxes (Red for fire, Orange for smoke)
+        if (detectionsRef.current && detectionsRef.current.length > 0) {
+          detectionsRef.current.forEach((det) => {
+            const col = det.detection_type === 'fire' ? '#e5484d' : '#e79020';
+            ctx.strokeStyle = col;
+            ctx.lineWidth = 2.5;
+
+            const { x1, y1, x2, y2 } = det.bbox;
+            const width = x2 - x1;
+            const height = y2 - y1;
+            ctx.strokeRect(x1, y1, width, height);
+
+            ctx.fillStyle = col;
+            ctx.fillRect(x1, y1 - 25 > 0 ? y1 - 25 : y1, 100, 22);
+
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.fillText(`${det.detection_type.toUpperCase()} ${Math.round(det.confidence * 100)}%`, x1 + 8, (y1 - 25 > 0 ? y1 - 25 : y1) + 15);
+          });
         }
 
         frames++;
@@ -306,15 +385,25 @@ const LiveMonitoring = () => {
       animId = requestAnimationFrame(render);
     } else {
       stopSiren();
+      setDetections([]);
     }
 
     return () => {
       cancelAnimationFrame(animId);
       stopSiren();
     };
-  }, [webcamActive, webcamThreat, webcamMuted]);
+  }, [webcamActive, webcamMuted]);
+
+  const fetchSettings = async () => {
+    try {
+      const res = await getSettings();
+      const skip = res.find((s: any) => s.id === 'frame_skip')?.value;
+      if (skip) setFrameSkip(parseInt(skip));
+    } catch { /* ignore */ }
+  };
 
   useEffect(() => {
+    void fetchSettings();
     void loadCamerasList();
     void loadRecentAlerts();
     return () => {
@@ -414,10 +503,27 @@ const LiveMonitoring = () => {
 
                 {webcamActive && (
                   <div className="flex justify-between items-center text-xs">
-                    <Button variant="destructive" size="sm" onClick={stopWebcam} className="text-xs">Disarm scanner</Button>
+                    <div className="flex gap-2">
+                      <Button variant="destructive" size="sm" onClick={stopWebcam} className="text-xs">Disarm scanner</Button>
+                      <button 
+                        onClick={() => {
+                          setSimulationMode(!simulationMode);
+                          setDetections([]);
+                          setWebcamThreat(null);
+                          stopSiren();
+                        }} 
+                        className={`px-3 py-1.5 border text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
+                          simulationMode 
+                            ? 'bg-[var(--smoke-bg)] text-[var(--smoke-text)] border-[var(--smoke-border)] hover:bg-[var(--smoke-text)] hover:text-white' 
+                            : 'bg-[var(--primary-light)] text-[var(--primary)] border-[var(--primary-ring)] hover:bg-[var(--primary)] hover:text-white'
+                        }`}
+                      >
+                        {simulationMode ? 'Simulation: Active' : 'AI Inference: Live'}
+                      </button>
+                    </div>
                     <div className="flex gap-4 font-bold text-[#7c7b77] text-[10px] uppercase tracking-wider">
                       <span>Ingest FPS: <span className="text-[#37352f] font-mono">{webcamFps}</span></span>
-                      <button onClick={() => setWebcamMuted(!webcamMuted)} className="text-[#eb5757] hover:text-[#eb5757]/80">
+                      <button onClick={() => setWebcamMuted(!webcamMuted)} className="text-[#eb5757] hover:text-[#eb5757]/80 cursor-pointer">
                         {webcamMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
                       </button>
                     </div>

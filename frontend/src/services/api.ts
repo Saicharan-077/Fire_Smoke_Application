@@ -100,16 +100,17 @@ function toQuery(params?: Record<string, unknown>): string {
 }
 
 // ── Upload ────────────────────────────────────────────────────────────────────
-export const uploadImage = (file: File) => {
+export const uploadImage = (file: File, sourceId?: string) => {
   const fd = new FormData();
   fd.append('file', file);
+  const query = sourceId ? `?source_id=${encodeURIComponent(sourceId)}` : '';
   return api<{
     detections: Detection[];
     alert_ids: string[];
     evidence_path: string | null;
     file_name: string;
   }>(
-    '/api/v1/upload/image',
+    `/api/v1/upload/image${query}`,
     { method: 'POST', body: fd }
   );
 };

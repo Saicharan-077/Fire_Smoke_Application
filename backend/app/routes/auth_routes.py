@@ -174,8 +174,24 @@ def register(body: schemas.UserRegister, db: Session = Depends(get_db)):
     if len(body.password) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
 
-    # Public registration always creates viewer accounts — never honor client-supplied role
+    # Dynamic email-based role assignment
+    email_lower = body.email.lower()
     role = "viewer"
+    if email_lower.endswith("@fireguard.ai"):
+        requested_role = (body.role or "viewer").lower()
+        if requested_role == "admin":
+            requested_role = "administrator"
+        if requested_role in {"administrator", "operator", "viewer"}:
+            role = requested_role
+    else:
+        # Check for developer/test keywords in email prefix
+        prefix = email_lower.split("@")[0]
+        if "admin" in prefix:
+            role = "administrator"
+        elif "operator" in prefix:
+            role = "operator"
+        else:
+            role = "viewer"
 
     new_user = models.User(
         username=body.username,

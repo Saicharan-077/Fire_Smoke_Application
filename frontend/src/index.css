@@ -19,6 +19,77 @@
 }
 
 /* ── Design Tokens ───────────────────────────────────────────────────────────── */
+:root, [data-theme="dark"] {
+  color-scheme: dark;
+  
+  /* Canvas */
+  --bg:             #0a0a0c;       /* very deep graphite canvas */
+  --bg-alt:         #121214;       /* slightly lighter deep background */
+  --surface:        #18181b;       /* standard card surface */
+  --surface-2:      #202024;       /* sidebar background, secondary surface */
+  --surface-hover:  #27272a;       /* item hover highlight */
+  --overlay:        rgba(10, 10, 12, 0.8);
+
+  /* Borders */
+  --border:         #232326;       /* clean dark border */
+  --border-strong:  #2d2d30;       /* highlighted dark border */
+  --border-active:  #3b82f6;       /* active border (primary color) */
+
+  /* Text */
+  --text:           #f4f4f5;       /* primary high-contrast text */
+  --text-2:         #a1a1aa;       /* secondary text */
+  --text-3:         #71717a;       /* muted text / placeholders */
+
+  /* Brand — FireGuard Blue */
+  --primary:        #3b82f6;
+  --primary-hover:  #60a5fa;
+  --primary-light:  rgba(59, 130, 246, 0.1);
+  --primary-ring:   rgba(59, 130, 246, 0.25);
+
+  /* Alert palette — soft dark alerts, Linear style */
+  --fire:           #ef4444;
+  --fire-bg:        rgba(239, 68, 68, 0.08);
+  --fire-border:    rgba(239, 68, 68, 0.25);
+  --fire-text:      #f87171;
+
+  --smoke:          #f59e0b;
+  --smoke-bg:       rgba(245, 158, 11, 0.08);
+  --smoke-border:   rgba(245, 158, 11, 0.25);
+  --smoke-text:     #fbbf24;
+
+  --possible:       #eab308;
+  --possible-bg:    rgba(234, 179, 8, 0.08);
+  --possible-border:rgba(234, 179, 8, 0.25);
+  --possible-text:  #fde047;
+
+  --safe:           #10b981;
+  --safe-bg:        rgba(16, 185, 129, 0.08);
+  --safe-border:    rgba(16, 185, 129, 0.25);
+  --safe-text:      #34d399;
+
+  /* Shadows */
+  --shadow-xs:      0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm:      0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md:      0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg:      0 12px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-xl:      0 20px 48px rgba(0, 0, 0, 0.6), 0 8px 16px rgba(0, 0, 0, 0.4);
+
+  /* Radius */
+  --radius-sm:      6px;
+  --radius:         8px;
+  --radius-md:      10px;
+  --radius-lg:      12px;
+  --radius-xl:      16px;
+  --radius-2xl:     20px;
+
+  /* Transitions */
+  --ease:           cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring:    cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast:  100ms;
+  --duration:       150ms;
+  --duration-slow:  250ms;
+}
+
 html, [data-theme="light"] {
   color-scheme: light;
   
@@ -73,21 +144,51 @@ html, [data-theme="light"] {
   --shadow-md:      0 4px 8px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.04);
   --shadow-lg:      0 8px 24px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04);
   --shadow-xl:      0 20px 48px rgba(0, 0, 0, 0.08), 0 8px 16px rgba(0, 0, 0, 0.04);
+}
 
-  /* Radius */
-  --radius-sm:      6px;
-  --radius:         8px;
-  --radius-md:      10px;
-  --radius-lg:      12px;
-  --radius-xl:      16px;
-  --radius-2xl:     20px;
-
-  /* Transitions */
-  --ease:           cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-spring:    cubic-bezier(0.34, 1.56, 0.64, 1);
-  --duration-fast:  100ms;
-  --duration:       150ms;
-  --duration-slow:  250ms;
+/* ── Theme Utility Class Overrides ── */
+[data-theme="dark"], html.dark {
+  .bg-white, .bg-card, .bg-popover, .card {
+    background-color: var(--surface) !important;
+  }
+  .bg-\[\#f9f9f8\], .bg-background {
+    background-color: var(--bg) !important;
+  }
+  .bg-\[\#f7f7f5\] {
+    background-color: var(--surface-2) !important;
+  }
+  .border-\[\#e5e5e2\], .border-border, .border-input {
+    border-color: var(--border) !important;
+  }
+  .border-\[\#e9e9e6\] {
+    border-color: var(--border) !important;
+  }
+  .border-\[\#d4d4d0\] {
+    border-color: var(--border-strong) !important;
+  }
+  .text-\[\#1a1a1a\], .text-foreground {
+    color: var(--text) !important;
+  }
+  .text-\[\#37352f\] {
+    color: var(--text) !important;
+  }
+  .text-\[\#6b6b6b\] {
+    color: var(--text-2) !important;
+  }
+  .text-\[\#7c7b77\] {
+    color: var(--text-2) !important;
+  }
+  .text-\[\#a0a0a0\] {
+    color: var(--text-3) !important;
+  }
+  
+  /* Scrollbar overrides for dark theme */
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1) !important;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+  }
 }
 
 /* ── Base Reset ──────────────────────────────────────────────────────────────── */
@@ -468,3 +569,59 @@ body {
 
 /* ── Video canvas overlay sharpness ─────────────────────────────────────────── */
 canvas { image-rendering: crisp-edges; }
+
+/* ── Global Input, Select, Textarea Theme Styling & Visibility Fixes ── */
+input, select, textarea {
+  background-color: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  outline: none !important;
+  transition: border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease) !important;
+}
+
+input::placeholder, select::placeholder, textarea::placeholder {
+  color: var(--text-3) !important;
+  opacity: 0.8 !important;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 2px var(--primary-ring) !important;
+}
+
+input:disabled, select:disabled, textarea:disabled {
+  background-color: var(--bg-alt) !important;
+  color: var(--text-3) !important;
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+/* Autofill fixes for browser autocomplete matching the dark/light surfaces */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px var(--surface) inset !important;
+  -webkit-text-fill-color: var(--text) !important;
+  transition: background-color 5000s ease-in-out 0s !important;
+}
+
+/* Calendar Date Pickers contrast styling */
+input[type="date"] {
+  color-scheme: dark;
+}
+[data-theme="light"] input[type="date"] {
+  color-scheme: light;
+}
+
+/* Dropdown select options styling context */
+select option {
+  background-color: var(--surface) !important;
+  color: var(--text) !important;
+}
+
+/* Selection Highlight */
+::selection {
+  background-color: var(--primary-light) !important;
+  color: var(--primary) !important;
+}

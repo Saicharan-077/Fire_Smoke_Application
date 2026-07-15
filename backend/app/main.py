@@ -269,8 +269,14 @@ async def lifespan(app: FastAPI):
     upload_routes._ws_manager = manager
     detect_routes._ws_manager = manager
 
+    # Start the continuous AI monitoring background loop for remote streams
+    import asyncio
+    from .services.camera_monitor import monitor_cameras_loop
+    monitor_task = asyncio.create_task(monitor_cameras_loop(svc))
+
     logger.info("[Startup] Ready — model loaded, routes configured")
     yield
+    monitor_task.cancel()
     logger.info("[Shutdown] Cleaning up")
 
 

@@ -1,215 +1,538 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Flame, Shield, Activity, Video, ArrowRight, ChevronDown } from 'lucide-react';
+import { 
+  Flame, Shield, Activity, Video, ArrowRight, 
+  CheckCircle, Plus, Minus, Cpu, HelpCircle, HardDrive, 
+  Terminal, ShieldAlert, CheckCircle2, AlertTriangle 
+} from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 
 const Landing = () => {
   const navigate = useNavigate();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
+  // States for interactive mockup and FAQ accordion
+  const [activeMockupTab, setActiveMockupTab] = useState<'matrix' | 'fire' | 'analytics'>('matrix');
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+  const [mockLiveAlerts, setMockLiveAlerts] = useState<any[]>([]);
+
+  // Telemetry log simulation
+  useEffect(() => {
+    const defaultAlerts = [
+      { id: 1, time: '21:18:04', cam: 'CAM-01 Warehouse', type: 'fire', conf: '96%', status: 'Active' },
+      { id: 2, time: '21:12:44', cam: 'CAM-04 Loading Dock', type: 'smoke', conf: '84%', status: 'Active' },
+      { id: 3, time: '20:55:12', cam: 'CAM-02 Server Room', type: 'system', conf: '100%', status: 'OK' }
+    ];
+    setMockLiveAlerts(defaultAlerts);
+
+    const interval = setInterval(() => {
+      const now = new Date().toLocaleTimeString();
+      const cams = ['CAM-01 Warehouse', 'CAM-02 Server Room', 'CAM-04 Loading Dock', 'CAM-05 Yard'];
+      const types = ['fire', 'smoke', 'system'];
+      const randomCam = cams[Math.floor(Math.random() * cams.length)];
+      const randomType = types[Math.floor(Math.random() * types.length)];
+      
+      const newAlert = {
+        id: Date.now(),
+        time: now,
+        cam: randomCam,
+        type: randomType,
+        conf: randomType === 'system' ? '100%' : `${Math.floor(Math.random() * 20) + 79}%`,
+        status: randomType === 'system' ? 'OK' : 'Active'
+      };
+
+      setMockLiveAlerts(prev => [newAlert, ...prev.slice(0, 2)]);
+    }, 4500);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const features = [
-    { 
-      icon: <Flame className="w-5 h-5 text-[#eb5757]" />, 
-      title: 'YOLOv8 Real-Time AI Inference', 
-      desc: 'Custom vision models evaluate camera streams with millisecond latency, minimizing false alarms.' 
+    {
+      icon: <Flame className="w-5 h-5 text-[var(--fire)]" />,
+      title: 'YOLOv8 Edge Inference',
+      desc: 'High-speed local computer vision layers process frames in milliseconds, ensuring anomalies are flagged without network transport lag.'
     },
-    { 
-      icon: <Activity className="w-5 h-5 text-[#f2994a]" />, 
-      title: 'Operations Command Center', 
-      desc: 'High-stress dashboard with warning triggers, live feeds, and real-time telemetry metrics.' 
+    {
+      icon: <Activity className="w-5 h-5 text-[var(--smoke)]" />,
+      title: 'Real-Time Telemetry Logs',
+      desc: 'Every coordinate check and confidence delta is stored, providing high-precision analytics maps for compliance auditing.'
     },
-    { 
-      icon: <Video className="w-5 h-5 text-[#006fee]" />, 
-      title: 'Multi-Stream CCTV Grid', 
-      desc: 'Seamless camera grid systems supporting local webcam captures and RTSP network streams.' 
+    {
+      icon: <Video className="w-5 h-5 text-[var(--primary)]" />,
+      title: 'Unified Camera Ingest',
+      desc: 'Seamlessly stream frames from built-in webcams, legacy cameras, or remote RTSP relays under a unified decoding scheduler.'
     },
-    { 
-      icon: <Shield className="w-5 h-5 text-[#27ae60]" />, 
-      title: 'Security Auditing & Escalation', 
-      desc: 'Automated logging of threats into an incident reporting workspace with PDF ticket exports.' 
-    },
+    {
+      icon: <Shield className="w-5 h-5 text-[var(--safe)]" />,
+      title: 'Granular Access RBAC',
+      desc: 'Enforce security boundaries by partitioning workspace controls between Administrators, Operators, and Viewers.'
+    }
   ];
 
+  const faqs = [
+    {
+      q: "How does FireGuard AI hook into legacy camera systems?",
+      a: "FireGuard uses standard IP network protocol layers. Any camera supporting RTSP (Real-Time Streaming Protocol) or HTTP streaming can be registered in the Settings panel and monitored continuously."
+    },
+    {
+      q: "Can the YOLOv8 model run locally on standard hardware?",
+      a: "Yes. The backend architecture automatically evaluates host hardware capabilities. It switches seamlessly between CUDA-accelerated GPU pipelines and low-overhead CPU workers without requiring code modifications."
+    },
+    {
+      q: "What settings can be tuned to reduce false-alarm triggers?",
+      a: "Operators can adjust the Confidence Threshold, Intersection over Union (IoU) overlap margins, Frame Skip rates, and toggle pixel-variance Motion Filtering on the fly in the Settings view."
+    },
+    {
+      q: "How does the sound siren alert trigger?",
+      a: "On active threat flags, FireGuard uses native Web Audio synthesis to generate electronic chime sirens. This guarantees immediate audible warnings without needing external asset files."
+    }
+  ];
+
+  const toggleFaq = (idx: number) => {
+    setOpenFaqIndex(openFaqIndex === idx ? null : idx);
+  };
+
   return (
-    <div className="min-h-screen bg-white text-[#37352f] font-sans relative overflow-x-hidden selection:bg-[#006fee]/10 selection:text-[#006fee]">
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] font-sans relative overflow-x-hidden selection:bg-[var(--primary-light)] selection:text-[var(--primary)] transition-colors duration-200">
       
-      {/* Notion-style Top Navigation Header */}
-      <header className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between border-b border-[#e9e9e6] relative z-20">
-        <div className="flex items-center gap-6">
-          {/* Logo */}
-          <div className="flex items-center gap-2 font-bold cursor-pointer select-none" onClick={() => navigate('/')}>
-            <div className="p-1.5 rounded bg-[#eb5757]/10 text-[#eb5757] border border-[#eb5757]/20 flex items-center justify-center shrink-0">
-              <Flame size={15} className="fill-current" />
+      {/* Visual background decorations - Notion-like premium animated grids */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(128,128,128,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(128,128,128,0.03)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
+      <div className="absolute top-[-100px] left-1/2 -translate-x-1/2 w-[80vw] h-[600px] bg-gradient-radial from-[var(--primary-light)] via-transparent to-transparent opacity-40 blur-3xl pointer-events-none" />
+      <div className="absolute top-[40%] right-[-100px] w-[400px] h-[400px] bg-gradient-radial from-[var(--smoke-bg)] to-transparent opacity-20 blur-3xl pointer-events-none" />
+
+      {/* Sticky Header */}
+      <header className="sticky top-0 z-50 bg-[var(--bg)]/75 backdrop-blur-md border-b border-[var(--border)]">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-8">
+            <div className="flex items-center gap-2 font-bold cursor-pointer select-none group" onClick={() => navigate('/')}>
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[#7c3aed] flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+                <Flame size={16} className="text-white fill-white" />
+              </div>
+              <span className="text-base font-bold tracking-tight text-[var(--text)]">FireGuard AI</span>
             </div>
-            <span className="text-sm font-bold tracking-tight text-[#37352f]">FireGuard AI</span>
+
+            <nav className="hidden md:flex items-center gap-6 text-[13px] font-medium text-[var(--text-2)]">
+              <a href="#features" className="hover:text-[var(--text)] transition-colors">Features</a>
+              <a href="#solutions" className="hover:text-[var(--text)] transition-colors">Solutions</a>
+              <a href="#tech" className="hover:text-[var(--text)] transition-colors">Technology</a>
+              <a href="#faq" className="hover:text-[var(--text)] transition-colors">FAQ</a>
+            </nav>
           </div>
 
-          {/* Links (Replicating Notion reference image navigation links) */}
-          <nav className="hidden lg:flex items-center gap-5 text-xs font-semibold text-[#7c7b77]">
-            <span className="hover:text-[#37352f] cursor-pointer flex items-center gap-0.5">Product <ChevronDown size={11} /></span>
-            <span className="hover:text-[#37352f] cursor-pointer flex items-center gap-0.5">Solutions <ChevronDown size={11} /></span>
-            <span className="hover:text-[#37352f] cursor-pointer flex items-center gap-0.5">Resources <ChevronDown size={11} /></span>
-            <span className="hover:text-[#37352f] cursor-pointer">Developers</span>
-            <span className="hover:text-[#37352f] cursor-pointer">Enterprise</span>
-            <span className="hover:text-[#37352f] cursor-pointer">Pricing</span>
-            <span className="hover:text-[#37352f] cursor-pointer">Request a demo</span>
-          </nav>
-        </div>
-
-        <div className="flex items-center gap-4 text-xs font-semibold">
-          {isAuthenticated ? (
-            <button 
-              onClick={() => navigate('/dashboard')}
-              className="px-3.5 py-1.5 rounded-lg bg-[#006fee] hover:bg-[#005bc5] text-white transition-all cursor-pointer flex items-center gap-1 shadow-sm"
-            >
-              Command Center <ArrowRight size={12} />
-            </button>
-          ) : (
-            <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4 text-[13px] font-semibold">
+            {isAuthenticated ? (
               <button 
-                onClick={() => navigate('/login')}
-                className="px-3 py-1.5 text-[#7c7b77] hover:text-[#37352f] transition-all cursor-pointer"
+                onClick={() => navigate('/dashboard')}
+                className="px-4 py-2 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition-all cursor-pointer flex items-center gap-1.5 shadow-sm font-bold active:scale-[0.98]"
               >
-                Log in
+                Enter Command Center <ArrowRight size={13} />
               </button>
-              <button 
-                onClick={() => navigate('/register')}
-                className="px-3.5 py-1.5 rounded-lg bg-[#006fee] hover:bg-[#005bc5] text-white transition-all shadow-sm cursor-pointer"
-              >
-                Get FireGuard free
-              </button>
-            </div>
-          )}
+            ) : (
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => navigate('/login')}
+                  className="px-4 py-2 text-[var(--text-2)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] rounded-xl transition-all cursor-pointer font-bold"
+                >
+                  Sign In
+                </button>
+                <button 
+                  onClick={() => navigate('/register')}
+                  className="px-4.5 py-2 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition-all shadow-sm cursor-pointer font-bold active:scale-[0.98]"
+                >
+                  Get Started
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <main className="max-w-6xl mx-auto px-6 pt-16 pb-32 relative z-10 space-y-16">
+      {/* Main Content Container */}
+      <main className="max-w-6xl mx-auto px-6 pt-16 sm:pt-24 pb-32 relative z-10 space-y-32">
         
-        {/* Title, Subtitle, and CTAs (Replicating Notion reference style) */}
-        <div className="text-center max-w-3xl mx-auto space-y-6 flex flex-col items-center">
+        {/* Hero Section */}
+        <section className="text-center max-w-4xl mx-auto space-y-8 flex flex-col items-center">
           
-          {/* Avatar bubbles representation */}
-          <div className="flex -space-x-1.5 overflow-hidden py-2 select-none">
-            {['👨‍✈️', '🤖', '👩‍💻', '👮', '👨‍🚒'].map((emoji, idx) => (
-              <div key={idx} className="inline-block h-9 w-9 rounded-full bg-[#f7f7f5] border-2 border-white flex items-center justify-center text-lg shadow-sm">
-                {emoji}
-              </div>
+          {/* Release Tag */}
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--surface-2)] border border-[var(--border)] text-xs text-[var(--text-2)] font-semibold shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-[var(--safe)] animate-pulse" />
+            <span>Autonomous Facility Surveillance Matrix v2.0</span>
+          </div>
+
+          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.08] text-[var(--text)] max-w-3xl">
+            Where Computer Vision and Industrial Campus Safety <span className="bg-gradient-to-r from-[var(--primary)] to-[#7c3aed] bg-clip-text text-transparent">Unify together.</span>
+          </h1>
+
+          <p className="text-base sm:text-lg text-[var(--text-2)] max-w-xl mx-auto font-normal leading-relaxed">
+            Continuous AI-powered surveillance pipeline designed to scan campus networks, factory floors, and legacy CCTV cameras for real-time fire and smoke anomalies.
+          </p>
+
+          <div className="pt-2 flex flex-col sm:flex-row justify-center gap-4 font-bold text-sm w-full sm:w-auto">
+            <button 
+              onClick={() => navigate('/register')}
+              className="px-6 py-3.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98]"
+            >
+              Get Started Free <ArrowRight size={15} />
+            </button>
+            <button 
+              onClick={() => navigate('/login')}
+              className="px-6 py-3.5 rounded-xl bg-[var(--surface-2)] hover:bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] transition-all cursor-pointer flex items-center justify-center gap-2"
+            >
+              Access SOC Dashboard
+            </button>
+          </div>
+        </section>
+
+        {/* Premium Interactive Mockup Dashboard (Notion / Linear Reference) */}
+        <section className="space-y-6 max-w-5xl mx-auto">
+          {/* Tab Selector */}
+          <div className="flex justify-center bg-[var(--surface-2)] border border-[var(--border)] p-1 rounded-2xl max-w-md mx-auto gap-1">
+            {[
+              { id: 'matrix', label: 'Surveillance Matrix', icon: <Video size={12} /> },
+              { id: 'fire', label: 'AI Detections', icon: <AlertTriangle size={12} /> },
+              { id: 'analytics', label: 'Analytics Panel', icon: <Activity size={12} /> }
+            ].map(t => (
+              <button
+                key={t.id}
+                onClick={() => setActiveMockupTab(t.id as any)}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeMockupTab === t.id 
+                    ? 'bg-[var(--surface)] text-[var(--primary)] border border-[var(--border)] shadow-xs' 
+                    : 'text-[var(--text-3)] hover:text-[var(--text)]'
+                }`}
+              >
+                {t.icon}
+                {t.label}
+              </button>
             ))}
           </div>
 
-          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.15] text-[#37352f] max-w-2xl">
-            Where safety and agents <span className="bg-[#fff0d4] px-3 py-1 rounded-2xl border border-[#fae8b8] text-[#b38b00] inline-block mt-2">Build together.</span>
-          </h1>
-
-          <p className="text-sm sm:text-base text-[#7c7b77] max-w-lg mx-auto font-semibold leading-relaxed">
-            Autonomous computer vision pipeline built to scan industrial campuses, factories, and CCTV channels for real-time fire and smoke warnings.
-          </p>
-
-          <div className="pt-2 flex justify-center gap-3 font-semibold">
-            <button 
-              onClick={() => navigate('/login')}
-              className="px-5 py-2.5 rounded-lg bg-[#006fee] hover:bg-[#005bc5] text-xs text-white transition-all shadow-sm cursor-pointer flex items-center gap-1.5"
-            >
-              Get FireGuard free <ArrowRight size={13} />
-            </button>
-            <button 
-              onClick={() => navigate('/documentation')}
-              className="px-5 py-2.5 rounded-lg bg-[#efefe5]/50 hover:bg-[#efefe5] border border-[#e9e9e6] text-xs text-[#37352f] transition-all cursor-pointer"
-            >
-              Request a demo
-            </button>
-          </div>
-        </div>
-
-        {/* Dashboard Mockup (Notion-style clean interface) */}
-        <div className="rounded-xl border border-[#e9e9e6] bg-[#f7f7f5] p-3 shadow-md max-w-4xl mx-auto overflow-hidden">
-          <div className="rounded-lg bg-white border border-[#e9e9e6] p-4 shadow-sm space-y-4">
-            
-            {/* Mock Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-[#e9e9e6] text-[10px] font-bold text-[#7c7b77]">
-              <div className="flex gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#eb5757]" />
-                <span className="w-2 h-2 rounded-full bg-[#f2994a]" />
-                <span className="w-2 h-2 rounded-full bg-[#27ae60]" />
+          {/* Interactive Window */}
+          <div className="rounded-2xl border border-[var(--border-strong)] bg-[var(--surface)] shadow-2xl overflow-hidden aspect-[16/10] max-w-4xl mx-auto flex flex-col">
+            {/* Header bar */}
+            <div className="h-10 bg-[var(--surface-2)] border-b border-[var(--border)] px-4 flex items-center justify-between shrink-0 select-none">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[var(--fire)]" />
+                <span className="w-2.5 h-2.5 rounded-full bg-[var(--smoke)]" />
+                <span className="w-2.5 h-2.5 rounded-full bg-[var(--safe)]" />
               </div>
-              <span className="uppercase tracking-wider font-mono">WORKSPACE COMMAND MONITOR</span>
+              <span className="text-[10px] font-bold text-[var(--text-3)] font-mono tracking-wider">FIREGUARD SECURE OPERATIONS PREVIEW</span>
+              <span className="text-[10px] font-mono text-[var(--text-3)]">SYSTEM: ONLINE</span>
             </div>
-            
-            {/* Mock Dashboard Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-3.5 rounded-lg border border-[#e9e9e6] bg-[#f7f7f5]/30 space-y-1.5">
-                <span className="text-[9px] font-bold text-[#eb5757] uppercase tracking-wider">AI Accuracy</span>
-                <p className="text-xl font-bold font-mono text-[#37352f]">99.4%</p>
-                <div className="w-full h-1 bg-[#e9e9e6] rounded-full overflow-hidden">
-                  <div className="h-full bg-[#eb5757] w-[99%]" />
+
+            {/* Content Body */}
+            <div className="flex-1 bg-[var(--bg)] flex overflow-hidden relative">
+              
+              {/* Tab 1: Matrix */}
+              {activeMockupTab === 'matrix' && (
+                <div className="flex-1 grid grid-cols-2 gap-4 p-4">
+                  <div className="border border-[var(--border)] bg-[var(--surface)] rounded-xl p-3 flex flex-col justify-between relative overflow-hidden group">
+                    <div className="flex justify-between items-center text-[10px] font-bold text-[var(--text-2)] uppercase tracking-wider mb-2 z-10">
+                      <span>CCTV 01 · Warehouse</span>
+                      <span className="flex items-center gap-1 text-[var(--fire-text)] bg-[var(--fire-bg)] px-2 py-0.5 rounded border border-[var(--fire-border)]">
+                        <span className="w-1 h-1 rounded-full bg-[var(--fire)] animate-pulse" />
+                        Fire Detected
+                      </span>
+                    </div>
+                    <div className="flex-1 rounded-lg bg-[var(--bg-alt)] border border-[var(--border)] flex items-center justify-center overflow-hidden relative aspect-video">
+                      <div className="absolute inset-0 bg-red-900/10 pointer-events-none" />
+                      <div className="absolute border-2 border-[var(--fire)] w-28 h-20 top-8 left-12 flex flex-col justify-between p-1 bg-[var(--fire-bg)]">
+                        <span className="text-[8px] font-bold text-white bg-[var(--fire)] px-1 rounded-sm w-fit leading-none py-0.5">FIRE 96%</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border border-[var(--border)] bg-[var(--surface)] rounded-xl p-3 flex flex-col justify-between relative overflow-hidden group">
+                    <div className="flex justify-between items-center text-[10px] font-bold text-[var(--text-2)] uppercase tracking-wider mb-2 z-10">
+                      <span>CCTV 02 · Server Room</span>
+                      <span className="flex items-center gap-1 text-[var(--safe-text)] bg-[var(--safe-bg)] px-2 py-0.5 rounded border border-[var(--safe-border)]">
+                        Active
+                      </span>
+                    </div>
+                    <div className="flex-1 rounded-lg bg-[var(--bg-alt)] border border-[var(--border)] flex items-center justify-center overflow-hidden relative aspect-video">
+                      <div className="text-[9px] font-mono text-[var(--text-3)]">[ CCTV ACTIVE STREAM ]</div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="p-3.5 rounded-lg border border-[#e9e9e6] bg-[#f7f7f5]/30 space-y-1.5">
-                <span className="text-[9px] font-bold text-[#f2994a] uppercase tracking-wider">Inference Speed</span>
-                <p className="text-xl font-bold font-mono text-[#37352f]">12 ms</p>
-                <div className="w-full h-1 bg-[#e9e9e6] rounded-full overflow-hidden">
-                  <div className="h-full bg-[#f2994a] w-[20%]" />
+              )}
+
+              {/* Tab 2: Detections */}
+              {activeMockupTab === 'fire' && (
+                <div className="flex-1 flex flex-col md:flex-row gap-4 p-4 overflow-hidden">
+                  <div className="flex-1 border border-[var(--border)] bg-[var(--surface)] rounded-xl p-4 flex flex-col gap-3">
+                    <h4 className="text-[11px] font-bold text-[var(--text-2)] uppercase tracking-widest">Active Incident History</h4>
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                      {mockLiveAlerts.map(al => (
+                        <div key={al.id} className="p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] flex items-center justify-between text-xs hover:border-[var(--border-strong)] transition-all">
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`w-1.5 h-1.5 rounded-full ${al.type === 'fire' ? 'bg-[var(--fire)] animate-pulse' : al.type === 'smoke' ? 'bg-[var(--smoke)] animate-pulse' : 'bg-[var(--safe)]'}`} />
+                              <span className="font-bold text-[var(--text)] capitalize">{al.type} Alert</span>
+                              <span className="font-mono text-[10px] text-[var(--text-3)]">{al.conf}</span>
+                            </div>
+                            <p className="text-[10px] text-[var(--text-2)]">{al.cam}</p>
+                          </div>
+                          <span className="font-mono text-[9px] text-[var(--text-3)]">{al.time}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="w-full md:w-64 border border-[var(--border)] bg-[var(--surface)] rounded-xl p-4 flex flex-col justify-between shrink-0">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-1.5">
+                        <ShieldAlert className="text-[var(--fire)] w-4 h-4" />
+                        <h4 className="text-[11px] font-bold text-[var(--text-2)] uppercase tracking-widest">Core Engine Diagnostics</h4>
+                      </div>
+                      <div className="space-y-2 text-xs font-semibold text-[var(--text-2)]">
+                        <div className="flex justify-between border-b border-[var(--border)] pb-1.5">
+                          <span>YOLO Model:</span>
+                          <span className="text-[var(--text)]">best.pt loaded</span>
+                        </div>
+                        <div className="flex justify-between border-b border-[var(--border)] pb-1.5">
+                          <span>Inference Latency:</span>
+                          <span className="text-[var(--text)] font-mono">12 ms</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Precision Rate:</span>
+                          <span className="text-[var(--text)] font-mono">99.4%</span>
+                        </div>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => navigate('/login')}
+                      className="w-full py-2 bg-[var(--primary)] text-white font-bold rounded-lg text-xs hover:bg-[var(--primary-hover)] transition-all flex items-center justify-center gap-1.5"
+                    >
+                      Authenticate and Resolve <ArrowRight size={12} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div className="p-3.5 rounded-lg border border-[#e9e9e6] bg-[#f7f7f5]/30 space-y-1.5">
-                <span className="text-[9px] font-bold text-[#006fee] uppercase tracking-wider">Active Channels</span>
-                <p className="text-xl font-bold font-mono text-[#37352f]">SECURE</p>
-                <div className="w-full h-1 bg-[#e9e9e6] rounded-full overflow-hidden">
-                  <div className="h-full bg-[#006fee] w-[100%]" />
+              )}
+
+              {/* Tab 3: Analytics */}
+              {activeMockupTab === 'analytics' && (
+                <div className="flex-1 p-4 flex flex-col gap-4 overflow-hidden">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="bg-[var(--surface)] border border-[var(--border)] p-3 rounded-xl">
+                      <p className="text-[9px] font-bold text-[var(--text-3)] uppercase tracking-wider">Total Alerts</p>
+                      <p className="text-xl font-bold font-mono text-[var(--text)] mt-1">1,482</p>
+                    </div>
+                    <div className="bg-[var(--surface)] border border-[var(--border)] p-3 rounded-xl">
+                      <p className="text-[9px] font-bold text-[var(--text-3)] uppercase tracking-wider">Online Cameras</p>
+                      <p className="text-xl font-bold font-mono text-[var(--text)] mt-1">4 Active</p>
+                    </div>
+                    <div className="bg-[var(--surface)] border border-[var(--border)] p-3 rounded-xl">
+                      <p className="text-[9px] font-bold text-[var(--text-3)] uppercase tracking-wider">Motion Filter Savings</p>
+                      <p className="text-xl font-bold font-mono text-[var(--text)] mt-1">72.4%</p>
+                    </div>
+                  </div>
+                  <div className="flex-1 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 flex items-center justify-center">
+                    <div className="text-center space-y-1">
+                      <Activity size={24} className="mx-auto text-[var(--primary)] mb-1" />
+                      <p className="text-xs font-bold text-[var(--text-2)]">Real-time analytical graphs simulation active</p>
+                      <p className="text-[10px] text-[var(--text-3)]">Integrates Recharts area layers on standard metrics</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
+
             </div>
           </div>
-        </div>
+        </section>
 
         {/* Feature Grid */}
-        <div className="space-y-10 pt-10">
-          <div className="text-center max-w-xl mx-auto space-y-2">
-            <h2 className="text-xl font-bold tracking-tight text-[#37352f]">Enterprise Security Integrations</h2>
-            <p className="text-xs text-[#7c7b77] font-semibold">FireGuard layers directly over existing facility monitoring networks.</p>
+        <section id="features" className="space-y-12 pt-8">
+          <div className="text-center max-w-xl mx-auto space-y-3">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text)]">Enterprise Ingestion & Detection</h2>
+            <p className="text-xs sm:text-sm text-[var(--text-2)] font-semibold leading-relaxed">
+              FireGuard layers directly over existing security environments with zero hardware lock-in.
+            </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {features.map((f, i) => (
-              <div key={i} className="p-5 rounded-xl border border-[#e9e9e6] bg-white hover:border-[#7c7b77]/40 hover:shadow-md transition-all space-y-3">
-                <div className="p-2.5 rounded-lg bg-[#f7f7f5] border border-[#e9e9e6] w-fit">
+              <div key={i} className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)] hover:shadow-md transition-all space-y-4">
+                <div className="p-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] w-fit">
                   {f.icon}
                 </div>
-                <h3 className="font-bold text-xs tracking-tight text-[#37352f]">{f.title}</h3>
-                <p className="text-[11px] text-[#7c7b77] font-semibold leading-relaxed">{f.desc}</p>
+                <h3 className="font-bold text-sm tracking-tight text-[var(--text)]">{f.title}</h3>
+                <p className="text-xs text-[var(--text-2)] font-semibold leading-relaxed">{f.desc}</p>
               </div>
             ))}
           </div>
-        </div>
+        </section>
 
-        {/* Target Industries */}
-        <div className="py-10 border-y border-[#e9e9e6] text-center space-y-4">
-          <p className="text-[9px] font-bold uppercase tracking-wider text-[#a4a3a0]">Trusted by Operational Managers</p>
-          <div className="flex flex-wrap justify-center gap-4 sm:gap-6 text-[11px] font-semibold text-[#7c7b77]">
-            {['Industrial Factories', 'Cargo Airports', 'Logistics Warehouses', 'Campuses', 'Server Rooms', 'Hospitals'].map((ind, i) => (
-              <span key={i} className="px-3.5 py-1.5 rounded-lg bg-[#f7f7f5] border border-[#e9e9e6]">{ind}</span>
+        {/* Dynamic Showcase Section (Introduction to Features) */}
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-12 py-8 border-y border-[var(--border)] items-center">
+          <div className="space-y-5">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text)]">Continuous AI Live Feed Analysis</h2>
+            <p className="text-xs sm:text-sm text-[var(--text-2)] leading-relaxed font-semibold">
+              Our automated command center continuously feeds camera matrices through the inference model. Changes in confidence levels, overlapping bounding boxes, and sudden changes are computed instantly, sending high-precision notifications and warnings without manual tracking.
+            </p>
+            <div className="space-y-3 pt-2 text-xs font-semibold text-[var(--text-2)]">
+              {[
+                "Webcam, RTSP stream, and file ingestion supported",
+                "Non-intrusive sound alarm notifications and real-time popups",
+                "Configurable frame-skipping & preprocessing threshold settings"
+              ].map((text, idx) => (
+                <div key={idx} className="flex items-center gap-2.5">
+                  <CheckCircle size={15} className="text-[var(--safe)] shrink-0" />
+                  <span>{text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-3 p-6 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]">
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-3)] mb-1">SOC Real-Time Log Ingestion</h3>
+            <div className="space-y-2.5">
+              <div className="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--fire)] animate-pulse" />
+                  <span className="font-bold text-[var(--fire-text)]">Fire Alert CAM-01</span>
+                </div>
+                <span className="font-mono text-[var(--text-3)] text-[10px]">98% Match</span>
+              </div>
+              <div className="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--smoke)] animate-pulse" />
+                  <span className="font-bold text-[var(--smoke-text)]">Smoke Alert CAM-02</span>
+                </div>
+                <span className="font-mono text-[var(--text-3)] text-[10px]">86% Match</span>
+              </div>
+              <div className="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-between text-xs opacity-65">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={12} className="text-[var(--safe)]" />
+                  <span className="text-[var(--text-2)]">Routine Diagnostic check</span>
+                </div>
+                <span className="font-mono text-[var(--text-3)] text-[10px]">OK</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Tech Stack Overview */}
+        <section id="tech" className="space-y-12">
+          <div className="text-center max-w-xl mx-auto space-y-3">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text)]">Built on Production Standards</h2>
+            <p className="text-xs sm:text-sm text-[var(--text-2)] font-semibold leading-relaxed">
+              We leverage modern enterprise frameworks to guarantee sub-15ms AI processing loops.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+            {[
+              { icon: <Cpu className="w-6 h-6 text-[var(--primary)] mx-auto" />, name: "YOLOv8 Vision Core", desc: "Object recognition engine" },
+              { icon: <HardDrive className="w-6 h-6 text-[#7c3aed] mx-auto" />, name: "FastAPI Routing", desc: "High performance Python API" },
+              { icon: <Terminal className="w-6 h-6 text-[var(--safe)] mx-auto" />, name: "Vite + React 19", desc: "Premium single-page web app" },
+              { icon: <Shield className="w-6 h-6 text-[var(--fire)] mx-auto" />, name: "Granular RBAC", desc: "SQLite database constraint logs" }
+            ].map((stack, idx) => (
+              <div key={idx} className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] space-y-3">
+                <div className="mb-2">{stack.icon}</div>
+                <h4 className="text-xs font-bold text-[var(--text)]">{stack.name}</h4>
+                <p className="text-[10px] text-[var(--text-3)] uppercase tracking-wider">{stack.desc}</p>
+              </div>
             ))}
           </div>
-        </div>
+        </section>
+
+        {/* Frequently Asked Questions (FAQ Accordion) */}
+        <section id="faq" className="space-y-8 max-w-3xl mx-auto pt-8">
+          <div className="text-center space-y-3">
+            <HelpCircle className="w-7 h-7 text-[var(--primary)] mx-auto" />
+            <h2 className="text-2xl font-bold tracking-tight text-[var(--text)]">Frequently Asked Questions</h2>
+            <p className="text-xs text-[var(--text-2)] font-semibold">Answers to general platform diagnostics and integration details.</p>
+          </div>
+          
+          <div className="space-y-4">
+            {faqs.map((faq, idx) => {
+              const isOpen = openFaqIndex === idx;
+              return (
+                <div 
+                  key={idx} 
+                  className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden transition-all duration-200"
+                >
+                  <button
+                    onClick={() => toggleFaq(idx)}
+                    className="w-full flex items-center justify-between p-5 text-left text-xs sm:text-sm font-bold text-[var(--text)] hover:bg-[var(--surface-2)] transition-colors select-none"
+                  >
+                    <span>{faq.q}</span>
+                    <span className="text-[var(--text-3)] shrink-0 ml-4">
+                      {isOpen ? <Minus size={15} /> : <Plus size={15} />}
+                    </span>
+                  </button>
+                  {isOpen && (
+                    <div className="px-5 pb-5 pt-1 text-xs text-[var(--text-2)] font-semibold leading-relaxed border-t border-[var(--border)] bg-[var(--surface-2)]/30">
+                      {faq.a}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
 
         {/* Footer Call to Action */}
-        <div className="rounded-2xl border border-[#e9e9e6] bg-[#f7f7f5] p-8 sm:p-12 text-center max-w-3xl mx-auto space-y-5 relative overflow-hidden">
-          <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-[#37352f]">Begin securing your space today</h2>
-          <p className="text-xs text-[#7c7b77] max-w-md mx-auto leading-relaxed font-semibold">
-            Integrate local webcam channels or connect RTSP CCTV cameras immediately from the main command workspace.
+        <section className="rounded-3xl border border-[var(--border-strong)] bg-[var(--surface)] p-8 sm:p-12 text-center max-w-4xl mx-auto space-y-6 relative overflow-hidden shadow-xl">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-radial from-[var(--primary-light)] to-transparent opacity-35 blur-xl pointer-events-none" />
+          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--text)]">Begin securing your workspace today</h2>
+          <p className="text-xs sm:text-sm text-[var(--text-2)] max-w-md mx-auto leading-relaxed font-semibold">
+            Integrate local webcam feeds or link remote RTSP streams immediately inside the main operations dashboard.
           </p>
-          <div className="flex justify-center">
+          <div className="flex justify-center pt-2">
             <button 
               onClick={() => navigate('/login')}
-              className="px-5 py-2.5 rounded-lg bg-[#006fee] hover:bg-[#005bc5] text-xs font-bold text-white transition-all shadow-sm cursor-pointer flex items-center gap-1.5"
+              className="px-6 py-3 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-xs font-bold text-white transition-all shadow-md cursor-pointer flex items-center gap-1.5 active:scale-[0.98]"
             >
-              Get FireGuard free <ArrowRight size={13} />
+              Access Dashboard <ArrowRight size={13} />
             </button>
           </div>
-        </div>
+        </section>
       </main>
 
-      <footer className="text-center py-8 border-t border-[#e9e9e6] text-[10px] text-[#a4a3a0] font-semibold tracking-wide">
-        &copy; {new Date().getFullYear()} FireGuard AI, Inc. All rights reserved.
+      {/* Enterprise SaaS Multi-column Footer */}
+      <footer className="bg-[var(--surface-2)] border-t border-[var(--border)] py-12 text-xs text-[var(--text-2)] select-none">
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 font-bold select-none">
+              <div className="w-6 h-6 rounded-lg bg-[var(--primary)] flex items-center justify-center shrink-0">
+                <Flame size={12} className="text-white fill-white" />
+              </div>
+              <span className="text-sm font-semibold tracking-tight text-[var(--text)]">FireGuard AI</span>
+            </div>
+            <p className="text-[10px] text-[var(--text-3)] font-semibold leading-relaxed">
+              Sub-second anomaly tracking powered by lightweight computer vision layers.
+            </p>
+          </div>
+          <div>
+            <h4 className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-3)] mb-3">Product</h4>
+            <ul className="space-y-2 font-semibold">
+              <li><span className="hover:text-[var(--text)] cursor-pointer">Live Matrix</span></li>
+              <li><span className="hover:text-[var(--text)] cursor-pointer">Threat Detection</span></li>
+              <li><span className="hover:text-[var(--text)] cursor-pointer">Settings Panel</span></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-3)] mb-3">Resources</h4>
+            <ul className="space-y-2 font-semibold">
+              <li><span className="hover:text-[var(--text)] cursor-pointer" onClick={() => navigate('/documentation')}>API Specs</span></li>
+              <li><span className="hover:text-[var(--text)] cursor-pointer">System Logs</span></li>
+              <li><span className="hover:text-[var(--text)] cursor-pointer">Audit Logs</span></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-3)] mb-3">Contact</h4>
+            <ul className="space-y-2 font-semibold">
+              <li><span className="hover:text-[var(--text)] cursor-pointer">dispatch@fireguard.ai</span></li>
+              <li><span className="hover:text-[var(--text)] cursor-pointer">System Operator</span></li>
+            </ul>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-6 border-t border-[var(--border)] pt-6 flex flex-col sm:flex-row items-center justify-between text-[10px] text-[var(--text-3)] font-semibold">
+          <span>&copy; {new Date().getFullYear()} FireGuard AI, Inc. All rights reserved.</span>
+          <div className="flex gap-4 mt-2 sm:mt-0">
+            <span className="hover:text-[var(--text-2)] cursor-pointer">Privacy Policy</span>
+            <span className="hover:text-[var(--text-2)] cursor-pointer">Terms of Service</span>
+          </div>
+        </div>
       </footer>
     </div>
   );
