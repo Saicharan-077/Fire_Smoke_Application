@@ -74,13 +74,17 @@ def create_event(
     return event
 
 
-def update_alert_status(db: Session, alert_id: str, status: str) -> models.Alert | None:
+def update_alert_status(db: Session, alert_id: str, status: str, resolved_by: str = None) -> models.Alert | None:
     alert = db.query(models.Alert).filter(models.Alert.id == alert_id).first()
     if not alert:
         logger.warning(f"update_status: id={alert_id} not found")
         return None
     alert.status = status
+    if status == "resolved" and resolved_by:
+        alert.resolved_by = resolved_by
+    elif status == "active":
+        alert.resolved_by = None
     db.commit()
     db.refresh(alert)
-    logger.info(f"Status updated — id={alert_id} new_status={status}")
+    logger.info(f"Status updated — id={alert_id} new_status={status} resolved_by={resolved_by}")
     return alert

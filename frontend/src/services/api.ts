@@ -18,6 +18,7 @@ export interface Alert {
   file_name: string | null;
   evidence_path: string | null;
   frame_number: number | null;
+  resolved_by?: string | null;
   timestamp: string;
 }
 
@@ -246,6 +247,20 @@ export const registerApi = (payload: any) =>
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+  });
+
+export const googleAuthApi = (payload: { email: string; google_id: string; username?: string; action: string }) =>
+  api<{ token: string; user: any }>('/api/v1/auth/google', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+export const linkGoogleApi = (payload: { email: string; google_id: string }) =>
+  api<{ token: string; user: any }>('/api/v1/auth/google', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...payload, action: 'link' }),
   });
 
 export const forgotPasswordApi = (payload: { email: string }) =>

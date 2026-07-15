@@ -254,3 +254,140 @@ def logout(current_user: models.User = Depends(get_current_user), db: Session = 
 def get_profile(current_user: models.User = Depends(get_current_user)):
     return current_user
 
+
+@router.post("/google", response_model=schemas.TokenResponse)
+def google_auth(
+    body: schemas.UserGoogleAuth,
+    authorization: str = Header(None),
+    db: Session = Depends(get_db)
+):
+    action = body.action.lower()
+    
+    if action == "login":
+        user = db.query(models.User).filter(models.User.google_id == body.google_id).first()
+        if not user:
+            user = db.query(models.User).filter(models.User.email == body.email).first()
+            if user:
+                user.google_id = body.google_id
+                user.google_linked = "true"
+                db.commit()
+                db.refresh(user)
+                log_audit(db, user, "GOOGLE_LINK_AUTO", f"Auto-linked Google account for email {body.email}")
+            else:
+                username = body.username or body.email.split("@")[0]
+                base_username = username
+                counter = 1
+                while db.query(models.User).filter(models.User.username == username).first():
+                    username = f"{base_username}_{counter}"
+                    counter += 1
+                
+                dummy_password = uuid.uuid4().hex
+                user = models.User(
+                    username=username,
+                    email=body.email,
+                    hashed_password=hash_password(dummy_password),
+                    role="viewer",
+                    google_id=body.google_id,
+                    google_linked="true"
+                )
+                db.add(user)
+                db.commit()
+                db.refresh(user)
+                log_audit(db, user, "GOOGLE_REGISTER_AUTO", f"Auto-registered Google user with role viewer: {username}")
+                
+        if getattr(user, "is_active", "true") == "false":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account is deactivated. Contact an administrator.",
+            )
+        
+        token = uuid.uuid4().hex
+        user.session_token = token
+        user.session_expires_at = datetime.utcnow() + timedelta(minutes=SESSION_DURATION_MINUTES)
+        user.last_login = datetime.utcnow()
+        db.commit()
+        db.refresh(user)
+        log_audit(db, user, "LOGIN_GOOGLE", f"User logged in successfully via Google: {token[:8]}...")
+        return schemas.TokenResponse(token=token, user=user)
+
+    elif action == "register":
+        existing_user = db.query(models.User).filter(models.User.email == body.email).first()
+        if existing_user:
+            existing_user.google_id = body.google_id
+            existing_user.google_linked = "true"
+            db.commit()
+            db.refresh(existing_user)
+            log_audit(db, existing_user, "GOOGLE_LINK_DUPLICATE", f"Auto-linked Google account on duplicate registration check for email {body.email}")
+            user = existing_user
+        else:
+            username = body.username or body.email.split("@")[0]
+            base_username = username
+            counter = 1
+            while db.query(models.User).filter(models.User.username == username).first():
+                username = f"{base_username}_{counter}"
+                counter += 1
+            
+            dummy_password = uuid.uuid4().hex
+            user = models.User(
+                username=username,
+                email=body.email,
+                hashed_password=hash_password(dummy_password),
+                role="viewer",
+                google_id=body.google_id,
+                google_linked="true"
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            log_audit(db, user, "GOOGLE_REGISTER", f"Registered new Google user with role viewer: {username}")
+            
+        if getattr(user, "is_active", "true") == "false":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account is deactivated. Contact an administrator.",
+            )
+            
+        token = uuid.uuid4().hex
+        user.session_token = token
+        user.session_expires_at = datetime.utcnow() + timedelta(minutes=SESSION_DURATION_MINUTES)
+        user.last_login = datetime.utcnow()
+        db.commit()
+        db.refresh(user)
+        log_audit(db, user, "LOGIN_GOOGLE", f"User logged in successfully via Google registration: {token[:8]}...")
+        return schemas.TokenResponse(token=token, user=user)
+
+    elif action == "link":
+        if not authorization:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Missing authentication credentials for linking",
+            )
+        token_str = authorization.split(" ")[1] if " " in authorization else authorization
+        current_user = get_user_by_token(token_str, db)
+        if not current_user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired session for linking",
+            )
+            
+        linked_user = db.query(models.User).filter(models.User.google_id == body.google_id).first()
+        if linked_user and linked_user.id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Google account is already linked to another user account",
+            )
+            
+        current_user.google_id = body.google_id
+        current_user.google_linked = "true"
+        db.commit()
+        db.refresh(current_user)
+        log_audit(db, current_user, "GOOGLE_LINK_MANUAL", f"Linked Google account manually: {body.email}")
+        
+        return schemas.TokenResponse(token=token_str, user=current_user)
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid action: '{action}'",
+        )
+

@@ -8,6 +8,8 @@ export interface UserProfile {
   role: string;
   last_login?: string;
   created_at?: string;
+  google_id?: string | null;
+  google_linked?: string;
 }
 
 interface AuthState {

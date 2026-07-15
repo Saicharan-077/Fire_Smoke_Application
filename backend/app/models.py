@@ -40,6 +40,7 @@ class Alert(Base):
     file_name      = Column(String,   nullable=True)
     evidence_path  = Column(String,   nullable=True)
     frame_number   = Column(Integer,  nullable=True)
+    resolved_by    = Column(String,   nullable=True)
     timestamp      = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
@@ -91,6 +92,8 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     role            = Column(String, default="viewer")  # administrator | operator | viewer
     is_active       = Column(String, default="true")    # "true" | "false" (string for SQLite compat)
+    google_id       = Column(String, unique=True, nullable=True)
+    google_linked   = Column(String, default="false")
     last_login          = Column(DateTime, nullable=True)
     session_token       = Column(String, nullable=True)
     session_expires_at  = Column(DateTime, nullable=True)

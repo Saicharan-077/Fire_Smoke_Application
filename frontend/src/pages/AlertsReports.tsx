@@ -38,6 +38,12 @@ const AlertsReports = () => {
   const [alertFilterStatus, setAlertFilterStatus] = useState('active');
   const [zoomUrl, setZoomUrl] = useState<string | null>(null);
 
+  // Search, severity, and sorting states
+  const [alertSearch, setAlertSearch] = useState('');
+  const [alertFilterSeverity, setAlertFilterSeverity] = useState('');
+  const [alertSortBy, setAlertSortBy] = useState<'timestamp' | 'confidence'>('timestamp');
+  const [alertSortOrder, setAlertSortOrder] = useState<'desc' | 'asc'>('desc');
+
   const fetchAlerts = async () => {
     try {
       setLoading(true);
@@ -52,6 +58,44 @@ const AlertsReports = () => {
       setLoading(false);
     }
   };
+
+  const getSeverity = (type: string, conf: number) => {
+    if (type === 'fire') {
+      return conf >= 0.70 ? 'critical' : 'warning';
+    } else if (type === 'smoke') {
+      return conf >= 0.60 ? 'warning' : 'info';
+    }
+    return 'info';
+  };
+
+  const processedAlerts = alerts
+    .filter((alert) => {
+      if (alertSearch.trim()) {
+        const query = alertSearch.toLowerCase();
+        const cam = (alert.camera_id || '').toLowerCase();
+        const loc = (alert.location || '').toLowerCase();
+        const file = (alert.file_name || '').toLowerCase();
+        if (!cam.includes(query) && !loc.includes(query) && !file.includes(query)) {
+          return false;
+        }
+      }
+      if (alertFilterSeverity) {
+        const sev = getSeverity(alert.detection_type, alert.confidence);
+        if (sev !== alertFilterSeverity) {
+          return false;
+        }
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      const valA = alertSortBy === 'timestamp' ? new Date(a.timestamp).getTime() : a.confidence;
+      const valB = alertSortBy === 'timestamp' ? new Date(b.timestamp).getTime() : b.confidence;
+      if (alertSortOrder === 'asc') {
+        return valA > valB ? 1 : -1;
+      } else {
+        return valA < valB ? 1 : -1;
+      }
+    });
 
   const handleResolveAlert = async (id: string) => {
     try {
@@ -216,8 +260,14 @@ const AlertsReports = () => {
       {/* TABS CONTENT */}
       {activeTab === 'alerts' && (
         <div className="space-y-6">
+          {/* Filters Card */}
           <Card className="bg-white border-[#e9e9e6] shadow-sm">
-            <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <Input 
+                placeholder="Search cam, location, file..." 
+                value={alertSearch}
+                onChange={(e) => setAlertSearch(e.target.value)}
+              />
               <Select 
                 label="Filter Class Type"
                 options={[
@@ -237,61 +287,165 @@ const AlertsReports = () => {
                 value={alertFilterStatus}
                 onChange={(e) => setAlertFilterStatus(e.target.value)}
               />
+              <Select 
+                label="Filter Severity"
+                options={[
+                  { label: 'All Severities', value: '' },
+                  { label: 'Critical priority', value: 'critical' },
+                  { label: 'Warning level', value: 'warning' },
+                  { label: 'Info flags', value: 'info' },
+                ]}
+                value={alertFilterSeverity}
+                onChange={(e) => setAlertFilterSeverity(e.target.value)}
+              />
             </CardContent>
           </Card>
 
+          {/* Sorting Row */}
+          <div className="flex justify-between items-center px-1 text-xs">
+            <span className="text-[#7c7b77] font-bold uppercase tracking-wider">{processedAlerts.length} Warnings Logged</span>
+            <div className="flex gap-2 items-center font-semibold text-[#7c7b77]">
+              <span>Sort By:</span>
+              <button 
+                onClick={() => {
+                  if (alertSortBy === 'timestamp') {
+                    setAlertSortOrder(alertSortOrder === 'asc' ? 'desc' : 'asc');
+                  } else {
+                    setAlertSortBy('timestamp');
+                    setAlertSortOrder('desc');
+                  }
+                }}
+                className={`px-2.5 py-1 rounded-lg border border-[#e9e9e6] bg-white cursor-pointer hover:bg-[#f7f7f5] hover:text-[#37352f] transition-all flex items-center gap-1 ${alertSortBy === 'timestamp' ? 'text-[#006fee] border-[#006fee]/20 bg-[#006fee]/5' : ''}`}
+              >
+                Time {alertSortBy === 'timestamp' && (alertSortOrder === 'asc' ? '▲' : '▼')}
+              </button>
+              <button 
+                onClick={() => {
+                  if (alertSortBy === 'confidence') {
+                    setAlertSortOrder(alertSortOrder === 'asc' ? 'desc' : 'asc');
+                  } else {
+                    setAlertSortBy('confidence');
+                    setAlertSortOrder('desc');
+                  }
+                }}
+                className={`px-2.5 py-1 rounded-lg border border-[#e9e9e6] bg-white cursor-pointer hover:bg-[#f7f7f5] hover:text-[#37352f] transition-all flex items-center gap-1 ${alertSortBy === 'confidence' ? 'text-[#006fee] border-[#006fee]/20 bg-[#006fee]/5' : ''}`}
+              >
+                Confidence {alertSortBy === 'confidence' && (alertSortOrder === 'asc' ? '▲' : '▼')}
+              </button>
+            </div>
+          </div>
+
           {loading ? (
             <div className="py-20 text-center text-zinc-500 font-semibold"><RefreshCw className="animate-spin text-[#006fee] mx-auto mb-3" size={24} /> Syncing warnings database...</div>
-          ) : alerts.length === 0 ? (
+          ) : processedAlerts.length === 0 ? (
             <div className="p-16 text-center text-zinc-500 border border-[#e9e9e6] bg-[#f7f7f5]/30 rounded-2xl">
               <ShieldCheck size={42} className="mx-auto mb-3 text-[#27ae60] animate-radar" />
               <h4 className="text-[#37352f] font-bold mb-1 uppercase tracking-widest text-xs">Node Ingress Secure</h4>
-              <p className="text-[10px] text-[#7c7b77] font-bold">No active warnings or threat flags found.</p>
+              <p className="text-[10px] text-[#7c7b77] font-bold">No warnings or threat flags found.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {alerts.map((alert) => (
-                <div key={alert.id} className="p-5 border border-[#e9e9e6] bg-white rounded-2xl flex flex-col justify-between gap-4 shadow-sm hover:border-[#7c7b77]/30 transition-all">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2">
-                      <Badge type={alert.detection_type}>{alert.detection_type}</Badge>
-                      <span className="text-[9px] font-mono font-bold bg-[#f7f7f5] border border-[#e9e9e6] px-2 py-0.5 rounded-lg text-[#37352f]">
-                        {(alert.confidence * 100).toFixed(0)}% Match
-                      </span>
-                    </div>
-                    <span className="text-[9px] font-mono font-bold text-[#7c7b77]">{new Date(alert.timestamp).toLocaleTimeString()}</span>
-                  </div>
-
-                  <div className="flex gap-4">
-                    {alert.evidence_path && (
-                      <div className="h-16 w-24 shrink-0 rounded-xl overflow-hidden border border-[#e9e9e6] bg-black flex items-center justify-center relative group shadow-sm">
-                        <img src={evidenceUrl(alert.evidence_path) || ''} alt="Evidence" className="w-full h-full object-cover" />
-                        <button onClick={() => setZoomUrl(evidenceUrl(alert.evidence_path))} className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white cursor-pointer">
-                          <Eye size={16} />
-                        </button>
-                      </div>
-                    )}
-                    <div className="space-y-1.5 text-xs">
-                      <p className="font-bold text-[#37352f] tracking-tight">Surveillance Cam: {alert.camera_id || 'Upload feed'}</p>
-                      <p className="text-[#7c7b77] font-bold">Location: {alert.location || 'N/A'}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between items-center border-t border-[#e9e9e6] pt-4">
-                    <span className="text-[9px] font-mono font-bold text-[#a4a3a0]">ID: {alert.id.slice(0, 8).toUpperCase()}</span>
-                    <div className="flex gap-2">
-                      {alert.status === 'active' && (
-                        <Button variant="outline" size="sm" className="h-8 flex items-center gap-1.5 bg-white border border-[#e9e9e6] text-xs" onClick={() => void handleResolveAlert(alert.id)}>
-                          <Check size={12} /> Resolve
-                        </Button>
-                      )}
-                      <Button variant="destructive" size="sm" className="h-8 p-2 rounded-xl text-xs" onClick={() => void handleDeleteAlert(alert.id)}>
-                        <Trash2 size={12} />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="border border-[#e9e9e6] rounded-xl bg-white overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-[#e9e9e6] bg-[#f7f7f5]/35 text-[#7c7b77] font-bold uppercase tracking-wider">
+                      <th className="p-4 px-6">Thumbnail</th>
+                      <th className="p-4 px-6">Threat Type</th>
+                      <th className="p-4 px-6">Confidence</th>
+                      <th className="p-4 px-6">Camera & Location</th>
+                      <th className="p-4 px-6">Source</th>
+                      <th className="p-4 px-6">Date & Time</th>
+                      <th className="p-4 px-6">Severity</th>
+                      <th className="p-4 px-6">Status</th>
+                      <th className="p-4 px-6">Operator Acknowledged</th>
+                      <th className="p-4 px-6 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#e9e9e6] text-[#37352f] font-semibold">
+                    {processedAlerts.map((alert) => {
+                      const severity = getSeverity(alert.detection_type, alert.confidence);
+                      return (
+                        <tr key={alert.id} className="hover:bg-[#f7f7f5]/40 transition-colors">
+                          <td className="p-4 px-6">
+                            {alert.evidence_path ? (
+                              <div className="h-10 w-16 shrink-0 rounded-lg overflow-hidden border border-[#e9e9e6] bg-black flex items-center justify-center relative group shadow-sm">
+                                <img src={evidenceUrl(alert.evidence_path) || ''} alt="Evidence" className="w-full h-full object-cover" />
+                                <button 
+                                  onClick={() => setZoomUrl(evidenceUrl(alert.evidence_path))} 
+                                  className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white cursor-pointer"
+                                >
+                                  <Eye size={12} />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-[#7c7b77] font-mono">No Image</span>
+                            )}
+                          </td>
+                          <td className="p-4 px-6">
+                            <Badge type={alert.detection_type}>{alert.detection_type}</Badge>
+                          </td>
+                          <td className="p-4 px-6 font-mono text-[11px] font-bold">
+                            {(alert.confidence * 100).toFixed(0)}%
+                          </td>
+                          <td className="p-4 px-6">
+                            <div className="space-y-0.5">
+                              <p className="font-bold text-xs">{alert.camera_id || 'Upload Feed'}</p>
+                              <p className="text-[10px] text-[#7c7b77]">{alert.location || 'N/A'}</p>
+                            </div>
+                          </td>
+                          <td className="p-4 px-6 capitalize text-[#7c7b77] font-mono text-[10px]">
+                            {alert.source_type || 'image'}
+                          </td>
+                          <td className="p-4 px-6 text-[#7c7b77]">
+                            <div className="space-y-0.5">
+                              <p>{new Date(alert.timestamp).toLocaleDateString()}</p>
+                              <p className="font-mono text-[10px]">{new Date(alert.timestamp).toLocaleTimeString()}</p>
+                            </div>
+                          </td>
+                          <td className="p-4 px-6">
+                            <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border ${
+                              severity === 'critical' ? 'bg-[#fdebeb] text-[#eb5757] border-[#f8cfcf]' :
+                              severity === 'warning' ? 'bg-[#fef5ed] text-[#f2994a] border-[#fcdcb8]' : 'bg-[#eef6ff] text-[#006fee] border-[#d3e5ff]'
+                            }`}>
+                              {severity}
+                            </span>
+                          </td>
+                          <td className="p-4 px-6">
+                            <Badge type={alert.status === 'active' ? 'danger' : 'default'}>{alert.status}</Badge>
+                          </td>
+                          <td className="p-4 px-6 text-[#7c7b77] font-mono text-[10px] font-bold">
+                            {alert.status === 'resolved' 
+                              ? (alert.resolved_by || 'System Auto')
+                              : 'N/A'}
+                          </td>
+                          <td className="p-4 px-6 text-right space-x-1.5">
+                            {alert.status === 'active' && (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-8 p-2 rounded-lg bg-white border border-[#e9e9e6]" 
+                                onClick={() => void handleResolveAlert(alert.id)}
+                                title="Resolve Alert"
+                              >
+                                <Check size={12} />
+                              </Button>
+                            )}
+                            <Button 
+                              variant="destructive" 
+                              size="sm" 
+                              className="h-8 p-2 rounded-lg" 
+                              onClick={() => void handleDeleteAlert(alert.id)}
+                              title="Delete Alert"
+                            >
+                              <Trash2 size={12} />
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

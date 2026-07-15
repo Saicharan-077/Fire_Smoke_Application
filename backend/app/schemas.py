@@ -57,6 +57,7 @@ class AlertOut(BaseModel):
     file_name: Optional[str]
     evidence_path: Optional[str]
     frame_number: Optional[int]
+    resolved_by: Optional[str] = None
     timestamp: datetime
 
     class Config:
@@ -147,6 +148,8 @@ class UserOut(BaseModel):
     email: str
     role: str
     is_active: Optional[str] = "true"
+    google_id: Optional[str] = None
+    google_linked: Optional[str] = "false"
     last_login: Optional[datetime] = None
     created_at: Optional[datetime] = None
 
@@ -215,6 +218,15 @@ class UserRegister(BaseModel):
     email: str
     password: str
     role: Optional[str] = "operator"
+    google_id: Optional[str] = None
+    google_linked: Optional[str] = "false"
+
+
+class UserGoogleAuth(BaseModel):
+    email: str
+    google_id: str
+    username: Optional[str] = None
+    action: str
 
 
 class ForgotPasswordRequest(BaseModel):

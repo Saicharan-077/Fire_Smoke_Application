@@ -68,9 +68,10 @@ def list_alerts(
 def patch_status(
     alert_id: str,
     body: schemas.AlertStatusUpdate,
+    current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    alert = update_alert_status(db, alert_id, body.status)
+    alert = update_alert_status(db, alert_id, body.status, resolved_by=current_user.username)
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
     return alert

@@ -13,8 +13,8 @@ MODEL_PATH = os.environ.get("YOLO_MODEL_PATH", _default_model)
 if not os.path.isabs(MODEL_PATH):
     MODEL_PATH = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", MODEL_PATH))
 
-CONF_FIRE  = float(os.environ.get("CONF_FIRE", "0.35"))
-CONF_SMOKE = float(os.environ.get("CONF_SMOKE", "0.40"))
+CONF_FIRE  = float(os.environ.get("CONF_FIRE", "0.40"))
+CONF_SMOKE = float(os.environ.get("CONF_SMOKE", "0.50"))
 CONF_RUN   = 0.15   # passed to YOLO — collect all boxes, filter ourselves
 
 NUMERIC_CLASS_MAP: Dict[int, str] = {0: "fire", 1: "smoke"}
@@ -145,7 +145,8 @@ class DetectionService:
     def _load_db_settings(self) -> dict:
         """Loads and returns dynamic settings from the database, falling back to env/defaults."""
         settings = {
-            "confidence_threshold": CONF_FIRE,  # default fallback
+            "fire_min_confidence": CONF_FIRE,
+            "smoke_min_confidence": CONF_SMOKE,
             "iou_threshold": 0.45,
             "frame_skip": 0,
             "save_evidence": True,
@@ -156,15 +157,15 @@ class DetectionService:
             from ..models import Setting
             db = SessionLocal()
             try:
-                # Load general confidence threshold if set
-                c_set = db.query(Setting).filter(Setting.id == "confidence_threshold").first()
-                if c_set and c_set.value:
-                    settings["confidence_threshold"] = float(c_set.value)
-                else:
-                    # check class specific
-                    fire_set = db.query(Setting).filter(Setting.id == "fire_min_confidence").first()
-                    if fire_set and fire_set.value:
-                        settings["confidence_threshold"] = float(fire_set.value)
+                # check class specific fire
+                fire_set = db.query(Setting).filter(Setting.id == "fire_min_confidence").first()
+                if fire_set and fire_set.value:
+                    settings["fire_min_confidence"] = float(fire_set.value)
+
+                # check class specific smoke
+                smoke_set = db.query(Setting).filter(Setting.id == "smoke_min_confidence").first()
+                if smoke_set and smoke_set.value:
+                    settings["smoke_min_confidence"] = float(smoke_set.value)
 
                 # Load iou threshold
                 iou_set = db.query(Setting).filter(Setting.id == "iou_threshold").first()
@@ -244,7 +245,8 @@ class DetectionService:
         if db_settings is None:
             db_settings = self._load_db_settings()
 
-        threshold = db_settings.get("confidence_threshold", CONF_FIRE)
+        fire_threshold = db_settings.get("fire_min_confidence", CONF_FIRE)
+        smoke_threshold = db_settings.get("smoke_min_confidence", CONF_SMOKE)
         iou_threshold = db_settings.get("iou_threshold", 0.45)
 
         results    = self.model(frame, verbose=False, conf=CONF_RUN, iou=iou_threshold, device=self.device)
@@ -261,7 +263,11 @@ class DetectionService:
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
                 mapped   = _map_class(cls_id, raw_name)
 
-                if mapped is None or conf < threshold:
+                if mapped is None:
+                    continue
+
+                threshold = fire_threshold if mapped == "fire" else smoke_threshold
+                if conf < threshold:
                     continue
 
                 detections.append({

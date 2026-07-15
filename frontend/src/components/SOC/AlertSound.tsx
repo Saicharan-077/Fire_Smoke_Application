@@ -1,11 +1,11 @@
-import { useRef } from 'react';
+import { useRef, useCallback } from 'react';
 import { useAppSettingsStore } from '../../store/appSettingsStore';
 
 export function useAlertSound() {
   const { alertSoundEnabled } = useAppSettingsStore();
   const lastPlayAtRef = useRef<number>(0);
 
-  const play = async () => {
+  const play = useCallback(async () => {
     if (!alertSoundEnabled) return;
 
     const now = Date.now();
@@ -48,7 +48,8 @@ export function useAlertSound() {
     } catch (e) {
       console.error('Failed to play alert sound using Web Audio synthesis:', e);
     }
-  };
+  }, [alertSoundEnabled]);
 
   return { play };
 }
+

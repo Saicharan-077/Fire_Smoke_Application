@@ -53,6 +53,16 @@ def run_schema_migrations():
                 conn.execute(text("ALTER TABLE users ADD COLUMN is_active VARCHAR DEFAULT 'true'"))
                 conn.commit()
             logger.info("[DB] Added is_active column to users")
+        if "google_id" not in user_cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE users ADD COLUMN google_id VARCHAR"))
+                conn.commit()
+            logger.info("[DB] Added google_id column to users")
+        if "google_linked" not in user_cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE users ADD COLUMN google_linked VARCHAR DEFAULT 'false'"))
+                conn.commit()
+            logger.info("[DB] Added google_linked column to users")
     if "cameras" in inspector.get_table_names():
         cam_cols = {c["name"] for c in inspector.get_columns("cameras")}
         if "assigned_operator_id" not in cam_cols:
@@ -60,6 +70,13 @@ def run_schema_migrations():
                 conn.execute(text("ALTER TABLE cameras ADD COLUMN assigned_operator_id VARCHAR"))
                 conn.commit()
             logger.info("[DB] Added assigned_operator_id column to cameras")
+    if "alerts" in inspector.get_table_names():
+        alert_cols = {c["name"] for c in inspector.get_columns("alerts")}
+        if "resolved_by" not in alert_cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE alerts ADD COLUMN resolved_by VARCHAR"))
+                conn.commit()
+            logger.info("[DB] Added resolved_by column to alerts")
 
 
 run_schema_migrations()

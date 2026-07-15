@@ -4,12 +4,15 @@ import { Button } from '../components/Common/Button';
 import { Input } from '../components/Common/Input';
 import { useToast } from '../components/ui/Toast';
 import { useAuthStore } from '../store/authStore';
-import { getAuditLogs, updateProfileApi, changePasswordApi } from '../services/api';
+import { getAuditLogs, updateProfileApi, changePasswordApi, linkGoogleApi } from '../services/api';
 import { User, Shield, Key, LogOut, RefreshCw, Activity } from 'lucide-react';
+import { useAppSettingsStore } from '../store/appSettingsStore';
+import { Modal } from '../components/Common/Modal';
 
 const Profile = () => {
   const { toast } = useToast();
-  const { currentUser, logout } = useAuthStore();
+  const { currentUser, token, login, logout } = useAuthStore();
+  const { theme, setTheme } = useAppSettingsStore();
   
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -21,6 +24,10 @@ const Profile = () => {
 
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
+
+  const [googleModalOpen, setGoogleModalOpen] = useState(false);
+  const [customEmail, setCustomEmail] = useState('');
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const loadAuditTrail = async () => {
     try {
@@ -47,7 +54,8 @@ const Profile = () => {
     e.preventDefault();
     setUpdating(true);
     try {
-      await updateProfileApi({ username, email });
+      const res = await updateProfileApi({ username, email });
+      login(token || '', res);
       toast('Profile updated successfully.', 'success');
     } catch (err: any) {
       toast(err.message || 'Profile update failed.', 'error');
@@ -82,21 +90,58 @@ const Profile = () => {
     }
   };
 
+  const handleLinkGoogle = async (gEmail: string, googleId: string) => {
+    setGoogleLoading(true);
+    try {
+      const res = await linkGoogleApi({ email: gEmail, google_id: googleId });
+      login(res.token || token || '', res.user);
+      toast('Google account linked successfully.', 'success');
+    } catch (err: any) {
+      toast(err.message || 'Google account linking failed.', 'error');
+    } finally {
+      setGoogleLoading(false);
+      setGoogleModalOpen(false);
+    }
+  };
+
+  const getInitials = (name: string) => {
+    if (!name) return 'U';
+    return name.split('@')[0].slice(0, 2).toUpperCase();
+  };
+
+  const initials = getInitials(currentUser?.username || currentUser?.email || '');
+
   return (
-    <div className="space-y-6 max-w-6xl mx-auto p-4 select-none">
+    <div className="space-y-6 max-w-6xl mx-auto text-[var(--text)] font-sans select-none pb-12">
+      {/* Cover Header */}
+      <div 
+        className="relative h-44 w-full rounded-2xl overflow-hidden border border-[var(--border)] bg-gradient-to-r from-red-500/20 via-amber-500/20 to-blue-500/20"
+      >
+        <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg)] to-transparent" />
+      </div>
+
+      {/* Avatar Initials Overlap */}
+      <div className="relative -mt-16 ml-6 mb-4 flex items-end justify-between px-2">
+        <div className="relative flex">
+          <div className="h-24 w-24 rounded-2xl bg-[var(--primary-light)] border-4 border-[var(--surface)] flex items-center justify-center text-[var(--primary)] text-2xl font-black font-mono shadow-md z-10 select-none">
+            {initials}
+          </div>
+        </div>
+      </div>
+
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Account Profile</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage credentials, review active roles, and audit security log histories.</p>
+        <h2 className="text-xl font-bold tracking-tight uppercase px-2">Account Profile</h2>
+        <p className="text-xs text-[var(--text-2)] mt-1 px-2 font-semibold leading-relaxed">Manage credentials, review active roles, and audit security log histories.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* User Info & Password */}
         <div className="lg:col-span-2 space-y-6">
-          <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f0f17]">
+          <Card className="border border-[var(--border)] bg-[var(--surface)] shadow-xs">
             <CardContent className="p-6">
-              <h3 className="font-bold text-sm text-white flex items-center gap-2 mb-4">
-                <User size={16} className="text-red-500" /> Account Details
+              <h3 className="font-bold text-xs text-[var(--text)] uppercase tracking-wider flex items-center gap-2 mb-4">
+                <User size={16} className="text-[var(--fire)]" /> Account Details
               </h3>
               <form onSubmit={handleUpdateProfile} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -111,15 +156,55 @@ const Profile = () => {
                     onChange={(e) => setEmail(e.target.value)} 
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-450 uppercase tracking-wider mb-2">Access Role</label>
-                  <input 
-                    type="text" 
-                    value={role} 
-                    disabled 
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-850 border border-slate-800 text-xs font-bold text-slate-450 cursor-not-allowed capitalize"
-                  />
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-[var(--text-2)] uppercase tracking-wider mb-2">Access Role</label>
+                    <input 
+                      type="text" 
+                      value={role} 
+                      disabled 
+                      className="w-full px-4 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] text-xs font-bold text-[var(--text-3)] cursor-not-allowed capitalize"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-[var(--text-2)] uppercase tracking-wider mb-2">Theme Preference</label>
+                    <select 
+                      value={theme}
+                      onChange={(e) => setTheme(e.target.value as any)}
+                      className="w-full px-4 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] text-xs font-bold text-[var(--text)] cursor-pointer"
+                    >
+                      <option value="light">Light Mode</option>
+                      <option value="dark">Dark Mode</option>
+                    </select>
+                  </div>
                 </div>
+
+                {/* Google SSO Linking Row */}
+                <div className="p-4 border border-[var(--border)] rounded-xl bg-[var(--surface-2)]/30 flex justify-between items-center mt-2">
+                  <div>
+                    <p className="text-[12px] font-bold text-[var(--text)]">Google SSO Connection</p>
+                    <p className="text-[10px] text-[var(--text-3)] font-mono font-bold mt-0.5">
+                      {currentUser?.google_linked === 'true'
+                        ? `Linked (ID: ${currentUser?.google_id})`
+                        : 'Simulate Google Account Connection'}
+                    </p>
+                  </div>
+                  {currentUser?.google_linked === 'true' ? (
+                    <span className="text-[9px] font-black uppercase text-green-600 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800/40 px-2 py-0.5 rounded-md">
+                      Linked
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setGoogleModalOpen(true)}
+                      className="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface-hover)] text-[11px] font-bold text-[var(--text)] cursor-pointer transition-colors"
+                    >
+                      Link Google
+                    </button>
+                  )}
+                </div>
+
                 <div className="flex justify-end">
                   <Button variant="primary" size="sm" type="submit" isLoading={updating}>Save Changes</Button>
                 </div>
@@ -127,10 +212,10 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f0f17]">
+          <Card className="border border-[var(--border)] bg-[var(--surface)] shadow-xs">
             <CardContent className="p-6">
-              <h3 className="font-bold text-sm text-white flex items-center gap-2 mb-4">
-                <Key size={16} className="text-red-500" /> Change Password
+              <h3 className="font-bold text-xs text-[var(--text)] uppercase tracking-wider flex items-center gap-2 mb-4">
+                <Key size={16} className="text-[var(--fire)]" /> Change Password
               </h3>
               <form onSubmit={handleChangePassword} className="space-y-4">
                 <Input 
@@ -163,30 +248,30 @@ const Profile = () => {
 
         {/* Audit Logs Sidebar */}
         <div className="space-y-6">
-          <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f0f17]">
+          <Card className="border border-[var(--border)] bg-[var(--surface)] shadow-xs">
             <CardContent className="p-5 space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                  <Activity size={16} className="text-red-500" /> Audit Log
+                <h3 className="font-bold text-xs text-[var(--text)] uppercase tracking-wider flex items-center gap-2">
+                  <Activity size={16} className="text-[var(--fire)]" /> Audit Log
                 </h3>
-                <button onClick={loadAuditTrail} className="text-slate-400 hover:text-white">
+                <button onClick={loadAuditTrail} className="text-[var(--text-3)] hover:text-[var(--text)] transition-colors cursor-pointer">
                   <RefreshCw size={12} />
                 </button>
               </div>
 
               {loadingLogs ? (
-                <div className="py-8 text-center text-xs text-slate-500">Loading logs...</div>
+                <div className="py-8 text-center text-xs text-[var(--text-3)] font-semibold">Loading logs...</div>
               ) : auditLogs.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-500">No logs captured.</div>
+                <div className="py-8 text-center text-xs text-[var(--text-3)] font-semibold">No logs captured.</div>
               ) : (
                 <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar">
                   {auditLogs.slice(0, 10).map((log) => (
-                    <div key={log.id} className="p-2.5 rounded-lg border border-slate-850 bg-slate-900/30 text-[11px]">
-                      <div className="flex justify-between text-slate-500 font-mono">
-                        <span className="font-bold text-slate-400">{log.action}</span>
+                    <div key={log.id} className="p-2.5 rounded-lg border border-[var(--border)] bg-[var(--surface-2)]/30 text-[11px]">
+                      <div className="flex justify-between text-[var(--text-3)] font-mono font-bold">
+                        <span className="text-[var(--text-2)]">{log.action}</span>
                         <span>{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
-                      <p className="text-slate-350 mt-1">{log.details}</p>
+                      <p className="text-[var(--text-2)] mt-1.5 font-semibold">{log.details}</p>
                     </div>
                   ))}
                 </div>
@@ -194,11 +279,11 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-red-500/20 bg-red-500/5">
+          <Card className="border border-[var(--fire-border)] bg-[var(--fire-bg)]/20">
             <CardContent className="p-5 space-y-3 text-center">
-              <Shield className="text-red-500 w-10 h-10 mx-auto animate-pulse" />
-              <h4 className="font-bold text-xs text-white">Log Out Session</h4>
-              <p className="text-[10px] text-slate-400">Terminate current session keys and return to landing portal.</p>
+              <Shield className="text-[var(--fire)] w-10 h-10 mx-auto animate-pulse" />
+              <h4 className="font-bold text-xs text-[var(--text)] uppercase tracking-wider">Log Out Session</h4>
+              <p className="text-[10px] text-[var(--text-3)] font-semibold leading-relaxed">Terminate current session keys and return to landing portal.</p>
               <Button variant="destructive" size="sm" className="w-full flex items-center justify-center gap-1" onClick={() => { logout(); toast('Logged out.', 'success'); }}>
                 <LogOut size={12} /> Sign Out
               </Button>
@@ -207,6 +292,63 @@ const Profile = () => {
         </div>
 
       </div>
+
+      {/* Google Account Linking Modal */}
+      <Modal isOpen={googleModalOpen} onClose={() => setGoogleModalOpen(false)} title="Link Google Account">
+        <div className="space-y-4 text-xs font-semibold text-[var(--text-2)] font-sans">
+          <p className="text-[11px] text-[var(--text-3)] leading-relaxed">
+            Link a simulated Google credentials account to your current active profile:
+          </p>
+          <div className="space-y-2">
+            {[
+              { name: 'John Doe', email: 'johndoe@gmail.com', id: 'google_john_123' },
+              { name: 'Jane Smith', email: 'janesmith@gmail.com', id: 'google_jane_456' },
+              { name: 'Admin Demo', email: 'admin@fireguard.ai', id: 'google_admin_789' }
+            ].map((acc) => (
+              <button
+                key={acc.id}
+                type="button"
+                disabled={googleLoading}
+                onClick={() => handleLinkGoogle(acc.email, acc.id)}
+                className="w-full text-left p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface-hover)] hover:border-[var(--border-strong)] transition-all cursor-pointer flex justify-between items-center"
+              >
+                <div>
+                  <p className="text-[12px] font-bold text-[var(--text)]">{acc.name}</p>
+                  <p className="text-[10px] text-[var(--text-3)] font-mono">{acc.email}</p>
+                </div>
+                <span className="text-[9px] font-black uppercase text-[var(--primary)] bg-[var(--primary-light)] px-2 py-0.5 rounded-md border border-[var(--primary-ring)]">
+                  Link Account
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div className="relative flex py-2 items-center">
+            <div className="flex-grow border-t border-[var(--border)]"></div>
+            <span className="flex-shrink mx-3 text-[10px] text-[var(--text-3)] font-bold uppercase">Or Custom email</span>
+            <div className="flex-grow border-t border-[var(--border)]"></div>
+          </div>
+
+          <div className="space-y-2">
+            <input
+              type="email"
+              placeholder="operator.custom@gmail.com"
+              value={customEmail}
+              onChange={(e) => setCustomEmail(e.target.value)}
+              disabled={googleLoading}
+              className="w-full px-3 py-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] focus:border-[var(--primary)] text-xs outline-none transition-all placeholder-[var(--text-3)] font-semibold"
+            />
+            <button
+              type="button"
+              disabled={googleLoading || !customEmail}
+              onClick={() => handleLinkGoogle(customEmail, `google_custom_${customEmail.replace(/[^a-zA-Z0-9]/g, '')}`)}
+              className="w-full py-2 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-xs font-bold text-white transition-all shadow-sm cursor-pointer disabled:opacity-50"
+            >
+              Link Custom Simulated Google Account
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
