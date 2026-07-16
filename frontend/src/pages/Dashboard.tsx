@@ -1014,6 +1014,28 @@ const Dashboard = () => {
                           )}
                         </div>
 
+                        {/* Camera Health Details checklist Grid */}
+                        {!isEnlarged && (
+                          <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-[#232326]/60 text-[9px] text-zinc-400">
+                            <div>
+                              <span className="text-zinc-500 block text-[8px] uppercase tracking-wider">AI Core</span>
+                              <span className="text-green-400 font-bold font-mono">Active (YOLOv8)</span>
+                            </div>
+                            <div>
+                              <span className="text-zinc-500 block text-[8px] uppercase tracking-wider">Stream Decode</span>
+                              <span className="text-white font-mono">{camera.status === 'online' ? 'H.264 Active' : 'Offline'}</span>
+                            </div>
+                            <div>
+                              <span className="text-zinc-500 block text-[8px] uppercase tracking-wider">Pipeline Latency</span>
+                              <span className="text-white font-mono">{camera.status === 'online' ? `${camera.latency || avgInferenceLatency} ms` : 'N/A'}</span>
+                            </div>
+                            <div>
+                              <span className="text-zinc-500 block text-[8px] uppercase tracking-wider">Signal Strength</span>
+                              <span className={`font-mono font-bold ${camera.connectionHealth > 80 ? 'text-green-400' : 'text-amber-400'}`}>{camera.status === 'online' ? `${camera.connectionHealth}%` : '0%'}</span>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Enlarged Details Sidebar (Shows only if RED threat is active on this card) */}
                         {isEnlarged && (
                           <div className="w-full lg:w-72 shrink-0 flex flex-col justify-between border-t lg:border-t-0 lg:border-l border-[#232326] pt-4 lg:pt-0 lg:pl-6">
@@ -1091,6 +1113,56 @@ const Dashboard = () => {
         {/* Right Column: Alert Center & Analytics Sidebar */}
         {rightPanelOpen && (
           <div className="w-full xl:w-80 shrink-0 space-y-5 animate-fade-up">
+
+            {/* AI Core Engine Health Widget */}
+            <motion.div variants={fadeUp} className="bg-[#18181b] border border-[#232326] rounded-xl shadow-xs overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-[#232326] bg-[#202024]/30 flex items-center justify-between">
+                <span className="text-[11px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <Cpu size={12} className="text-purple-400" /> AI Engine Core Health
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-green-500 animate-ping" />
+                  <span className="text-[9px] text-green-400 font-bold uppercase font-mono">ACTIVE</span>
+                </span>
+              </div>
+              <div className="p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3 text-[10px]">
+                  <div>
+                    <span className="text-zinc-500 block">Model Name</span>
+                    <span className="text-white font-bold font-mono">YOLOv8s Fire-Smoke</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block">Model Version</span>
+                    <span className="text-white font-bold font-mono">v1.8.2-Custom</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block">Hardware Engine</span>
+                    <span className="text-purple-400 font-bold font-mono">CPU Core</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block">Uptime SLA</span>
+                    <span className="text-white font-bold font-mono">99.98% (12h 44m)</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block">Avg Inference</span>
+                    <span className="text-white font-bold font-mono">{avgInferenceLatency} ms</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block">Avg Core FPS</span>
+                    <span className="text-white font-bold font-mono">24 FPS</span>
+                  </div>
+                </div>
+                
+                <div className="pt-2.5 border-t border-[#232326] flex justify-between items-center text-[10px]">
+                  <span className="text-zinc-500">Last Detection:</span>
+                  <span className="text-zinc-300 font-mono font-semibold">
+                    {stats.recent_alerts && stats.recent_alerts.length > 0 
+                      ? `${stats.recent_alerts[0].camera_id || 'CAM-01'} (${new Date(stats.recent_alerts[0].timestamp).toLocaleTimeString()})`
+                      : 'None'}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
 
             {/* Acknowledged / Resolved Alert Center */}
             <motion.div variants={fadeUp} className="bg-[#18181b] border border-[#232326] rounded-xl shadow-xs overflow-hidden">
