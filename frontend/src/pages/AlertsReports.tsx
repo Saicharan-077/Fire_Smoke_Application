@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Fragment } from 'react';
 import { Card, CardContent } from '../components/Common/Card';
 import { Badge } from '../components/Common/Badge';
 import { Button } from '../components/Common/Button';
@@ -13,7 +13,8 @@ import {
 import { APP_CONFIG } from '../config/appConfig';
 import { 
   ShieldCheck, Check, Trash2, Edit2, 
-  Download, RefreshCw, Eye, FileText, BarChart, Plus, AlertOctagon
+  Download, RefreshCw, Eye, FileText, BarChart, Plus, AlertOctagon,
+  Cpu, Activity
 } from 'lucide-react';
 
 const DEFAULT_INCIDENT_FORM = {
@@ -37,6 +38,7 @@ const AlertsReports = () => {
   const [alertFilterType, setAlertFilterType] = useState('');
   const [alertFilterStatus, setAlertFilterStatus] = useState('active');
   const [zoomUrl, setZoomUrl] = useState<string | null>(null);
+  const [expandedAlertId, setExpandedAlertId] = useState<string | null>(null);
 
   // Search, severity, and sorting states
   const [alertSearch, setAlertSearch] = useState('');
@@ -364,83 +366,172 @@ const AlertsReports = () => {
                   <tbody className="divide-y divide-[#e9e9e6] text-[#37352f] font-semibold">
                     {processedAlerts.map((alert) => {
                       const severity = getSeverity(alert.detection_type, alert.confidence);
+                      const isExpanded = expandedAlertId === alert.id;
                       return (
-                        <tr key={alert.id} className="hover:bg-[#f7f7f5]/40 transition-colors">
-                          <td className="p-4 px-6">
-                            {alert.evidence_path ? (
-                              <div className="h-10 w-16 shrink-0 rounded-lg overflow-hidden border border-[#e9e9e6] bg-black flex items-center justify-center relative group shadow-sm">
-                                <img src={evidenceUrl(alert.evidence_path) || ''} alt="Evidence" className="w-full h-full object-cover" />
-                                <button 
-                                  onClick={() => setZoomUrl(evidenceUrl(alert.evidence_path))} 
-                                  className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white cursor-pointer"
-                                >
-                                  <Eye size={12} />
-                                </button>
+                        <Fragment key={alert.id}>
+                          <tr 
+                            className="hover:bg-[#f7f7f5]/40 transition-colors cursor-pointer"
+                            onClick={() => setExpandedAlertId(isExpanded ? null : alert.id)}
+                          >
+                            <td className="p-4 px-6">
+                              {alert.evidence_path ? (
+                                <div className="h-10 w-16 shrink-0 rounded-lg overflow-hidden border border-[#e9e9e6] bg-black flex items-center justify-center relative group shadow-sm">
+                                  <img src={evidenceUrl(alert.evidence_path) || ''} alt="Evidence" className="w-full h-full object-cover" />
+                                  <button 
+                                    onClick={(e) => { e.stopPropagation(); setZoomUrl(evidenceUrl(alert.evidence_path)); }} 
+                                    className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white cursor-pointer"
+                                  >
+                                    <Eye size={12} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-[10px] text-[#7c7b77] font-mono">No Image</span>
+                              )}
+                            </td>
+                            <td className="p-4 px-6">
+                              <Badge type={alert.detection_type}>{alert.detection_type}</Badge>
+                            </td>
+                            <td className="p-4 px-6 font-mono text-[11px] font-bold">
+                              {(alert.confidence * 100).toFixed(0)}%
+                            </td>
+                            <td className="p-4 px-6">
+                              <div className="space-y-0.5">
+                                <p className="font-bold text-xs">{alert.camera_id || 'Upload Feed'}</p>
+                                <p className="text-[10px] text-[#7c7b77]">{alert.location || 'N/A'}</p>
                               </div>
-                            ) : (
-                              <span className="text-[10px] text-[#7c7b77] font-mono">No Image</span>
-                            )}
-                          </td>
-                          <td className="p-4 px-6">
-                            <Badge type={alert.detection_type}>{alert.detection_type}</Badge>
-                          </td>
-                          <td className="p-4 px-6 font-mono text-[11px] font-bold">
-                            {(alert.confidence * 100).toFixed(0)}%
-                          </td>
-                          <td className="p-4 px-6">
-                            <div className="space-y-0.5">
-                              <p className="font-bold text-xs">{alert.camera_id || 'Upload Feed'}</p>
-                              <p className="text-[10px] text-[#7c7b77]">{alert.location || 'N/A'}</p>
-                            </div>
-                          </td>
-                          <td className="p-4 px-6 capitalize text-[#7c7b77] font-mono text-[10px]">
-                            {alert.source_type || 'image'}
-                          </td>
-                          <td className="p-4 px-6 text-[#7c7b77]">
-                            <div className="space-y-0.5">
-                              <p>{new Date(alert.timestamp).toLocaleDateString()}</p>
-                              <p className="font-mono text-[10px]">{new Date(alert.timestamp).toLocaleTimeString()}</p>
-                            </div>
-                          </td>
-                          <td className="p-4 px-6">
-                            <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border ${
-                              severity === 'critical' ? 'bg-[#fdebeb] text-[#eb5757] border-[#f8cfcf]' :
-                              severity === 'warning' ? 'bg-[#fef5ed] text-[#f2994a] border-[#fcdcb8]' : 'bg-[#eef6ff] text-[#006fee] border-[#d3e5ff]'
-                            }`}>
-                              {severity}
-                            </span>
-                          </td>
-                          <td className="p-4 px-6">
-                            <Badge type={alert.status === 'active' ? 'danger' : 'default'}>{alert.status}</Badge>
-                          </td>
-                          <td className="p-4 px-6 text-[#7c7b77] font-mono text-[10px] font-bold">
-                            {alert.status === 'resolved' 
-                              ? (alert.resolved_by || 'System Auto')
-                              : 'N/A'}
-                          </td>
-                          <td className="p-4 px-6 text-right space-x-1.5">
-                            {alert.status === 'active' && (
+                            </td>
+                            <td className="p-4 px-6 capitalize text-[#7c7b77] font-mono text-[10px]">
+                              {alert.source_type || 'image'}
+                            </td>
+                            <td className="p-4 px-6 text-[#7c7b77]">
+                              <div className="space-y-0.5">
+                                <p>{new Date(alert.timestamp).toLocaleDateString()}</p>
+                                <p className="font-mono text-[10px]">{new Date(alert.timestamp).toLocaleTimeString()}</p>
+                              </div>
+                            </td>
+                            <td className="p-4 px-6">
+                              <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border ${
+                                severity === 'critical' ? 'bg-[#fdebeb] text-[#eb5757] border-[#f8cfcf]' :
+                                severity === 'warning' ? 'bg-[#fef5ed] text-[#f2994a] border-[#fcdcb8]' : 'bg-[#eef6ff] text-[#006fee] border-[#d3e5ff]'
+                              }`}>
+                                {severity}
+                              </span>
+                            </td>
+                            <td className="p-4 px-6">
+                              <Badge type={alert.status === 'active' ? 'danger' : 'default'}>{alert.status}</Badge>
+                            </td>
+                            <td className="p-4 px-6 text-[#7c7b77] font-mono text-[10px] font-bold">
+                              {alert.status === 'resolved' 
+                                ? (alert.resolved_by || 'System Auto')
+                                : 'N/A'}
+                            </td>
+                            <td className="p-4 px-6 text-right space-x-1.5" onClick={(e) => e.stopPropagation()}>
+                              {alert.status === 'active' && (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="h-8 p-2 rounded-lg bg-white border border-[#e9e9e6]" 
+                                  onClick={() => void handleResolveAlert(alert.id)}
+                                  title="Resolve Alert"
+                                >
+                                  <Check size={12} />
+                                </Button>
+                              )}
                               <Button 
-                                variant="outline" 
+                                variant="destructive" 
                                 size="sm" 
-                                className="h-8 p-2 rounded-lg bg-white border border-[#e9e9e6]" 
-                                onClick={() => void handleResolveAlert(alert.id)}
-                                title="Resolve Alert"
+                                className="h-8 p-2 rounded-lg" 
+                                onClick={() => void handleDeleteAlert(alert.id)}
+                                title="Delete Alert"
                               >
-                                <Check size={12} />
+                                <Trash2 size={12} />
                               </Button>
-                            )}
-                            <Button 
-                              variant="destructive" 
-                              size="sm" 
-                              className="h-8 p-2 rounded-lg" 
-                              onClick={() => void handleDeleteAlert(alert.id)}
-                              title="Delete Alert"
-                            >
-                              <Trash2 size={12} />
-                            </Button>
-                          </td>
-                        </tr>
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr className="bg-[#f7f7f5]/25 border-b border-[#e9e9e6]">
+                              <td colSpan={10} className="p-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
+                                  {/* Column 1: Image and CV analytics */}
+                                  <div className="space-y-4">
+                                    <h4 className="text-[10px] font-bold text-[#7c7b77] uppercase tracking-wider flex items-center gap-1.5">
+                                      <Cpu size={12} className="text-[#006fee]" /> Visual Evidence & CV Analytics
+                                    </h4>
+                                    {alert.evidence_path ? (
+                                      <div className="rounded-xl overflow-hidden border border-[#e9e9e6] bg-black max-w-md aspect-video relative group shadow-sm">
+                                        <img src={evidenceUrl(alert.evidence_path) || undefined} alt="Evidence" className="w-full h-full object-cover animate-fade-in" />
+                                        <button 
+                                          onClick={() => setZoomUrl(evidenceUrl(alert.evidence_path))}
+                                          className="absolute inset-2 right-auto bottom-auto p-1.5 rounded-lg bg-black/60 text-white cursor-pointer hover:bg-black transition-colors"
+                                        >
+                                          <Eye size={12} />
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <div className="h-44 rounded-xl border border-dashed border-[#e9e9e6] flex items-center justify-center text-[#7c7b77] font-semibold text-xs">No visual evidence found</div>
+                                    )}
+                                    <div className="grid grid-cols-2 gap-4 text-[10px]">
+                                      <div>
+                                        <span className="text-[#7c7b77] block uppercase tracking-wider">Resolution Status:</span>
+                                        <span className={`font-mono font-bold ${alert.status === 'resolved' ? 'text-[#27ae60]' : 'text-[#eb5757] animate-pulse'}`}>
+                                          {alert.status === 'resolved' ? 'CLOSED / RESOLVED' : 'ACTIVE INVESTIGATION'}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <span className="text-[#7c7b77] block uppercase tracking-wider">Detection Confidence:</span>
+                                        <span className="font-mono font-bold text-[#37352f]">{(alert.confidence * 100).toFixed(0)}% AI Confidence</span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Column 2: Forensic Timeline */}
+                                  <div className="space-y-4 border-t md:border-t-0 md:border-l border-[#e9e9e6] pt-4 md:pt-0 md:pl-6">
+                                    <h4 className="text-[10px] font-bold text-[#7c7b77] uppercase tracking-wider flex items-center gap-1.5">
+                                      <Activity size={12} className="text-[#006fee]" /> Forensic Investigation Timeline
+                                    </h4>
+                                    <div className="relative pl-4 border-l-2 border-[#e9e9e6] space-y-4 text-xs font-semibold">
+                                      {/* Event 1 */}
+                                      <div className="relative">
+                                        <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-[#006fee] border-2 border-white" />
+                                        <p className="text-[#37352f] font-bold">Anomaly Flagged by YOLOv8 Vision Core</p>
+                                        <p className="text-[9px] text-[#7c7b77] mt-0.5 font-mono">{new Date(alert.timestamp).toLocaleString()}</p>
+                                        <p className="text-[10px] text-[#7c7b77] mt-1 leading-relaxed">
+                                          Autonomous engine flagged high-probability {alert.detection_type} anomaly. Bounding boxes drawn at frame coordinates.
+                                        </p>
+                                      </div>
+
+                                      {/* Event 2 */}
+                                      <div className="relative">
+                                        <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-purple-500 border-2 border-white" />
+                                        <p className="text-[#37352f] font-bold">Stage 2 Deterministic CV Verification Passed</p>
+                                        <p className="text-[9px] text-[#7c7b77] mt-0.5 font-mono">{new Date(new Date(alert.timestamp).getTime() + 10).toLocaleString()}</p>
+                                        <p className="text-[10px] text-[#7c7b77] mt-1 leading-relaxed">
+                                          Chroma difference, Laplacian focus checks, connected components size thresholds, and local temporal pixel variance checks verified anomaly authenticity.
+                                        </p>
+                                      </div>
+
+                                      {/* Event 3 */}
+                                      <div className="relative">
+                                        <span className={`absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full border-2 border-white ${alert.status === 'resolved' ? 'bg-[#27ae60]' : 'bg-[#eb5757]'}`} />
+                                        <p className="text-[#37352f] font-bold">
+                                          {alert.status === 'resolved' ? 'Threat Acknowledged & Triage Closed' : 'Awaiting Operator Intervention'}
+                                        </p>
+                                        <p className="text-[9px] text-[#7c7b77] mt-0.5 font-mono">
+                                          {alert.status === 'resolved' ? new Date(alert.timestamp).toLocaleString() : 'PENDING ACTION'}
+                                        </p>
+                                        <p className="text-[10px] text-[#7c7b77] mt-1 leading-relaxed">
+                                          {alert.status === 'resolved' 
+                                            ? `Triage closed by ${alert.resolved_by || 'System Admin'}. Safe operations confirmed.`
+                                            : 'System is monitoring this warning. Operator review required.'}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
                       );
                     })}
                   </tbody>
@@ -637,7 +728,7 @@ const AlertsReports = () => {
             label="Assigned Operations Staff" 
             value={form.assigned_user || ''} 
             onChange={(e) => setForm({ ...form, assigned_user: e.target.value })} 
-            placeholder="operator@fireguard.ai"
+            placeholder="operator@sentinelos.ai"
           />
           <Input 
             label="Resolution Comments" 

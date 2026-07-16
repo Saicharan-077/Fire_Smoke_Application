@@ -48,7 +48,7 @@ function applyTheme(theme: Theme) {
 export const useAppSettingsStore = create<AppSettingsState>()(
   persist(
     (set, get) => ({
-      theme: 'dark',
+      theme: 'light',
       notificationsEnabled: true,
       alertSoundEnabled: true,
       defaultGridLayout: '2x2',

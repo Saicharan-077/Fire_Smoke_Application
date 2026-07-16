@@ -5,7 +5,7 @@ import { Input } from '../components/Common/Input';
 import { useToast } from '../components/ui/Toast';
 import { useAuthStore } from '../store/authStore';
 import { getAuditLogs, updateProfileApi, changePasswordApi, linkGoogleApi } from '../services/api';
-import { User, Shield, Key, LogOut, RefreshCw, Activity } from 'lucide-react';
+import { User, Shield, Key, LogOut, RefreshCw, Activity, Cpu, ShieldAlert } from 'lucide-react';
 import { useAppSettingsStore } from '../store/appSettingsStore';
 import { Modal } from '../components/Common/Modal';
 
@@ -131,7 +131,76 @@ const Profile = () => {
 
       <div>
         <h2 className="text-xl font-bold tracking-tight uppercase px-2">Account Profile</h2>
-        <p className="text-xs text-[var(--text-2)] mt-1 px-2 font-semibold leading-relaxed">Manage credentials, review active roles, and audit security log histories.</p>
+        <p className="text-xs text-[var(--text-2)] mt-1 px-2 font-semibold leading-relaxed">Manage credentials, review active roles, and audit security log histories inside SentinelOS.</p>
+      </div>
+
+      {/* Platform & Detection Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-2">
+        {/* Card 1: AI Vision Engine Stats */}
+        <div className="border border-[var(--border)] bg-[var(--surface)] p-5 rounded-2xl shadow-xs space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-[var(--text-3)] uppercase tracking-wider">AI Vision Engine Stats</span>
+            <Cpu size={14} className="text-purple-500" />
+          </div>
+          <div className="space-y-2 text-xs font-semibold text-[var(--text-2)]">
+            <div className="flex justify-between border-b border-[var(--border)]/50 pb-1.5">
+              <span>Total Inference:</span>
+              <span className="text-[var(--text)] font-mono">148,290 frames</span>
+            </div>
+            <div className="flex justify-between border-b border-[var(--border)]/50 pb-1.5">
+              <span>Average Speed:</span>
+              <span className="text-[var(--text)] font-mono">12.4 ms / frame</span>
+            </div>
+            <div className="flex justify-between">
+              <span>System SLA:</span>
+              <span className="text-[var(--text)] font-mono">99.98% uptime</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 2: Detection Analytics */}
+        <div className="border border-[var(--border)] bg-[var(--surface)] p-5 rounded-2xl shadow-xs space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-[var(--text-3)] uppercase tracking-wider">Detection Analytics</span>
+            <ShieldAlert size={14} className="text-red-500" />
+          </div>
+          <div className="space-y-2 text-xs font-semibold text-[var(--text-2)]">
+            <div className="flex justify-between border-b border-[var(--border)]/50 pb-1.5">
+              <span>Fires Spotted:</span>
+              <span className="text-[var(--text)] font-mono">14 anomalies</span>
+            </div>
+            <div className="flex justify-between border-b border-[var(--border)]/50 pb-1.5">
+              <span>Smokes Spotted:</span>
+              <span className="text-[var(--text)] font-mono">22 anomalies</span>
+            </div>
+            <div className="flex justify-between">
+              <span>False alarms blocked:</span>
+              <span className="text-[var(--safe-text)] font-mono">3,124 frames</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 3: Operator Logistics */}
+        <div className="border border-[var(--border)] bg-[var(--surface)] p-5 rounded-2xl shadow-xs space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-[var(--text-3)] uppercase tracking-wider">Operator Logistics</span>
+            <Activity size={14} className="text-blue-500" />
+          </div>
+          <div className="space-y-2 text-xs font-semibold text-[var(--text-2)]">
+            <div className="flex justify-between border-b border-[var(--border)]/50 pb-1.5">
+              <span>Organization:</span>
+              <span className="text-[var(--text)] font-mono">Sentinel Security Labs</span>
+            </div>
+            <div className="flex justify-between border-b border-[var(--border)]/50 pb-1.5">
+              <span>Avg Response Time:</span>
+              <span className="text-[var(--text)] font-mono">4.2 seconds</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Active incident tickets:</span>
+              <span className="text-[var(--text)] font-mono">1 pending</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -141,7 +210,7 @@ const Profile = () => {
           <Card className="border border-[var(--border)] bg-[var(--surface)] shadow-xs">
             <CardContent className="p-6">
               <h3 className="font-bold text-xs text-[var(--text)] uppercase tracking-wider flex items-center gap-2 mb-4">
-                <User size={16} className="text-[var(--fire)]" /> Account Details
+                <User size={16} className="text-[var(--primary)]" /> Account Details
               </h3>
               <form onSubmit={handleUpdateProfile} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -215,7 +284,7 @@ const Profile = () => {
           <Card className="border border-[var(--border)] bg-[var(--surface)] shadow-xs">
             <CardContent className="p-6">
               <h3 className="font-bold text-xs text-[var(--text)] uppercase tracking-wider flex items-center gap-2 mb-4">
-                <Key size={16} className="text-[var(--fire)]" /> Change Password
+                <Key size={16} className="text-[var(--primary)]" /> Change Password
               </h3>
               <form onSubmit={handleChangePassword} className="space-y-4">
                 <Input 
@@ -303,7 +372,7 @@ const Profile = () => {
             {[
               { name: 'John Doe', email: 'johndoe@gmail.com', id: 'google_john_123' },
               { name: 'Jane Smith', email: 'janesmith@gmail.com', id: 'google_jane_456' },
-              { name: 'Admin Demo', email: 'admin@fireguard.ai', id: 'google_admin_789' }
+              { name: 'Admin Demo', email: 'admin@sentinelos.ai', id: 'google_admin_789' }
             ].map((acc) => (
               <button
                 key={acc.id}

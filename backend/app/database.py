@@ -10,7 +10,7 @@ if _POSTGRES:
     SQLALCHEMY_DATABASE_URL = _POSTGRES
     engine = create_engine(_POSTGRES)
 else:
-    _DB_PATH = os.path.join(os.path.dirname(__file__), "..", "fireguard.db")
+    _DB_PATH = os.path.join(os.path.dirname(__file__), "..", "sentinelos.db")
     SQLALCHEMY_DATABASE_URL = f"sqlite:///{os.path.abspath(_DB_PATH)}"
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,

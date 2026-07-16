@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
-  Flame, ArrowLeft, Key, BookOpen, Terminal, 
+  Shield, ArrowLeft, Key, BookOpen, Terminal, 
   Network, Cpu, Info, Database 
 } from 'lucide-react';
 
@@ -19,9 +19,9 @@ const Documentation = () => {
   };
 
   const credentials = [
-    { role: 'Administrator', email: 'admin@fireguard.ai', password: 'Admin@123', permissions: 'Full access + Admin Panel + System Settings' },
-    { role: 'Operator', email: 'operator@fireguard.ai', password: 'Operator@123', permissions: 'Live Monitoring + Camera Management + Trigger Detections' },
-    { role: 'Viewer', email: 'viewer@fireguard.ai', password: 'Viewer@123', permissions: 'Read-only SOC Dashboard + Incident reports' },
+    { role: 'Administrator', email: 'admin@sentinelos.ai', password: 'Admin@123', permissions: 'Full access + Admin Panel + System Settings' },
+    { role: 'Operator', email: 'operator@sentinelos.ai', password: 'Operator@123', permissions: 'Live Monitoring + Camera Management + Trigger Detections' },
+    { role: 'Viewer', email: 'viewer@sentinelos.ai', password: 'Viewer@123', permissions: 'Read-only SOC Dashboard + Incident reports' },
   ];
 
   const apiEndpoints = [
@@ -42,8 +42,8 @@ const Documentation = () => {
       {/* Header */}
       <header className="border-b border-white/5 bg-[#0a0a0f]/80 backdrop-blur-md sticky top-0 z-50 px-6 py-4 flex items-center justify-between max-w-7xl mx-auto w-full">
         <div className="flex items-center gap-2.5 text-red-500 font-bold text-xl tracking-tight select-none">
-          <Flame className="w-6 h-6 fill-current animate-pulse" />
-          <span>FireGuard<span className="text-white font-black ml-1">AI</span></span>
+          <Shield className="w-6 h-6 fill-current animate-pulse" />
+          <span>SentinelOS</span>
         </div>
         <button 
           onClick={() => navigate('/')}
@@ -67,7 +67,7 @@ const Documentation = () => {
               System Documentation
             </h1>
             <p className="text-gray-400 text-lg max-w-3xl">
-              Understand the layout, setup credentials, APIs, and model pipeline configurations of the FireGuard AI Platform.
+              Understand the layout, setup credentials, APIs, and model pipeline configurations of the SentinelOS Platform.
             </p>
           </motion.div>
 
@@ -144,7 +144,7 @@ npm run dev`}
               </div>
               <div className="space-y-3">
                 <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
-                  <Flame className="w-5 h-5 text-red-400" />
+                  <Shield className="w-5 h-5 text-red-400" />
                 </div>
                 <h3 className="font-bold text-white">Real-Time WebSockets</h3>
                 <p className="text-sm text-gray-400 leading-relaxed">
@@ -203,7 +203,7 @@ npm run dev`}
 
       {/* Footer */}
       <footer className="max-w-7xl mx-auto px-6 py-8 border-t border-white/5 mt-16 text-center text-xs text-gray-600">
-        &copy; {new Date().getFullYear()} FireGuard AI. All rights reserved.
+        &copy; {new Date().getFullYear()} SentinelOS. All rights reserved.
       </footer>
     </div>
   );

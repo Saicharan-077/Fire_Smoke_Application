@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Flame, LayoutDashboard, Settings, Bell, LogOut,
+  LayoutDashboard, Settings, Bell, LogOut,
   Camera, BarChart3, Shield, Menu,
   ChevronRight, ChevronLeft, Search, AlertTriangle,
   Video, History, Sun, Moon, Sparkles
@@ -30,7 +30,7 @@ const Layout = () => {
 
   const initials = currentUser
     ? currentUser.username.slice(0, 2).toUpperCase()
-    : 'FG';
+    : 'SO';
 
   const navItems = [
     { label: 'Dashboard',       path: '/dashboard',       icon: LayoutDashboard },
@@ -89,11 +89,11 @@ const Layout = () => {
           className={`flex items-center gap-3 cursor-pointer group ${collapsed ? 'justify-center w-full' : ''}`}
         >
           <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#3b82f6] to-[#0070f3] flex items-center justify-center shrink-0 shadow-sm">
-            <Flame size={14} className="text-white fill-white" />
+            <Shield size={14} className="text-white fill-white" />
           </div>
           {!collapsed && (
             <div>
-              <p className="text-[13px] font-semibold text-[var(--text)] leading-none tracking-tight">FireGuard SOC</p>
+              <p className="text-[13px] font-semibold text-[var(--text)] leading-none tracking-tight">SentinelOS</p>
               <p className="text-[10px] text-[var(--text-3)] leading-none mt-0.5">Control Center</p>
             </div>
           )}
@@ -231,7 +231,7 @@ const Layout = () => {
               <Menu size={16} />
             </button>
             <div className="flex items-center gap-1.5 text-[13px] min-w-0">
-              <span className="text-[var(--text-3)] font-medium">FireGuard</span>
+              <span className="text-[var(--text-3)] font-medium">SentinelOS</span>
               <ChevronRight size={12} className="text-[var(--border-strong)]" />
               <span className="font-semibold text-[var(--text)] truncate">
                 {PAGE_TITLES[location.pathname] || 'Workspace'}

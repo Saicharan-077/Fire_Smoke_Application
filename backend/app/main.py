@@ -95,11 +95,11 @@ def seed_database():
     db = SessionLocal()
     try:
         # 1. Seed Users (with specific credentials)
-        admin = db.query(models.User).filter(models.User.email == "admin@fireguard.ai").first()
+        admin = db.query(models.User).filter(models.User.email == "admin@sentinelos.ai").first()
         if not admin:
             admin = models.User(
-                username="admin@fireguard.ai",
-                email="admin@fireguard.ai",
+                username="admin@sentinelos.ai",
+                email="admin@sentinelos.ai",
                 hashed_password=hash_password("Admin@123"),
                 role="administrator"
             )
@@ -109,21 +109,21 @@ def seed_database():
             admin.role = "administrator"
             db.add(admin)
 
-        operator = db.query(models.User).filter(models.User.email == "operator@fireguard.ai").first()
+        operator = db.query(models.User).filter(models.User.email == "operator@sentinelos.ai").first()
         if not operator:
             operator = models.User(
-                username="operator@fireguard.ai",
-                email="operator@fireguard.ai",
+                username="operator@sentinelos.ai",
+                email="operator@sentinelos.ai",
                 hashed_password=hash_password("Operator@123"),
                 role="operator"
             )
             db.add(operator)
 
-        viewer = db.query(models.User).filter(models.User.email == "viewer@fireguard.ai").first()
+        viewer = db.query(models.User).filter(models.User.email == "viewer@sentinelos.ai").first()
         if not viewer:
             viewer = models.User(
-                username="viewer@fireguard.ai",
-                email="viewer@fireguard.ai",
+                username="viewer@sentinelos.ai",
+                email="viewer@sentinelos.ai",
                 hashed_password=hash_password("Viewer@123"),
                 role="viewer"
             )
@@ -211,7 +211,7 @@ def seed_database():
                         status=status,
                         alert_id=alert.id,
                         reporter="AI System Monitor",
-                        assigned_user="operator@fireguard.ai" if i % 2 == 0 else "admin@fireguard.ai",
+                        assigned_user="operator@sentinelos.ai" if i % 2 == 0 else "admin@sentinelos.ai",
                         notes=f"Automatic escalations generated. Threat status marked as {status}.",
                         created_at=timestamp,
                         updated_at=timestamp
@@ -232,7 +232,7 @@ def seed_database():
             ]
             for action, details in actions:
                 log = models.AuditLog(
-                    username="admin@fireguard.ai",
+                    username="admin@sentinelos.ai",
                     action=action,
                     details=details,
                     ip_address="127.0.0.1",
@@ -297,7 +297,7 @@ async def lifespan(app: FastAPI):
     logger.info("[Shutdown] Cleaning up")
 
 
-app = FastAPI(title="FireGuard AI API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="SentinelOS API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RateLimitMiddleware)
@@ -518,7 +518,7 @@ def health():
     model_ready = _detection_svc_instance.ready if _detection_svc_instance else False
     return {
         "status":    "ok",
-        "service":   "FireGuard AI",
+        "service":   "SentinelOS",
         "version":   "1.0.0",
         "model_ready": model_ready,
         "timestamp": datetime.utcnow().isoformat(),

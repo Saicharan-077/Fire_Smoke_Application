@@ -324,9 +324,18 @@ class DetectionLayer:
             roi_hsv = hsv_frame[cy1:cy2, cx1:cx2]
             roi_gray = gray_frame[cy1:cy2, cx1:cx2]
 
+            h_roi, w_roi = roi_bgr.shape[:2]
+
+            # 1. Ignore very small boxes (noise / compression artifacts / camera glitching)
+            if w_roi < 15 or h_roi < 15:
+                det["rejection_reason"] = "box_too_small"
+                det["verification_scores"] = {}
+                logger.info(f"[Stage 2 Reject] {det['detection_type']} conf={det['confidence']:.4f} rejected: box_too_small ({w_roi}x{h_roi})")
+                self._log_rejection(det["confidence"], det["detection_type"], "box_too_small", {}, roi_bgr, camera_id)
+                continue
+
             # Resize ROI if larger than max_dim (e.g. 256) to optimize CPU processing speeds
             max_dim = 256
-            h_roi, w_roi = roi_bgr.shape[:2]
             if h_roi > max_dim or w_roi > max_dim:
                 scale = max_dim / max(h_roi, w_roi)
                 new_w = int(w_roi * scale)
@@ -343,6 +352,24 @@ class DetectionLayer:
                 is_valid, reason, scores = self.verify_smoke(roi_bgr, roi_hsv, roi_gray, active_cfg.smoke)
             else:
                 is_valid, reason, scores = False, f"unsupported_class_{det_type}", {}
+
+            # 2. Local Temporal Variance Check to ignore static backgrounds (walls, concrete floors, stationary shadows)
+            if is_valid and camera_id and camera_id in self.prev_frames and self.prev_frames[camera_id] is not None:
+                prev_frame = self.prev_frames[camera_id]
+                if prev_frame.shape == frame.shape:
+                    prev_roi_bgr = prev_frame[cy1:cy2, cx1:cx2]
+                    if prev_roi_bgr.size > 0:
+                        if prev_roi_bgr.shape[0] != roi_bgr.shape[0] or prev_roi_bgr.shape[1] != roi_bgr.shape[1]:
+                            prev_roi_bgr = cv2.resize(prev_roi_bgr, (roi_bgr.shape[1], roi_bgr.shape[0]), interpolation=cv2.INTER_LINEAR)
+                        prev_roi_gray = cv2.cvtColor(prev_roi_bgr, cv2.COLOR_BGR2GRAY)
+                        if prev_roi_gray.shape == roi_gray.shape:
+                            diff_img = cv2.absdiff(roi_gray, prev_roi_gray)
+                            mad = float(np.mean(diff_img))
+                            # If Mean Absolute Difference is extremely low, it's a static background
+                            if mad < 1.8:
+                                is_valid = False
+                                reason = f"static_background (MAD={mad:.2f} < 1.8)"
+                                scores["temporal_mad"] = round(mad, 2)
 
             # Cache verification details for debug logging
             det["rejection_reason"] = reason
@@ -532,6 +559,7 @@ class DetectionLayer:
         
         if not raw_dets:
             _ = self.temporal_verify(source_id, [], active_cfg)
+            self.prev_frames[source_id] = frame.copy()
             t_total = (time.perf_counter() - t_start) * 1000.0
             self._print_pipeline_debug_logs(frame.shape, t_prep, t_inf, 0.0, t_total, [], [], camera_id=source_id)
             return frame, [], True
@@ -544,6 +572,7 @@ class DetectionLayer:
         t_ver = (time.perf_counter() - t_ver_start) * 1000.0
         
         annotated = self.annotate_frame(frame, temporally_verified_dets)
+        self.prev_frames[source_id] = frame.copy()
         
         t_total = (time.perf_counter() - t_start) * 1000.0
         self._print_pipeline_debug_logs(frame.shape, t_prep, t_inf, t_ver, t_total, raw_dets, temporally_verified_dets, camera_id=source_id)

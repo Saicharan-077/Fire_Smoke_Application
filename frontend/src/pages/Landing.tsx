@@ -72,8 +72,8 @@ const Landing = () => {
 
   const faqs = [
     {
-      q: "How does FireGuard AI hook into legacy camera systems?",
-      a: "FireGuard uses standard IP network protocol layers. Any camera supporting RTSP (Real-Time Streaming Protocol) or HTTP streaming can be registered in the Settings panel and monitored continuously."
+      q: "How does SentinelOS hook into legacy camera systems?",
+      a: "SentinelOS uses standard IP network protocol layers. Any camera supporting RTSP (Real-Time Streaming Protocol) or HTTP streaming can be registered in the Settings panel and monitored continuously."
     },
     {
       q: "Can the YOLOv8 model run locally on standard hardware?",
@@ -85,7 +85,7 @@ const Landing = () => {
     },
     {
       q: "How does the sound siren alert trigger?",
-      a: "On active threat flags, FireGuard uses native Web Audio synthesis to generate electronic chime sirens. This guarantees immediate audible warnings without needing external asset files."
+      a: "On active threat flags, SentinelOS uses native Web Audio synthesis to generate electronic chime sirens. This guarantees immediate audible warnings without needing external asset files."
     }
   ];
 
@@ -107,9 +107,9 @@ const Landing = () => {
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-2 font-bold cursor-pointer select-none group" onClick={() => navigate('/')}>
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[#7c3aed] flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
-                <Flame size={16} className="text-white fill-white" />
+                <Shield size={16} className="text-white fill-white" />
               </div>
-              <span className="text-base font-bold tracking-tight text-[var(--text)]">FireGuard AI</span>
+              <span className="text-base font-bold tracking-tight text-[var(--text)]">SentinelOS</span>
             </div>
 
             <nav className="hidden md:flex items-center gap-6 text-[13px] font-medium text-[var(--text-2)]">
@@ -217,7 +217,7 @@ const Landing = () => {
                 <span className="w-2.5 h-2.5 rounded-full bg-[var(--smoke)]" />
                 <span className="w-2.5 h-2.5 rounded-full bg-[var(--safe)]" />
               </div>
-              <span className="text-[10px] font-bold text-[var(--text-3)] font-mono tracking-wider">FIREGUARD SECURE OPERATIONS PREVIEW</span>
+              <span className="text-[10px] font-bold text-[var(--text-3)] font-mono tracking-wider">SENTINELOS SECURE OPERATIONS PREVIEW</span>
               <span className="text-[10px] font-mono text-[var(--text-3)]">SYSTEM: ONLINE</span>
             </div>
 
@@ -346,7 +346,7 @@ const Landing = () => {
           <div className="text-center max-w-xl mx-auto space-y-3">
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text)]">Enterprise Ingestion & Detection</h2>
             <p className="text-xs sm:text-sm text-[var(--text-2)] font-semibold leading-relaxed">
-              FireGuard layers directly over existing security environments with zero hardware lock-in.
+              SentinelOS layers directly over existing security environments with zero hardware lock-in.
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -494,9 +494,9 @@ const Landing = () => {
           <div className="space-y-4">
             <div className="flex items-center gap-2 font-bold select-none">
               <div className="w-6 h-6 rounded-lg bg-[var(--primary)] flex items-center justify-center shrink-0">
-                <Flame size={12} className="text-white fill-white" />
+                <Shield size={12} className="text-white fill-white" />
               </div>
-              <span className="text-sm font-semibold tracking-tight text-[var(--text)]">FireGuard AI</span>
+              <span className="text-sm font-semibold tracking-tight text-[var(--text)]">SentinelOS</span>
             </div>
             <p className="text-[10px] text-[var(--text-3)] font-semibold leading-relaxed">
               Sub-second anomaly tracking powered by lightweight computer vision layers.
@@ -521,13 +521,13 @@ const Landing = () => {
           <div>
             <h4 className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-3)] mb-3">Contact</h4>
             <ul className="space-y-2 font-semibold">
-              <li><span className="hover:text-[var(--text)] cursor-pointer">dispatch@fireguard.ai</span></li>
+              <li><span className="hover:text-[var(--text)] cursor-pointer">dispatch@sentinelos.ai</span></li>
               <li><span className="hover:text-[var(--text)] cursor-pointer">System Operator</span></li>
             </ul>
           </div>
         </div>
         <div className="max-w-7xl mx-auto px-6 border-t border-[var(--border)] pt-6 flex flex-col sm:flex-row items-center justify-between text-[10px] text-[var(--text-3)] font-semibold">
-          <span>&copy; {new Date().getFullYear()} FireGuard AI, Inc. All rights reserved.</span>
+          <span>&copy; {new Date().getFullYear()} SentinelOS, Inc. All rights reserved.</span>
           <div className="flex gap-4 mt-2 sm:mt-0">
             <span className="hover:text-[var(--text-2)] cursor-pointer">Privacy Policy</span>
             <span className="hover:text-[var(--text-2)] cursor-pointer">Terms of Service</span>

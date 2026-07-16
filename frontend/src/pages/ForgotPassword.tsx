@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Flame, ArrowLeft, RefreshCw, Send } from 'lucide-react';
+import { Shield, ArrowLeft, RefreshCw, Send } from 'lucide-react';
 import { forgotPasswordApi } from '../services/api';
 import { useToast } from '../components/ui/Toast';
 import { motion } from 'framer-motion';
@@ -16,22 +16,21 @@ const ForgotPassword = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-
     try {
+      setIsLoading(true);
+      setError(null);
       await forgotPasswordApi({ email });
       setIsSuccess(true);
-      toast('Verification instructions sent to email!', 'success');
+      toast('Mock reset link generated successfully.', 'success');
     } catch (err: any) {
-      setError(err.message || 'Failed to request recovery link.');
+      setError(err.message || 'Forgot password request failed.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center p-6 text-[var(--text)] font-sans select-none">
+    <div className="min-h-screen bg-[var(--bg-alt)] flex items-center justify-center p-6 text-[var(--text)] select-none font-sans">
       <motion.div 
         initial={{ y: 10, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -40,10 +39,10 @@ const ForgotPassword = () => {
         <div className="text-center mb-8">
           <div 
             onClick={() => navigate('/')}
-            className="inline-flex items-center gap-1.5 text-red-500 font-bold text-lg cursor-pointer hover:scale-[1.02] transition-transform"
+            className="inline-flex items-center gap-1.5 text-[var(--primary)] font-bold text-lg cursor-pointer hover:scale-[1.02] transition-transform"
           >
-            <Flame size={18} className="fill-current" />
-            <span className="text-sm font-bold text-[var(--text)]">FireGuard AI</span>
+            <Shield size={18} className="fill-current" />
+            <span className="text-sm font-bold text-[var(--text)]">SentinelOS</span>
           </div>
           <p className="text-[10px] text-[var(--muted)] font-bold uppercase tracking-wider mt-1">Recover account access</p>
         </div>
@@ -77,7 +76,7 @@ const ForgotPassword = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full input"
-                  placeholder="operator@fireguard.ai"
+                  placeholder="operator@sentinelos.ai"
                   required
                 />
               </div>

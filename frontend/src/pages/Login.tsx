@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { loginApi, googleAuthApi } from '../services/api';
 import { useToast } from '../components/ui/Toast';
-import { Flame, Eye, EyeOff, ShieldAlert, ArrowRight, Lock, User as UserIcon } from 'lucide-react';
+import { Shield, Eye, EyeOff, ShieldAlert, ArrowRight, Lock, User as UserIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Modal } from '../components/Common/Modal';
 
@@ -103,13 +103,13 @@ const Login = () => {
         <div className="flex flex-col items-center text-center space-y-3 mb-6">
           <div 
             onClick={() => navigate('/')}
-            className="p-2 rounded-lg bg-[var(--fire-bg)] text-[var(--fire-text)] border border-[var(--fire-border)] flex items-center justify-center cursor-pointer hover:scale-105 transition-all"
+            className="p-2 rounded-lg bg-[var(--primary-light)] text-[var(--primary)] border border-[var(--primary-ring)] flex items-center justify-center cursor-pointer hover:scale-105 transition-all"
           >
-            <Flame size={16} className="fill-current" />
+            <Shield size={16} className="fill-current" />
           </div>
           <div>
             <h2 className="text-base font-bold tracking-tight text-[var(--text)]">System Login</h2>
-            <p className="text-[11px] text-[var(--text-3)] mt-1 font-semibold">Access the FireGuard AI SOC Workspace</p>
+            <p className="text-[11px] text-[var(--text-3)] mt-1 font-semibold">Access the SentinelOS Control Center</p>
           </div>
         </div>
 
@@ -230,7 +230,7 @@ const Login = () => {
             {[
               { name: 'John Doe', email: 'johndoe@gmail.com', id: 'google_john_123', desc: 'Viewer Access (Auto-Creates Account)' },
               { name: 'Jane Smith', email: 'janesmith@gmail.com', id: 'google_jane_456', desc: 'Operator Access (Auto-Creates Account)' },
-              { name: 'Admin Demo', email: 'admin@fireguard.ai', id: 'google_admin_789', desc: 'Auto-Links & Bypasses Password' }
+              { name: 'Admin Demo', email: 'admin@sentinelos.ai', id: 'google_admin_789', desc: 'Auto-Links & Bypasses Password' }
             ].map((acc) => (
               <button
                 key={acc.id}

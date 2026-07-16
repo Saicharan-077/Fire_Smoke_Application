@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Flame, ArrowRight, RefreshCw } from 'lucide-react';
+import { Shield, ArrowRight, RefreshCw } from 'lucide-react';
 import { registerApi, googleAuthApi } from '../services/api';
 import { useToast } from '../components/ui/Toast';
 import { motion } from 'framer-motion';
@@ -93,8 +93,8 @@ const Register = () => {
             onClick={() => navigate('/')}
             className="inline-flex items-center gap-1.5 text-red-500 font-bold text-lg cursor-pointer hover:scale-[1.02] transition-transform"
           >
-            <Flame size={18} className="fill-current" />
-            <span className="text-sm font-bold text-[var(--text)]">FireGuard AI</span>
+            <Shield size={18} className="fill-current" />
+            <span className="text-sm font-bold text-[var(--text)]">SentinelOS</span>
           </div>
           <p className="text-[10px] text-[var(--muted)] font-bold uppercase tracking-wider mt-1">Create operator credentials</p>
         </div>
@@ -125,7 +125,7 @@ const Register = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full input"
-              placeholder="operator@fireguard.ai"
+              placeholder="operator@sentinelos.ai"
               required
             />
           </div>
@@ -213,7 +213,7 @@ const Register = () => {
             {[
               { name: 'John Doe', email: 'johndoe@gmail.com', id: 'google_john_123', desc: 'Viewer Access (Auto-Creates Account)' },
               { name: 'Jane Smith', email: 'janesmith@gmail.com', id: 'google_jane_456', desc: 'Operator Access (Auto-Creates Account)' },
-              { name: 'Admin Demo', email: 'admin@fireguard.ai', id: 'google_admin_789', desc: 'Auto-Links & Bypasses Password' }
+              { name: 'Admin Demo', email: 'admin@sentinelos.ai', id: 'google_admin_789', desc: 'Auto-Links & Bypasses Password' }
             ].map((acc) => (
               <button
                 key={acc.id}

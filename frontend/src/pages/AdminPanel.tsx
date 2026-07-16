@@ -358,7 +358,7 @@ const AdminPanel = () => {
             type="email"
             value={userForm.email}
             onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
-            placeholder="operator@fireguard.ai"
+            placeholder="operator@sentinelos.ai"
             required
           />
           <Input 

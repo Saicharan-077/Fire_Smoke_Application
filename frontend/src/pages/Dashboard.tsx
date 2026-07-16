@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '../components/ui/Toast';
 import {
   getDashboardStats, getDashboardAnalytics, getIncidents,
-  testCctvConnection, getSettings, uploadImage, type Detection
+  getSettings, uploadImage, type Detection
 } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { listCameras } from '../services/cameraService';
@@ -12,10 +12,9 @@ import { useNotificationsStore } from '../store/notificationsStore';
 import {
   Video, RefreshCw, CheckCircle2, Activity, Cpu,
   Volume2, VolumeX, Maximize, Minimize,
-  Grid2x2, Map, Wifi, WifiOff,
-  Flame, Wind, ShieldAlert, Camera, AlertCircle,
-  Sliders, Search, Filter, ShieldCheck, Play, Square,
-  PlayCircle
+  Grid2x2, Map,
+  ShieldAlert, Camera, AlertCircle,
+  Sliders, Search, ShieldCheck
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -35,11 +34,11 @@ const ChartTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-[#18181b] border border-[#2d2d30] rounded-lg shadow-lg px-3 py-2 text-[12px] text-zinc-200">
-      <p className="text-zinc-500 font-medium mb-1">{label}</p>
+      <p className="text-[var(--text-3)] font-medium mb-1">{label}</p>
       {payload.map((p: any, i: number) => (
         <p key={i} className="flex justify-between gap-4 font-semibold" style={{ color: p.color }}>
           <span>{p.name}</span>
-          <span className="text-white font-mono">{p.value}</span>
+          <span className="text-[var(--text)] font-mono">{p.value}</span>
         </p>
       ))}
     </div>
@@ -48,15 +47,15 @@ const ChartTooltip = ({ active, payload, label }: any) => {
 
 // StatCard Component for Premium KPIs
 const StatCard = ({ label, value, icon: Icon, color, sub, ok }: any) => (
-  <motion.div variants={fadeUp} className="bg-[#18181b] border border-[#232326] rounded-xl p-5 flex items-start gap-4 shadow-sm hover:border-[#2d2d30] transition-colors">
+  <motion.div variants={fadeUp} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 flex items-start gap-4 shadow-sm hover:border-[var(--border-strong)] transition-colors text-[var(--text)]">
     <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
       <Icon size={16} />
     </div>
     <div className="flex-1 min-w-0">
-      <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">{label}</p>
-      <p className="text-[24px] font-bold text-white leading-none mt-1.5 tracking-tight font-mono">{value}</p>
+      <p className="text-[10px] font-bold text-[var(--text-3)] uppercase tracking-wider">{label}</p>
+      <p className="text-[24px] font-bold text-[var(--text)] leading-none mt-1.5 tracking-tight font-mono">{value}</p>
       {sub && (
-        <p className={`text-[10px] mt-1.5 font-medium flex items-center gap-1 ${ok === false ? 'text-red-400' : 'text-zinc-400'}`}>
+        <p className={`text-[10px] mt-1.5 font-medium flex items-center gap-1 ${ok === false ? 'text-[var(--fire-text)]' : 'text-[var(--text-2)]'}`}>
           {sub}
         </p>
       )}
@@ -310,7 +309,7 @@ const Dashboard = () => {
     return r === 'admin' || r === 'administrator' || r === 'operator';
   }, [currentUser]);
 
-  const [simulationMode, setSimulationMode] = useState(!isOperatorOrAdmin);
+  const [simulationMode] = useState(!isOperatorOrAdmin);
 
   // Audio refs
   const audioCtx = useRef<AudioContext | null>(null);
@@ -761,7 +760,6 @@ const Dashboard = () => {
   // Computations for KPI counters
   const totalCamsCount = camerasState.length;
   const onlineCamsCount = camerasState.filter(c => c.status === 'online').length;
-  const offlineCamsCount = camerasState.filter(c => c.status !== 'online').length;
   const activeAlertsCount = stats.active_alerts + Object.keys(injectedThreats).length + (camThreat ? 1 : 0);
   const activeFiresCount = stats.fire_alerts + Object.values(injectedThreats).filter(t => t.threat === 'fire').length + (camThreat === 'fire' ? 1 : 0);
   const activeSmokesCount = stats.smoke_alerts + Object.values(injectedThreats).filter(t => t.threat === 'smoke').length + (camThreat === 'smoke' ? 1 : 0);
@@ -796,31 +794,31 @@ const Dashboard = () => {
       {/* Header section */}
       <motion.div variants={fadeUp} className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-[22px] font-bold text-white tracking-tight flex items-center gap-2">
+          <h1 className="text-[22px] font-bold text-[var(--text)] tracking-tight flex items-center gap-2">
             Security Operations Center <span className="text-[11px] bg-red-500/10 text-red-400 px-2 py-0.5 rounded border border-red-500/20 font-bold uppercase tracking-wider animate-pulse">LTM-Live</span>
           </h1>
-          <p className="text-[12px] text-zinc-400 mt-0.5">Commercial multi-channel AI surveillance matrix & incident response platform</p>
+          <p className="text-[12px] text-[var(--text-2)] mt-0.5">Commercial multi-channel AI surveillance matrix & incident response platform</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setInjectorOpen(!injectorOpen)}
             className={`flex items-center gap-1.5 px-3 py-2 border rounded-lg text-[11px] font-bold transition-all ${
-              injectorOpen ? 'bg-zinc-800 text-amber-400 border-zinc-700 shadow-inner' : 'bg-[#18181b] text-zinc-400 border-[#232326] hover:text-white'
+              injectorOpen ? 'bg-[var(--surface-hover)] text-amber-500 border-[var(--border-strong)] shadow-inner' : 'bg-[var(--surface)] text-[var(--text-2)] border-[var(--border)] hover:text-[var(--text)]'
             }`}
           >
             <Sliders size={12} /> {injectorOpen ? 'Hide Injector' : 'Threat Injector'}
           </button>
           
-          <div className="flex items-center bg-[#18181b] border border-[#232326] rounded-lg p-1 gap-1">
+          <div className="flex items-center bg-[var(--surface)] border border-[var(--border)] rounded-lg p-1 gap-1">
             <button
               onClick={() => setViewMode('grid')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${viewMode === 'grid' ? 'bg-[#27272a] text-white border border-[#2d2d30] shadow-xs' : 'text-zinc-400 hover:text-white'}`}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${viewMode === 'grid' ? 'bg-[var(--surface-hover)] text-[var(--text)] border border-[var(--border-strong)] shadow-xs' : 'text-[var(--text-2)] hover:text-[var(--text)]'}`}
             >
               <Grid2x2 size={12} className="mr-1" /> Channels Grid
             </button>
             <button
               onClick={() => setViewMode('map')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${viewMode === 'map' ? 'bg-[#27272a] text-white border border-[#2d2d30] shadow-xs' : 'text-zinc-400 hover:text-white'}`}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${viewMode === 'map' ? 'bg-[var(--surface-hover)] text-[var(--text)] border border-[var(--border-strong)] shadow-xs' : 'text-[var(--text-2)] hover:text-[var(--text)]'}`}
             >
               <Map size={12} className="mr-1" /> Facility Map
             </button>
@@ -828,14 +826,14 @@ const Dashboard = () => {
 
           <button
             onClick={() => setRightPanelOpen(!rightPanelOpen)}
-            className={`px-3 py-2 border rounded-lg text-[11px] font-bold transition-all ${rightPanelOpen ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-[#18181b] text-zinc-400 border-[#232326] hover:text-white'}`}
+            className={`px-3 py-2 border rounded-lg text-[11px] font-bold transition-all ${rightPanelOpen ? 'bg-[var(--primary-light)] text-[var(--primary)] border-[var(--primary-ring)]' : 'bg-[var(--surface)] text-[var(--text-2)] border-[var(--border)] hover:text-[var(--text)]'}`}
           >
             {rightPanelOpen ? 'Hide Alert Hub' : 'Show Alert Hub'}
           </button>
           
           <button
             onClick={load}
-            className="flex items-center gap-1 px-3 py-2 bg-[#18181b] border border-[#232326] rounded-lg text-[11px] font-bold text-zinc-400 hover:text-white hover:border-[#2d2d30] transition-all"
+            className="flex items-center gap-1 px-3 py-2 bg-[#18181b] border border-[#232326] rounded-lg text-[11px] font-bold text-[var(--text-2)] hover:text-[var(--text)] hover:border-[#2d2d30] transition-all"
           >
             <RefreshCw size={12} className="mr-1" /> Refresh
           </button>
@@ -851,12 +849,12 @@ const Dashboard = () => {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="bg-[#18181b] border border-amber-500/20 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="bg-[var(--surface)] border border-amber-500/20 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div className="flex-1">
                 <h4 className="text-[12px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1">
                   💡 Presentation Threat Injector Controls
                 </h4>
-                <p className="text-[11px] text-zinc-400 mt-1">
+                <p className="text-[11px] text-[var(--text-2)] mt-1">
                   Select any CCTV camera to inject a simulated threat. Watch the grid re-sort, highlight the active feed, sound the siren, and provide alert options.
                 </p>
               </div>
@@ -864,8 +862,8 @@ const Dashboard = () => {
                 {camerasState.filter(c => c.status === 'online').map((cam) => {
                   const hasThreat = !!injectedThreats[cam.id];
                   return (
-                    <div key={cam.id} className="bg-[#202024] border border-[#2d2d30] rounded-lg p-2 flex items-center gap-2">
-                      <span className="text-[10px] font-bold text-white font-mono">{cam.id}</span>
+                    <div key={cam.id} className="bg-[var(--surface-2)] border border-[var(--border-strong)] rounded-lg p-2 flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-[var(--text)] font-mono">{cam.id}</span>
                       {hasThreat ? (
                         <button
                           onClick={() => clearThreat(cam.id)}
@@ -906,11 +904,11 @@ const Dashboard = () => {
 
       {/* Statistics Strip */}
       <motion.div variants={stagger} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <StatCard label="Total CCTV Channels" value={totalCamsCount} icon={Camera} color="bg-zinc-800 text-zinc-300" sub={`${onlineCamsCount} active`} />
-        <StatCard label="System Health" value={activeAlertsCount > 0 ? "WARNING" : "NOMINAL"} icon={CheckCircle2} color={activeAlertsCount > 0 ? "bg-amber-500/10 text-amber-400" : "bg-green-500/10 text-green-400"} sub="AI model verified" ok={activeAlertsCount === 0} />
-        <StatCard label="Active Alerts" value={activeAlertsCount} icon={ShieldAlert} color={activeAlertsCount > 0 ? "bg-red-500/10 text-red-400 border-red-500/10" : "bg-zinc-800 text-zinc-300"} sub={`${activeFiresCount} Fire, ${activeSmokesCount} Smoke`} />
-        <StatCard label="Average Speed" value={`${avgInferenceLatency} ms`} icon={Activity} color="bg-blue-500/10 text-blue-400" sub="End-to-End Latency" />
-        <StatCard label="AI Engine Status" value="YOLOv8 CPU" icon={Cpu} color="bg-purple-500/10 text-purple-400" sub="Model loaded successfully" />
+        <StatCard label="Total CCTV Channels" value={totalCamsCount} icon={Camera} color="bg-[var(--surface-2)] text-[var(--text-2)] border border-[var(--border)]" sub={`${onlineCamsCount} active`} />
+        <StatCard label="System Health" value={activeAlertsCount > 0 ? "WARNING" : "NOMINAL"} icon={CheckCircle2} color={activeAlertsCount > 0 ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : "bg-green-500/10 text-green-500 border border-green-500/20"} sub="AI model verified" ok={activeAlertsCount === 0} />
+        <StatCard label="Active Alerts" value={activeAlertsCount} icon={ShieldAlert} color={activeAlertsCount > 0 ? "bg-red-500/10 text-red-500 border border-red-500/20" : "bg-[var(--surface-2)] text-[var(--text-2)] border border-[var(--border)]"} sub={`${activeFiresCount} Fire, ${activeSmokesCount} Smoke`} />
+        <StatCard label="Average Speed" value={`${avgInferenceLatency} ms`} icon={Activity} color="bg-blue-500/10 text-blue-500 border border-blue-500/20" sub="End-to-End Latency" />
+        <StatCard label="AI Engine Status" value="YOLOv8 CPU" icon={Cpu} color="bg-purple-500/10 text-purple-500 border border-purple-500/20" sub="Model loaded successfully" />
       </motion.div>
 
       {/* Main Grid View */}
@@ -935,7 +933,7 @@ const Dashboard = () => {
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.95 }}
-                      className={`bg-[#18181b] border rounded-xl overflow-hidden shadow-md flex flex-col justify-between transition-all duration-300 ${
+                      className={`bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-md flex flex-col justify-between transition-all duration-300 ${
                         isRed ? 'md:col-span-2 border-red-500 shadow-red-500/5 ring-1 ring-red-500/30' : 
                         isYellow ? 'border-amber-500/60 ring-1 ring-amber-500/20' : 
                         'border-[#232326] hover:border-[#2d2d30]'
@@ -947,13 +945,13 @@ const Dashboard = () => {
                           <span className={`w-2 h-2 rounded-full ${
                             camera.status === 'online' ? (camera.threat ? 'bg-red-500 animate-pulse' : 'bg-green-500') : 'bg-zinc-600'
                           }`} />
-                          <span className="text-[12px] font-bold text-white">{camera.name}</span>
+                          <span className="text-[12px] font-bold text-[var(--text)]">{camera.name}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${
                             isRed ? 'bg-red-500/10 text-red-400 border-red-500/20 animate-pulse' : 
                             isYellow ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 
-                            'bg-zinc-800 text-zinc-400 border-zinc-700'
+                            'bg-[var(--surface-2)] text-[var(--text-2)] border border-[var(--border)]'
                           }`}>
                             {camera.status === 'online' ? (camera.threat ? `${camera.threat.toUpperCase()} ALERT` : 'SECURE') : 'OFFLINE'}
                           </span>
@@ -964,7 +962,7 @@ const Dashboard = () => {
                       <div className={`p-4 flex-1 flex ${isEnlarged ? 'flex-col lg:flex-row gap-6' : 'flex-col'} justify-center min-h-[240px]`}>
                         
                         {/* Stream Frame Block */}
-                        <div className={`relative rounded-lg overflow-hidden bg-black aspect-video flex-1 border border-[#232326] group ${isRed ? 'border-red-500/20' : ''}`}>
+                        <div className={`relative rounded-lg overflow-hidden bg-black aspect-video flex-1 border border-[var(--border)] group ${isRed ? 'border-red-500/20' : ''}`}>
                           {camera.id === 'CAM-01' ? (
                             camActive ? (
                               <div ref={webcamRef} id="webcam-fullscreen" className="w-full h-full">
@@ -987,9 +985,9 @@ const Dashboard = () => {
                                 </div>
                               </div>
                             ) : (
-                              <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-zinc-950 p-6">
+                              <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-[var(--surface-2)] p-6">
                                 <Video size={24} className="text-zinc-600 animate-pulse" />
-                                <p className="text-[12px] text-zinc-400 font-semibold">Webcam Feed Paused</p>
+                                <p className="text-[12px] text-[var(--text-2)] font-semibold">Webcam Feed Paused</p>
                                 <button
                                   onClick={startWebcam}
                                   className="px-3.5 py-1.5 bg-blue-500 text-white text-[11px] font-bold rounded-lg hover:bg-blue-600 transition-colors shadow-sm"
@@ -1016,21 +1014,21 @@ const Dashboard = () => {
 
                         {/* Camera Health Details checklist Grid */}
                         {!isEnlarged && (
-                          <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-[#232326]/60 text-[9px] text-zinc-400">
+                          <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-[var(--border)]/60 text-[9px] text-[var(--text-2)]">
                             <div>
-                              <span className="text-zinc-500 block text-[8px] uppercase tracking-wider">AI Core</span>
+                              <span className="text-[var(--text-3)] block text-[8px] uppercase tracking-wider">AI Core</span>
                               <span className="text-green-400 font-bold font-mono">Active (YOLOv8)</span>
                             </div>
                             <div>
-                              <span className="text-zinc-500 block text-[8px] uppercase tracking-wider">Stream Decode</span>
-                              <span className="text-white font-mono">{camera.status === 'online' ? 'H.264 Active' : 'Offline'}</span>
+                              <span className="text-[var(--text-3)] block text-[8px] uppercase tracking-wider">Stream Decode</span>
+                              <span className="text-[var(--text)] font-mono">{camera.status === 'online' ? 'H.264 Active' : 'Offline'}</span>
                             </div>
                             <div>
-                              <span className="text-zinc-500 block text-[8px] uppercase tracking-wider">Pipeline Latency</span>
-                              <span className="text-white font-mono">{camera.status === 'online' ? `${camera.latency || avgInferenceLatency} ms` : 'N/A'}</span>
+                              <span className="text-[var(--text-3)] block text-[8px] uppercase tracking-wider">Pipeline Latency</span>
+                              <span className="text-[var(--text)] font-mono">{camera.status === 'online' ? `${camera.latency || avgInferenceLatency} ms` : 'N/A'}</span>
                             </div>
                             <div>
-                              <span className="text-zinc-500 block text-[8px] uppercase tracking-wider">Signal Strength</span>
+                              <span className="text-[var(--text-3)] block text-[8px] uppercase tracking-wider">Signal Strength</span>
                               <span className={`font-mono font-bold ${camera.connectionHealth > 80 ? 'text-green-400' : 'text-amber-400'}`}>{camera.status === 'online' ? `${camera.connectionHealth}%` : '0%'}</span>
                             </div>
                           </div>
@@ -1038,29 +1036,29 @@ const Dashboard = () => {
 
                         {/* Enlarged Details Sidebar (Shows only if RED threat is active on this card) */}
                         {isEnlarged && (
-                          <div className="w-full lg:w-72 shrink-0 flex flex-col justify-between border-t lg:border-t-0 lg:border-l border-[#232326] pt-4 lg:pt-0 lg:pl-6">
+                          <div className="w-full lg:w-72 shrink-0 flex flex-col justify-between border-t lg:border-t-0 lg:border-l border-[var(--border)] pt-4 lg:pt-0 lg:pl-6">
                             <div className="space-y-4">
                               <div>
                                 <h5 className="text-[10px] font-bold text-red-400 uppercase tracking-widest flex items-center gap-1.5">
                                   <AlertCircle size={12} className="animate-pulse" /> Verified Alert Incident
                                 </h5>
-                                <p className="text-[18px] font-bold text-white mt-1 capitalize">{camera.threat} Warning</p>
-                                <p className="text-[11px] text-zinc-400 mt-1">
+                                <p className="text-[18px] font-bold text-[var(--text)] mt-1 capitalize">{camera.threat} Warning</p>
+                                <p className="text-[11px] text-[var(--text-2)] mt-1">
                                   Triggered at {camera.location} ({camera.zone}) via AI monitoring.
                                 </p>
                               </div>
 
-                              <div className="bg-[#202024] border border-[#2d2d30] rounded-lg p-3 space-y-2.5">
+                              <div className="bg-[var(--surface-2)] border border-[var(--border-strong)] rounded-lg p-3 space-y-2.5">
                                 <div className="flex justify-between text-[11px]">
-                                  <span className="text-zinc-400 font-medium">Confidence Match</span>
-                                  <span className="text-white font-bold font-mono">{(camera.confidence * 100).toFixed(1)}%</span>
+                                  <span className="text-[var(--text-2)] font-medium">Confidence Match</span>
+                                  <span className="text-[var(--text)] font-bold font-mono">{(camera.confidence * 100).toFixed(1)}%</span>
                                 </div>
                                 <div className="flex justify-between text-[11px]">
-                                  <span className="text-zinc-400 font-medium">Stage 2 Saturation</span>
+                                  <span className="text-[var(--text-2)] font-medium">Stage 2 Saturation</span>
                                   <span className="text-green-400 font-bold font-mono">OK</span>
                                 </div>
                                 <div className="flex justify-between text-[11px]">
-                                  <span className="text-zinc-400 font-medium">Stage 2 Brightness</span>
+                                  <span className="text-[var(--text-2)] font-medium">Stage 2 Brightness</span>
                                   <span className="text-green-400 font-bold font-mono">OK</span>
                                 </div>
                               </div>
@@ -1085,9 +1083,9 @@ const Dashboard = () => {
                       </div>
 
                       {/* Footer bar */}
-                      <div className="px-4 py-2 bg-[#202024]/40 border-t border-[#232326] flex justify-between items-center text-[10px] text-zinc-500">
+                      <div className="px-4 py-2 bg-[var(--surface-2)]/40 border-t border-[var(--border)] flex justify-between items-center text-[10px] text-[var(--text-3)]">
                         <span>Connection Status: <strong className={camera.status === 'online' ? 'text-green-400' : 'text-zinc-400'}>{camera.status.toUpperCase()}</strong></span>
-                        <span>Signal Health: <strong className="text-white font-mono">{camera.connectionHealth}%</strong></span>
+                        <span>Signal Health: <strong className="text-[var(--text)] font-mono">{camera.connectionHealth}%</strong></span>
                       </div>
                     </motion.div>
                   );
@@ -1096,14 +1094,14 @@ const Dashboard = () => {
 
             </motion.div>
           ) : (
-            <motion.div variants={fadeUp} className="bg-[#18181b] border border-[#232326] rounded-xl overflow-hidden shadow-xs">
-              <div className="px-4 py-3 border-b border-[#232326] bg-[#202024]/30">
-                <p className="text-[12px] font-bold text-white">Facility Structural Sensor Overlays</p>
+            <motion.div variants={fadeUp} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-xs">
+              <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--surface-2)]/30">
+                <p className="text-[12px] font-bold text-[var(--text)]">Facility Structural Sensor Overlays</p>
               </div>
               <FacilityMap
                 cameras={camerasState.map((c, i) => ({ id: c.id, name: c.name, zone: c.zone || `Zone ${String.fromCharCode(65 + (i % 5))}`, x: 15 + ((i * 30) % 75), y: 25 + ((i * 20) % 55) }))}
                 activeAlerts={[...activeAlertsList.map((a: any) => a.camera_id), ...(camThreat ? ['CAM-01'] : []), ...Object.keys(injectedThreats)]}
-                selectedCameraId={selectedCamId}
+                selectedCameraId={selectedCamId || undefined}
                 onCameraSelect={(id) => { setSelectedCamId(id); setViewMode('grid'); }}
               />
             </motion.div>
@@ -1115,9 +1113,9 @@ const Dashboard = () => {
           <div className="w-full xl:w-80 shrink-0 space-y-5 animate-fade-up">
 
             {/* AI Core Engine Health Widget */}
-            <motion.div variants={fadeUp} className="bg-[#18181b] border border-[#232326] rounded-xl shadow-xs overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-[#232326] bg-[#202024]/30 flex items-center justify-between">
-                <span className="text-[11px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+            <motion.div variants={fadeUp} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xs overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--surface-2)]/30 flex items-center justify-between">
+                <span className="text-[11px] font-bold text-[var(--text)] uppercase tracking-wider flex items-center gap-1.5">
                   <Cpu size={12} className="text-purple-400" /> AI Engine Core Health
                 </span>
                 <span className="flex items-center gap-1">
@@ -1128,34 +1126,34 @@ const Dashboard = () => {
               <div className="p-4 space-y-3">
                 <div className="grid grid-cols-2 gap-3 text-[10px]">
                   <div>
-                    <span className="text-zinc-500 block">Model Name</span>
-                    <span className="text-white font-bold font-mono">YOLOv8s Fire-Smoke</span>
+                    <span className="text-[var(--text-3)] block">Model Name</span>
+                    <span className="text-[var(--text)] font-bold font-mono">YOLOv8s Fire-Smoke</span>
                   </div>
                   <div>
-                    <span className="text-zinc-500 block">Model Version</span>
-                    <span className="text-white font-bold font-mono">v1.8.2-Custom</span>
+                    <span className="text-[var(--text-3)] block">Model Version</span>
+                    <span className="text-[var(--text)] font-bold font-mono">v1.8.2-Custom</span>
                   </div>
                   <div>
-                    <span className="text-zinc-500 block">Hardware Engine</span>
-                    <span className="text-purple-400 font-bold font-mono">CPU Core</span>
+                    <span className="text-[var(--text-3)] block">Hardware Engine</span>
+                    <span className="text-purple-500 font-bold font-mono">CPU Core</span>
                   </div>
                   <div>
-                    <span className="text-zinc-500 block">Uptime SLA</span>
-                    <span className="text-white font-bold font-mono">99.98% (12h 44m)</span>
+                    <span className="text-[var(--text-3)] block">Uptime SLA</span>
+                    <span className="text-[var(--text)] font-bold font-mono">99.98% (12h 44m)</span>
                   </div>
                   <div>
-                    <span className="text-zinc-500 block">Avg Inference</span>
-                    <span className="text-white font-bold font-mono">{avgInferenceLatency} ms</span>
+                    <span className="text-[var(--text-3)] block">Avg Inference</span>
+                    <span className="text-[var(--text)] font-bold font-mono">{avgInferenceLatency} ms</span>
                   </div>
                   <div>
-                    <span className="text-zinc-500 block">Avg Core FPS</span>
-                    <span className="text-white font-bold font-mono">24 FPS</span>
+                    <span className="text-[var(--text-3)] block">Avg Core FPS</span>
+                    <span className="text-[var(--text)] font-bold font-mono">24 FPS</span>
                   </div>
                 </div>
                 
-                <div className="pt-2.5 border-t border-[#232326] flex justify-between items-center text-[10px]">
-                  <span className="text-zinc-500">Last Detection:</span>
-                  <span className="text-zinc-300 font-mono font-semibold">
+                <div className="pt-2.5 border-t border-[var(--border)] flex justify-between items-center text-[10px]">
+                  <span className="text-[var(--text-3)]">Last Detection:</span>
+                  <span className="text-[var(--text-2)] font-mono font-semibold">
                     {stats.recent_alerts && stats.recent_alerts.length > 0 
                       ? `${stats.recent_alerts[0].camera_id || 'CAM-01'} (${new Date(stats.recent_alerts[0].timestamp).toLocaleTimeString()})`
                       : 'None'}
@@ -1165,9 +1163,9 @@ const Dashboard = () => {
             </motion.div>
 
             {/* Acknowledged / Resolved Alert Center */}
-            <motion.div variants={fadeUp} className="bg-[#18181b] border border-[#232326] rounded-xl shadow-xs overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-[#232326] bg-[#202024]/30 flex items-center justify-between">
-                <span className="text-[11px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+            <motion.div variants={fadeUp} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xs overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--surface-2)]/30 flex items-center justify-between">
+                <span className="text-[11px] font-bold text-[var(--text)] uppercase tracking-wider flex items-center gap-1.5">
                   <ShieldCheck size={12} className="text-blue-400" /> Enterprise Alert Center
                 </span>
                 {activeAlertsCount > 0 && (
@@ -1178,16 +1176,16 @@ const Dashboard = () => {
               </div>
               
               {/* Filter controls */}
-              <div className="p-3 bg-[#202024]/20 border-b border-[#232326] space-y-2">
+              <div className="p-3 bg-[var(--surface-2)]/20 border-b border-[var(--border)] space-y-2">
                 <div className="relative">
                   <input
                     type="text"
                     placeholder="Search alert logs..."
                     value={alertSearch}
                     onChange={(e) => setAlertSearch(e.target.value)}
-                    className="w-full bg-[#18181b] border border-[#232326] rounded-lg px-2.5 py-1.5 pl-8 text-[11px] text-white placeholder-zinc-500 focus:outline-none focus:border-[#2d2d30] font-medium"
+                    className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2.5 py-1.5 pl-8 text-[11px] text-[var(--text)] placeholder-[var(--text-3)] focus:outline-none focus:border-[var(--border-strong)] font-medium"
                   />
-                  <Search size={11} className="absolute left-2.5 top-2.5 text-zinc-500" />
+                  <Search size={11} className="absolute left-2.5 top-2.5 text-[var(--text-3)]" />
                 </div>
                 <div className="flex gap-1">
                   {['all', 'fire', 'smoke'].map((f) => (
@@ -1196,8 +1194,8 @@ const Dashboard = () => {
                       onClick={() => setAlertFilter(f as any)}
                       className={`flex-1 py-1 rounded text-[9px] font-bold uppercase transition-all border ${
                         alertFilter === f 
-                          ? 'bg-[#27272a] text-white border-[#2d2d30]' 
-                          : 'bg-[#18181b] text-zinc-400 border-transparent hover:text-white'
+                          ? 'bg-[var(--surface-hover)] text-[var(--text)] border-[var(--border-strong)]' 
+                          : 'bg-[var(--surface)] text-[var(--text-2)] border-transparent hover:text-[var(--text)]'
                       }`}
                     >
                       {f}
@@ -1206,15 +1204,15 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              <div className="divide-y divide-[#232326] max-h-48 overflow-y-auto custom-scrollbar">
+              <div className="divide-y divide-[var(--border)] max-h-48 overflow-y-auto custom-scrollbar">
                 {filteredAlerts.length === 0 ? (
-                  <div className="py-8 text-center text-[11px] text-zinc-500 bg-[#18181b]">No alerts matching filters.</div>
+                  <div className="py-8 text-center text-[11px] text-[var(--text-3)] bg-[#18181b]">No alerts matching filters.</div>
                 ) : (
                   filteredAlerts.map((alert: any) => (
                     <div
                       key={alert.id}
                       onClick={() => navigate('/alerts-reports')}
-                      className="flex items-start gap-2.5 px-4 py-2.5 hover:bg-[#202024] cursor-pointer transition-colors bg-[#18181b]"
+                      className="flex items-start gap-2.5 px-4 py-2.5 hover:bg-[var(--surface-hover)] cursor-pointer transition-colors bg-[var(--surface)]"
                     >
                       <span className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${alert.detection_type === 'fire' ? 'bg-red-500' : 'bg-amber-500'} ${alert.status === 'active' ? 'animate-pulse' : 'opacity-40'}`} />
                       <div className="flex-1 min-w-0">
@@ -1222,10 +1220,10 @@ const Dashboard = () => {
                           <span className={`text-[10px] font-bold capitalize ${alert.detection_type === 'fire' ? 'text-red-400' : 'text-amber-400'}`}>
                             {alert.detection_type}
                           </span>
-                          <span className="text-[9px] text-zinc-400 font-mono">{(alert.confidence * 100).toFixed(0)}% Match</span>
+                          <span className="text-[9px] text-[var(--text-3)] font-mono">{(alert.confidence * 100).toFixed(0)}% Match</span>
                         </div>
-                        <p className="text-[10px] text-zinc-300 truncate">{alert.camera_id || 'System Input'}</p>
-                        <p className="text-[8px] text-zinc-500">{new Date(alert.timestamp).toLocaleTimeString()}</p>
+                        <p className="text-[10px] text-[var(--text-2)] truncate">{alert.camera_id || 'System Input'}</p>
+                        <p className="text-[8px] text-[var(--text-3)]">{new Date(alert.timestamp).toLocaleTimeString()}</p>
                       </div>
                     </div>
                   ))
@@ -1234,28 +1232,28 @@ const Dashboard = () => {
             </motion.div>
 
             {/* Active Incidents */}
-            <motion.div variants={fadeUp} className="bg-[#18181b] border border-[#232326] rounded-xl shadow-xs overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-[#232326] bg-[#202024]/30">
+            <motion.div variants={fadeUp} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xs overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--surface-2)]/30">
                 <span className="text-[11px] font-bold text-white uppercase tracking-wider">Active Incident Tickets</span>
               </div>
-              <div className="divide-y divide-[#232326] max-h-40 overflow-y-auto custom-scrollbar">
+              <div className="divide-y divide-[var(--border)] max-h-40 overflow-y-auto custom-scrollbar">
                 {incidents.length === 0 ? (
-                  <div className="py-8 text-center text-[11px] text-zinc-500 bg-[#18181b]">No incidents flagged.</div>
+                  <div className="py-8 text-center text-[11px] text-[var(--text-3)] bg-[#18181b]">No incidents flagged.</div>
                 ) : (
                   incidents.slice(0, 4).map((inc: any) => (
                     <div
                       key={inc.id}
                       onClick={() => navigate('/alerts-reports')}
-                      className="flex items-center justify-between px-4 py-2.5 hover:bg-[#202024] cursor-pointer transition-colors bg-[#18181b]"
+                      className="flex items-center justify-between px-4 py-2.5 hover:bg-[var(--surface-hover)] cursor-pointer transition-colors bg-[var(--surface)]"
                     >
                       <div className="flex-1 min-w-0 mr-2">
-                        <p className="text-[11px] font-bold text-white truncate">{inc.title}</p>
-                        <p className="text-[9px] text-zinc-400 mt-0.5 truncate">{inc.description || 'No notes'}</p>
+                        <p className="text-[11px] font-bold text-[var(--text)] truncate">{inc.title}</p>
+                        <p className="text-[9px] text-[var(--text-2)] mt-0.5 truncate">{inc.description || 'No notes'}</p>
                       </div>
                       <span className={`shrink-0 text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase ${
                         inc.severity === 'critical' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
                         inc.severity === 'high' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                        'bg-zinc-800 text-zinc-400 border-zinc-700'
+                        'bg-[var(--surface-2)] text-[var(--text-2)] border border-[var(--border)]'
                       }`}>
                         {inc.severity}
                       </span>
@@ -1266,9 +1264,9 @@ const Dashboard = () => {
             </motion.div>
 
             {/* Timeline */}
-            <motion.div variants={fadeUp} className="bg-[#18181b] border border-[#232326] rounded-xl shadow-xs overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-[#232326] bg-[#202024]/30">
-                <span className="text-[11px] font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+            <motion.div variants={fadeUp} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xs overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--surface-2)]/30">
+                <span className="text-[11px] font-bold text-[var(--text)] uppercase tracking-wider flex items-center gap-1.5">
                   <Activity size={12} className="text-blue-500" /> Threat Analytics Timeline
                 </span>
               </div>
@@ -1285,9 +1283,9 @@ const Dashboard = () => {
                         <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#232326" vertical={false} />
-                    <XAxis dataKey="time" tick={{ fontSize: 8, fill: '#71717a' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 8, fill: '#71717a' }} axisLine={false} tickLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                    <XAxis dataKey="time" tick={{ fontSize: 8, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 8, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
                     <Tooltip content={<ChartTooltip />} />
                     <Area type="monotone" dataKey="fire"  stroke="#ef4444" strokeWidth={1.5} fill="url(#gFire)"  name="Fire" />
                     <Area type="monotone" dataKey="smoke" stroke="#f59e0b" strokeWidth={1.5} fill="url(#gSmoke)" name="Smoke" />
