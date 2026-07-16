@@ -320,10 +320,9 @@ const Layout = () => {
 
             {/* Logout */}
             <button
-              onClick={async () => {
-                try { await import('../services/api').then(m => m.logoutApi()); } catch { /* ignore */ }
+              onClick={() => {
                 logout();
-                toast('Signed out', 'success');
+                toast('Signed out successfully', 'success');
                 navigate('/login');
               }}
               className="p-2 rounded-lg text-[var(--text-2)] hover:text-[var(--fire)] hover:bg-[var(--fire-bg)] transition-colors"

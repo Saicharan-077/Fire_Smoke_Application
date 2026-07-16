@@ -849,16 +849,25 @@ const Dashboard = () => {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="bg-[var(--surface)] border border-amber-500/20 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex-1">
-                <h4 className="text-[12px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1">
-                  💡 Presentation Threat Injector Controls
-                </h4>
-                <p className="text-[11px] text-[var(--text-2)] mt-1">
-                  Select any CCTV camera to inject a simulated threat. Watch the grid re-sort, highlight the active feed, sound the siren, and provide alert options.
-                </p>
+            <div className="bg-[var(--surface)] border border-amber-500/20 rounded-xl p-4 flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                  <h4 className="text-[12px] font-bold text-amber-500 uppercase tracking-wider flex items-center gap-1">
+                    💡 Presentation Threat Injector Controls
+                  </h4>
+                  <p className="text-[11px] text-[var(--text-3)] mt-0.5">
+                    Select any CCTV camera to inject a simulated threat. Watch the grid re-sort, highlight the active feed, sound the siren, and provide alert options.
+                  </p>
+                </div>
+                <button
+                  onClick={clearAllThreats}
+                  className="w-full sm:w-auto px-3.5 py-1.5 bg-red-500 text-white text-[10px] font-bold rounded-lg hover:bg-red-600 transition-colors shadow-sm text-center"
+                >
+                  Clear All Threats
+                </button>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[var(--border)]/40">
                 {camerasState.filter(c => c.status === 'online').map((cam) => {
                   const hasThreat = !!injectedThreats[cam.id];
                   return (
@@ -890,12 +899,6 @@ const Dashboard = () => {
                     </div>
                   );
                 })}
-                <button
-                  onClick={clearAllThreats}
-                  className="px-3.5 py-1.5 bg-red-500 text-white text-[10px] font-bold rounded-lg hover:bg-red-600 transition-colors shadow-sm"
-                >
-                  Clear All Threats
-                </button>
               </div>
             </div>
           </motion.div>
