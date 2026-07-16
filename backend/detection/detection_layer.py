@@ -7,6 +7,7 @@ import json
 import uuid
 from datetime import datetime
 from ultralytics import YOLO
+import time
 from typing import List, Dict, Tuple, Any, Generator
 
 from .config import DetectionConfig, get_mode_presets, FireVerificationConfig, SmokeVerificationConfig
@@ -123,18 +124,17 @@ class DetectionLayer:
 
     # ── Stage 2: Verification Engine ──────────────────────────────────────────
 
-    def verify_fire(self, roi: np.ndarray, config: FireVerificationConfig) -> Tuple[bool, str, dict]:
+    def verify_fire(self, roi_bgr: np.ndarray, roi_hsv: np.ndarray, config: FireVerificationConfig) -> Tuple[bool, str, dict]:
         """Fire verification using color, brightness, saturation and component filters."""
-        if roi.size == 0 or roi.shape[0] == 0 or roi.shape[1] == 0:
+        if roi_bgr.size == 0 or roi_bgr.shape[0] == 0 or roi_bgr.shape[1] == 0:
             return False, "empty_roi", {}
 
-        hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        total_pixels = hsv.shape[0] * hsv.shape[1]
+        total_pixels = roi_hsv.shape[0] * roi_hsv.shape[1]
 
         # 1. Multi-range fire color masking
-        fire_mask = np.zeros(hsv.shape[:2], dtype=np.uint8)
+        fire_mask = np.zeros(roi_hsv.shape[:2], dtype=np.uint8)
         for lower, upper in config.hsv_ranges:
-            mask = cv2.inRange(hsv, np.array(lower), np.array(upper))
+            mask = cv2.inRange(roi_hsv, np.array(lower), np.array(upper))
             fire_mask = cv2.bitwise_or(fire_mask, mask)
 
         # 2. Morphological noise removal
@@ -154,7 +154,7 @@ class DetectionLayer:
 
         # 5. Brightness (V) & Saturation (S)
         if valid_pixels > 0:
-            active_hsv = hsv[fire_mask > 0]
+            active_hsv = roi_hsv[fire_mask > 0]
             avg_sat = float(np.mean(active_hsv[:, 1]))
             avg_val = float(np.mean(active_hsv[:, 2]))
         else:
@@ -178,34 +178,32 @@ class DetectionLayer:
 
         return True, "passed", scores
 
-    def verify_smoke(self, roi: np.ndarray, config: SmokeVerificationConfig) -> Tuple[bool, str, dict]:
+    def verify_smoke(self, roi_bgr: np.ndarray, roi_hsv: np.ndarray, roi_gray: np.ndarray, config: SmokeVerificationConfig) -> Tuple[bool, str, dict]:
         """Smoke verification checking texture, desaturation, edges, entropy, and blur."""
-        if roi.size == 0 or roi.shape[0] == 0 or roi.shape[1] == 0:
+        if roi_bgr.size == 0 or roi_bgr.shape[0] == 0 or roi_bgr.shape[1] == 0:
             return False, "empty_roi", {}
 
-        hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-        total_pixels = gray.size
+        total_pixels = roi_gray.size
 
         # 1. Saturation distribution (smoke is desaturated gray)
-        avg_sat = float(np.mean(hsv[:, :, 1]))
+        avg_sat = float(np.mean(roi_hsv[:, :, 1]))
         if avg_sat > config.max_saturation:
             return False, f"highly_saturated (sat={avg_sat:.1f} > max={config.max_saturation})", {"avg_saturation": round(avg_sat, 2)}
 
         # 2. Brightness minimum (smoke shouldn't be deep shadows/black)
-        avg_val = float(np.mean(hsv[:, :, 2]))
+        avg_val = float(np.mean(roi_hsv[:, :, 2]))
         if avg_val < config.min_brightness:
             return False, f"too_dark (brightness={avg_val:.1f} < min={config.min_brightness})", {"avg_brightness": round(avg_val, 2)}
 
         # 3. Gray/White dominance (Neutral chroma check: max(BGR) - min(BGR) should be low)
-        b, g, r = cv2.split(roi)
+        b, g, r = cv2.split(roi_bgr)
         chroma_diff = cv2.absdiff(cv2.max(cv2.max(b, g), r), cv2.min(cv2.min(b, g), r))
         avg_chroma = float(np.mean(chroma_diff))
         if avg_chroma > config.max_chroma:
             return False, f"high_chroma (chroma={avg_chroma:.1f} > max={config.max_chroma})", {"avg_chroma": round(avg_chroma, 2)}
 
         # 4. Local texture variance (std dev)
-        texture_std = float(np.std(gray))
+        texture_std = float(np.std(roi_gray))
         if texture_std < config.min_texture_std or texture_std > config.max_texture_std:
             return False, f"bad_texture_variance (std={texture_std:.2f} outside [{config.min_texture_std}, {config.max_texture_std}])", {"texture_std": round(texture_std, 2)}
 
@@ -214,28 +212,28 @@ class DetectionLayer:
             return False, f"high_contrast (contrast={texture_std:.1f} > max={config.max_contrast})", {"texture_std": round(texture_std, 2)}
 
         # 6. Edge density (Canny edges ratio)
-        edges = cv2.Canny(gray, 50, 150)
+        edges = cv2.Canny(roi_gray, 50, 150)
         edge_density = float(np.count_nonzero(edges) / total_pixels) if total_pixels > 0 else 0.0
         if edge_density > config.max_edge_density:
             return False, f"high_edge_density (edges={edge_density:.4f} > max={config.max_edge_density})", {"edge_density": round(edge_density, 4)}
 
         # 7. Color/grayscale entropy
-        hist = cv2.calcHist([gray], [0], None, [256], [0, 256])
+        hist = cv2.calcHist([roi_gray], [0], None, [256], [0, 256])
         hist = hist.ravel() / (hist.sum() + 1e-7)
         entropy = float(-np.sum(hist * np.log2(hist + 1e-7)))
         if entropy < config.min_entropy or entropy > config.max_entropy:
             return False, f"bad_entropy (entropy={entropy:.2f} outside [{config.min_entropy}, {config.max_entropy}])", {"entropy": round(entropy, 2)}
 
         # 8. Blur characteristics (Variance of Laplacian)
-        laplacian_var = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+        laplacian_var = float(cv2.Laplacian(roi_gray, cv2.CV_64F).var())
         if laplacian_var > config.max_laplacian_var:
             return False, f"sharp_structures (laplacian_var={laplacian_var:.1f} > max={config.max_laplacian_var})", {"laplacian_var": round(laplacian_var, 2)}
         if laplacian_var < config.min_laplacian_var:
             return False, f"too_blurry_or_uniform (laplacian_var={laplacian_var:.1f} < min={config.min_laplacian_var})", {"laplacian_var": round(laplacian_var, 2)}
 
         # 9. Diffusion patterns (Sobel magnitude check)
-        sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
-        sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
+        sobelx = cv2.Sobel(roi_gray, cv2.CV_64F, 1, 0, ksize=3)
+        sobely = cv2.Sobel(roi_gray, cv2.CV_64F, 0, 1, ksize=3)
         grad_mag = cv2.magnitude(sobelx, sobely)
         avg_grad = float(np.mean(grad_mag))
         if avg_grad > config.max_gradient_mag:
@@ -304,6 +302,10 @@ class DetectionLayer:
         h, w = frame.shape[:2]
         verified_detections = []
 
+        # Convert full image once to avoid repeated color conversions inside the loop
+        hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
         for det in raw_detections:
             bb = det["bbox"]
             x1, y1, x2, y2 = bb["x1"], bb["y1"], bb["x2"], bb["y2"]
@@ -318,13 +320,27 @@ class DetectionLayer:
                 self._log_rejection(det["confidence"], det["detection_type"], "invalid_coordinates", {}, np.array([]), camera_id)
                 continue
 
-            roi = frame[cy1:cy2, cx1:cx2]
+            roi_bgr = frame[cy1:cy2, cx1:cx2]
+            roi_hsv = hsv_frame[cy1:cy2, cx1:cx2]
+            roi_gray = gray_frame[cy1:cy2, cx1:cx2]
+
+            # Resize ROI if larger than max_dim (e.g. 256) to optimize CPU processing speeds
+            max_dim = 256
+            h_roi, w_roi = roi_bgr.shape[:2]
+            if h_roi > max_dim or w_roi > max_dim:
+                scale = max_dim / max(h_roi, w_roi)
+                new_w = int(w_roi * scale)
+                new_h = int(h_roi * scale)
+                roi_bgr = cv2.resize(roi_bgr, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+                roi_hsv = cv2.resize(roi_hsv, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+                roi_gray = cv2.resize(roi_gray, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+
             det_type = det["detection_type"]
 
             if det_type == "fire":
-                is_valid, reason, scores = self.verify_fire(roi, active_cfg.fire)
+                is_valid, reason, scores = self.verify_fire(roi_bgr, roi_hsv, active_cfg.fire)
             elif det_type == "smoke":
-                is_valid, reason, scores = self.verify_smoke(roi, active_cfg.smoke)
+                is_valid, reason, scores = self.verify_smoke(roi_bgr, roi_hsv, roi_gray, active_cfg.smoke)
             else:
                 is_valid, reason, scores = False, f"unsupported_class_{det_type}", {}
 
@@ -342,7 +358,7 @@ class DetectionLayer:
                 verified_detections.append(det)
             else:
                 logger.info(f"[Stage 2 Reject] {det_type} conf={det['confidence']:.4f} rejected: {reason}")
-                self._log_rejection(det["confidence"], det_type, reason, scores, roi, camera_id)
+                self._log_rejection(det["confidence"], det_type, reason, scores, roi_bgr, camera_id)
 
         return verified_detections
 
@@ -366,7 +382,8 @@ class DetectionLayer:
             verbose=False,
             conf=active_cfg.conf_threshold,
             iou=active_cfg.iou_threshold,
-            device=self.device
+            device=self.device,
+            half=(self.device == "cuda")
         )
         
         raw_candidates = []
@@ -395,19 +412,39 @@ class DetectionLayer:
 
     def detect_image(self, frame: np.ndarray, db_settings: dict | None = None) -> Tuple[np.ndarray, List[Dict[str, Any]]]:
         """Single entry point for image inference. Returns (annotated_frame, detections)."""
-        active_cfg = self._merge_db_settings(db_settings)
+        t_start = time.perf_counter()
         
-        # Stage 1: YOLO candidate detection
+        t_prep_start = time.perf_counter()
+        active_cfg = self._merge_db_settings(db_settings)
+        t_prep = (time.perf_counter() - t_prep_start) * 1000.0
+        
+        # Stage 1: AI YOLOv8 model inference
+        t_inf_start = time.perf_counter()
         raw_dets = self._run_stage1_ai(frame, active_cfg)
+        t_inf = (time.perf_counter() - t_inf_start) * 1000.0
+        
         if not raw_dets:
-            # Safe Frame - return input with empty list
+            t_total = (time.perf_counter() - t_start) * 1000.0
+            logger.info(
+                f"[Inference Profile] Image Upload | Prep: {t_prep:.2f}ms | YOLO Inference: {t_inf:.2f}ms | "
+                f"Verification: 0.00ms | Total: {t_total:.2f}ms | Detections: 0"
+            )
             return frame, []
 
-        # Stage 2: Deterministic verification
+        # Stage 2: Verification
+        t_ver_start = time.perf_counter()
         verified_dets = self._run_stage2_verification(frame, raw_dets, active_cfg, camera_id="IMAGE-UPLOAD")
+        t_ver = (time.perf_counter() - t_ver_start) * 1000.0
         
         # Annotate
         annotated = self.annotate_frame(frame, verified_dets)
+        
+        t_total = (time.perf_counter() - t_start) * 1000.0
+        det_summary = ", ".join([f"{d['detection_type']} ({d['confidence']:.2f})" for d in verified_dets]) or "none"
+        logger.info(
+            f"[Inference Profile] Image Upload | Prep: {t_prep:.2f}ms | YOLO Inference: {t_inf:.2f}ms | "
+            f"Verification: {t_ver:.2f}ms | Total: {t_total:.2f}ms | Detections: {len(verified_dets)} ({det_summary})"
+        )
         return annotated, verified_dets
 
     def temporal_verify(self, source_id: str, detections: List[Dict[str, Any]], active_cfg: DetectionConfig) -> List[Dict[str, Any]]:
@@ -451,6 +488,9 @@ class DetectionLayer:
         """Continuous frame inference supporting motion filtering.
            Returns (annotated_frame, detections, did_infer).
         """
+        t_start = time.perf_counter()
+        
+        t_prep_start = time.perf_counter()
         active_cfg = self._merge_db_settings(db_settings)
 
         # 1. Motion filtering logic (runs on original resolution before resizing)
@@ -470,20 +510,40 @@ class DetectionLayer:
                 if ratio <= 0.005:  # motion threshold
                     # Reset temporal tracking state on skip
                     _ = self.temporal_verify(source_id, [], active_cfg)
+                    t_total = (time.perf_counter() - t_start) * 1000.0
+                    logger.debug(f"[Inference Skip] Camera {source_id} skipped due to lack of motion ({t_total:.2f}ms)")
                     return frame, [], False
+        t_prep = (time.perf_counter() - t_prep_start) * 1000.0
 
         # Run AI + Verification
+        t_inf_start = time.perf_counter()
         raw_dets = self._run_stage1_ai(frame, active_cfg)
+        t_inf = (time.perf_counter() - t_inf_start) * 1000.0
+        
         if not raw_dets:
             _ = self.temporal_verify(source_id, [], active_cfg)
+            t_total = (time.perf_counter() - t_start) * 1000.0
+            logger.info(
+                f"[Inference Profile] Camera {source_id} | Prep: {t_prep:.2f}ms | YOLO Inference: {t_inf:.2f}ms | "
+                f"Verification: 0.00ms | Total: {t_total:.2f}ms | Detections: 0"
+            )
             return frame, [], True
 
+        t_ver_start = time.perf_counter()
         verified_dets = self._run_stage2_verification(frame, raw_dets, active_cfg, camera_id=source_id)
         
         # Apply temporal consistency verification
         temporally_verified_dets = self.temporal_verify(source_id, verified_dets, active_cfg)
+        t_ver = (time.perf_counter() - t_ver_start) * 1000.0
         
         annotated = self.annotate_frame(frame, temporally_verified_dets)
+        
+        t_total = (time.perf_counter() - t_start) * 1000.0
+        det_summary = ", ".join([f"{d['detection_type']} ({d['confidence']:.2f})" for d in temporally_verified_dets]) or "none"
+        logger.info(
+            f"[Inference Profile] Camera {source_id} | Prep: {t_prep:.2f}ms | YOLO Inference: {t_inf:.2f}ms | "
+            f"Verification: {t_ver:.2f}ms | Total: {t_total:.2f}ms | Detections: {len(temporally_verified_dets)} ({det_summary})"
+        )
         return annotated, temporally_verified_dets, True
 
     def detect_video(self, video_path: str, consecutive: int = 3, db_settings: dict | None = None) -> Generator[Tuple[int, List[Dict[str, Any]], np.ndarray], None, None]:

@@ -8,16 +8,16 @@ logger = logging.getLogger("fireguard.detection.config")
 class FireVerificationConfig(BaseModel):
     hsv_ranges: List[Tuple[Tuple[int, int, int], Tuple[int, int, int]]] = Field(
         default=[
-            ((0, 80, 100), (25, 255, 255)),     # Red-orange fire
-            ((160, 80, 100), (180, 255, 255)),   # Deep red wraparound
-            ((25, 80, 130), (45, 255, 255)),     # Yellow-orange fire
+            ((0, 50, 80), (25, 255, 255)),     # Red-orange fire (expanded saturation & brightness)
+            ((150, 50, 80), (180, 255, 255)),   # Deep red wraparound (expanded saturation & brightness)
+            ((25, 50, 100), (45, 255, 255)),    # Yellow-orange fire (expanded saturation & brightness)
         ],
         description="List of HSV range bounds (lower_bound, upper_bound) for fire color."
     )
-    min_pixel_ratio: float = Field(0.06, description="Minimum ratio of fire pixels in ROI.")
-    min_brightness: float = Field(110.0, description="Minimum average V value of fire pixels.")
-    min_saturation: float = Field(70.0, description="Minimum average S value of fire pixels.")
-    min_component_size: int = Field(5, description="Minimum connected component area to filter out single-pixel noise.")
+    min_pixel_ratio: float = Field(0.02, description="Minimum ratio of fire pixels in ROI.")
+    min_brightness: float = Field(80.0, description="Minimum average V value of fire pixels.")
+    min_saturation: float = Field(50.0, description="Minimum average S value of fire pixels.")
+    min_component_size: int = Field(4, description="Minimum connected component area to filter out single-pixel noise.")
 
 class SmokeVerificationConfig(BaseModel):
     max_saturation: float = Field(100.0, description="Maximum average S value of smoke ROI (smoke is desaturated).")
@@ -60,10 +60,10 @@ def get_mode_presets(mode: str) -> dict:
         return {
             "conf_threshold": 0.55,
             "fire": {
-                "min_pixel_ratio": 0.10,
-                "min_brightness": 130.0,
-                "min_saturation": 85.0,
-                "min_component_size": 8,
+                "min_pixel_ratio": 0.06,
+                "min_brightness": 120.0,
+                "min_saturation": 75.0,
+                "min_component_size": 6,
             },
             "smoke": {
                 "max_saturation": 80.0,
@@ -76,10 +76,10 @@ def get_mode_presets(mode: str) -> dict:
         return {
             "conf_threshold": 0.30,
             "fire": {
-                "min_pixel_ratio": 0.03,
-                "min_brightness": 90.0,
-                "min_saturation": 50.0,
-                "min_component_size": 3,
+                "min_pixel_ratio": 0.01,
+                "min_brightness": 70.0,
+                "min_saturation": 40.0,
+                "min_component_size": 2,
             },
             "smoke": {
                 "max_saturation": 130.0,
