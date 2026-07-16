@@ -34,6 +34,7 @@ const SettingsPage = () => {
   const [iouThreshold, setIouThreshold] = useState(0.45);
   const [frameInterval, setFrameInterval] = useState(3);
   const [saveEvidence, setSaveEvidence] = useState(true);
+  const [operatingMode, setOperatingMode] = useState('Balanced');
 
   const fetchAIConfig = async () => {
     try {
@@ -48,6 +49,8 @@ const SettingsPage = () => {
       if (skip) setFrameInterval(parseInt(skip));
       const save = res.find((s: any) => s.id === 'save_evidence')?.value;
       if (save) setSaveEvidence(save === 'true');
+      const mode = res.find((s: any) => s.id === 'operating_mode')?.value;
+      if (mode) setOperatingMode(mode);
     } catch { /* defaults */ }
   };
 
@@ -59,6 +62,7 @@ const SettingsPage = () => {
         iou_threshold: String(iouThreshold),
         frame_skip: String(frameInterval),
         save_evidence: String(saveEvidence),
+        operating_mode: operatingMode,
       });
       toast('AI configuration saved successfully', 'success');
     } catch (e: any) {
@@ -209,6 +213,19 @@ const SettingsPage = () => {
                 <p className="text-[12px] text-[var(--text-2)] font-semibold mt-0.5">Adjust inference thresholds and detection behavior</p>
               </div>
               <div className="p-5 space-y-5">
+                <div className="flex flex-col gap-1.5 pb-4 border-b border-[var(--border)]">
+                  <p className="text-[13px] font-bold text-[var(--text)]">Pipeline Sensitivity Preset</p>
+                  <p className="text-[12px] text-[var(--text-2)] font-semibold mb-2">Select a predefined sensitivity profile. Changing a profile automatically loads thresholds.</p>
+                  <select
+                    value={operatingMode}
+                    onChange={(e) => setOperatingMode(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-[13px] text-[var(--text)] outline-none focus:border-[var(--primary)] transition-all cursor-pointer"
+                  >
+                    <option value="Balanced">Balanced Preset (Recommended)</option>
+                    <option value="High Precision">High Precision (Minimize False Alarms)</option>
+                    <option value="High Recall">High Recall (Capture All Events)</option>
+                  </select>
+                </div>
                 <SliderField
                   label="Fire Match Confidence"
                   desc="Minimum confidence required to trigger a fire alert. Elevated to reduce false positives."

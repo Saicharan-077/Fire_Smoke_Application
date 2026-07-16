@@ -19,9 +19,12 @@ def initialize_default_settings(db: Session):
     defaults = {
         "enable_sound_alerts": ("true", "Play audible warning sirens when a threat is identified", "notifications"),
         "enable_email_alerts": ("false", "Send high-priority email alerts to operations teams", "notifications"),
-        "fire_min_confidence": ("0.40", "Minimum match confidence threshold for fire detections", "ai"),
-        "smoke_min_confidence": ("0.50", "Minimum match confidence threshold for smoke detections", "ai"),
+        "fire_min_confidence": ("0.50", "Minimum match confidence threshold for fire detections", "ai"),
+        "smoke_min_confidence": ("0.60", "Minimum match confidence threshold for smoke detections", "ai"),
+        "iou_threshold": ("0.45", "Intersection over Union threshold for overlapping box suppression", "ai"),
+        "frame_skip": ("0", "Number of frames to skip between inferences in video/stream mode", "ai"),
         "enable_motion_filtering": ("false", "Filter out static frames to speed up stream processing", "ai"),
+        "operating_mode": ("Balanced", "Detection sensitivity presets: Balanced | High Precision | High Recall", "ai"),
         "retention_days": ("30", "Duration in days to store alert images and database events", "general"),
     }
     for key, (val, desc, cat) in defaults.items():
@@ -29,7 +32,7 @@ def initialize_default_settings(db: Session):
         if not existing:
             setting = models.Setting(id=key, value=val, description=desc, category=cat)
             db.add(setting)
-        elif key in ("fire_min_confidence", "smoke_min_confidence") and existing.value in ("0.15", "0.25"):
+        elif key in ("fire_min_confidence", "smoke_min_confidence") and existing.value in ("0.15", "0.25", "0.40", "0.50"):
             existing.value = val
     db.commit()
 

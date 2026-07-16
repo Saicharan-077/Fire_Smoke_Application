@@ -4,13 +4,14 @@ import {
   Flame, LayoutDashboard, Settings, Bell, LogOut,
   Camera, BarChart3, Shield, Menu,
   ChevronRight, ChevronLeft, Search, AlertTriangle,
-  Video, History
+  Video, History, Sun, Moon, Sparkles
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useNotificationsStore } from '../store/notificationsStore';
 import { usePermissions } from '../hooks/usePermissions';
 import { useToast } from './ui/Toast';
 import { NotificationsHub } from './SOC/NotificationsHub';
+import { useAppSettingsStore } from '../store/appSettingsStore';
 
 const Layout = () => {
   const location = useLocation();
@@ -19,6 +20,7 @@ const Layout = () => {
   const { hasPermission: can } = usePermissions();
   const { history: notifHistory, unreadCount, markAsRead, markAllAsRead, clearHistory } = useNotificationsStore();
   const { toast } = useToast();
+  const { theme: currentTheme, cycleTheme } = useAppSettingsStore();
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
@@ -293,6 +295,17 @@ const Layout = () => {
                 </div>
               )}
             </div>
+
+            {/* Theme Switcher */}
+            <button
+              onClick={cycleTheme}
+              className="p-2 rounded-lg text-[var(--text-2)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] transition-colors mr-1"
+              title={`Switch Theme (Current: ${currentTheme})`}
+            >
+              {currentTheme === 'light' && <Sun size={15} />}
+              {currentTheme === 'dark' && <Moon size={15} />}
+              {currentTheme === 'midnight' && <Sparkles size={15} />}
+            </button>
 
             {/* Profile avatar */}
             <button
