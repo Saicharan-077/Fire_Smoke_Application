@@ -1,4 +1,4 @@
-# FireGuard AI — API Reference
+# SentinelOS — API Reference
 
 Base URL: `http://localhost:8000`  
 Authentication: `Authorization: Bearer <session_token>`
@@ -17,7 +17,7 @@ Interactive docs: http://localhost:8000/docs
 ```json
 {
   "status": "ok",
-  "service": "FireGuard AI",
+  "service": "SentinelOS",
   "version": "1.0.0",
   "model_ready": true,
   "timestamp": "2026-07-03T10:00:00"
@@ -39,7 +39,7 @@ Interactive docs: http://localhost:8000/docs
 
 **Login Request:**
 ```json
-{ "username_or_email": "admin@fireguard.ai", "password": "Admin@123" }
+{ "username_or_email": "admin@sentinelos.ai", "password": "Admin@123" }
 ```
 
 **Login Response:**

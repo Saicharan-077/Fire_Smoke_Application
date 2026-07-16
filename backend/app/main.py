@@ -228,7 +228,7 @@ def seed_database():
                 ("LOGIN", "User logged in successfully from session: b89f..."),
                 ("CAMERA_CREATE", "Created camera stream configuration for CAM-05"),
                 ("SETTING_UPDATE", "Modified configuration: fire_min_confidence from 0.20 to 0.15"),
-                ("ALERT_RESOLVE", "Incident alert-id-1004 marked as RESOLVED by operator@fireguard.ai"),
+                ("ALERT_RESOLVE", "Incident alert-id-1004 marked as RESOLVED by operator@sentinelos.ai"),
             ]
             for action, details in actions:
                 log = models.AuditLog(

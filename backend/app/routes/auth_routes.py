@@ -177,7 +177,7 @@ def register(body: schemas.UserRegister, db: Session = Depends(get_db)):
     # Dynamic email-based role assignment
     email_lower = body.email.lower()
     role = "viewer"
-    if email_lower.endswith("@fireguard.ai"):
+    if email_lower.endswith("@sentinelos.ai"):
         requested_role = (body.role or "viewer").lower()
         if requested_role == "admin":
             requested_role = "administrator"

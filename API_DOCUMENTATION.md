@@ -1,6 +1,6 @@
-# API Documentation — FireGuard AI
+# API Documentation — SentinelOS
 
-FireGuard AI exposes a RESTful API built on **FastAPI** using JWT Bearer Token authentication.
+SentinelOS exposes a RESTful API built on **FastAPI** using JWT Bearer Token authentication.
 
 ## Base URL
 All API requests should be sent to:
@@ -23,7 +23,7 @@ Authorization: Bearer <your_jwt_token>
 * **Payload**:
   ```json
   {
-    "email": "operator@fireguard.ai",
+    "email": "operator@sentinelos.ai",
     "password": "Operator@123"
   }
   ```
@@ -34,7 +34,7 @@ Authorization: Bearer <your_jwt_token>
     "token_type": "bearer",
     "user": {
       "id": "8cfed8bf...",
-      "username": "operator@fireguard.ai",
+      "username": "operator@sentinelos.ai",
       "role": "operator"
     }
   }
@@ -46,7 +46,7 @@ Authorization: Bearer <your_jwt_token>
 * **Payload**:
   ```json
   {
-    "username": "new_ops@fireguard.ai",
+    "username": "new_ops@sentinelos.ai",
     "password": "Password@123",
     "role": "operator"
   }

@@ -122,7 +122,7 @@ def export_incidents_pdf(
     
     y = height - 50
     c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, y, "FireGuard AI — Incident Tickets Export")
+    c.drawString(50, y, "SentinelOS — Incident Tickets Export")
     y -= 30
     
     c.setFont("Helvetica-Bold", 8)

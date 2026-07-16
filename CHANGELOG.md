@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to FireGuard AI.
+All notable changes to SentinelOS.
 
 ---
 

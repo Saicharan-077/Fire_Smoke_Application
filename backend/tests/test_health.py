@@ -1,4 +1,4 @@
-"""Smoke tests for FireGuard AI backend."""
+"""Smoke tests for SentinelOS backend."""
 import os
 import sys
 
@@ -18,7 +18,7 @@ def test_health_endpoint():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
-    assert data["service"] == "FireGuard AI"
+    assert data["service"] == "SentinelOS"
     assert "model_ready" in data
 
 
@@ -42,7 +42,7 @@ def test_registration_role_assignment():
     # 1. Corporate domain gets requested role
     reg_payload_corp = {
         "username": f"corp_op_{suffix}",
-        "email": f"corp_op_{suffix}@fireguard.ai",
+        "email": f"corp_op_{suffix}@sentinelos.ai",
         "password": "Password@123",
         "role": "operator"
     }

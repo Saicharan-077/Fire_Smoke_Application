@@ -1,6 +1,6 @@
-# FireGuard AI — Architecture Report (Phase 1)
+# SentinelOS — Architecture Report (Phase 1)
 
-> This document captures the **current** architecture after Phase 1 analysis and provides the **target-state blueprint** for the “FireGuard AI” transformation.
+> This document captures the **current** architecture after Phase 1 analysis and provides the **target-state blueprint** for the “SentinelOS” transformation.
 
 ## 1. Current repository (as analyzed)
 
@@ -53,7 +53,7 @@ Key behaviors:
   - `detection_events`
 
 ### 1.2 Frontend (React + TS)
-**Canonical frontend (currently inspected)**: `fireguard-ai/frontend/src/`
+**Canonical frontend (currently inspected)**: `sentinelos/frontend/src/`
 
 Observations:
 - Dashboard:
@@ -63,11 +63,11 @@ Observations:
 - Live feed:
   - Uses WebSocket messages (`new_alert`) to show overlay per “camera id”.
   - Uses mock camera data and unsafely default camera mapping when WS payload lacks camera id.
-- API client: `fireguard-ai/frontend/src/services/api.ts`
+- API client: `sentinelos/frontend/src/services/api.ts`
   - Provides REST calls + `connectAlertSocket()` helper.
 
 ### 1.3 Duplication/misalignment
-The repo contains duplicate trees (e.g. `src/` and `fireguard-ai/`), meaning the transformation must start with **consolidation** to avoid partial migrations.
+The repo contains duplicate trees (e.g. `src/` and `sentinelos/`), meaning the transformation must start with **consolidation** to avoid partial migrations.
 
 ---
 

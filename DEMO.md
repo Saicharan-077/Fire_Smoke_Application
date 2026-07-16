@@ -1,4 +1,4 @@
-# FireGuard AI — Demo Guide
+# SentinelOS — Demo Guide
 
 Use this guide for college presentations, hackathons, portfolio demos, and client walkthroughs.
 
@@ -8,9 +8,9 @@ Use this guide for college presentations, hackathons, portfolio demos, and clien
 
 | Role | Email | Password | Access Level |
 |------|-------|----------|--------------|
-| **Administrator** | `admin@fireguard.ai` | `Admin@123` | Full platform + Admin Panel |
-| **Operator** | `operator@fireguard.ai` | `Operator@123` | Detection, monitoring, incidents |
-| **Viewer** | `viewer@fireguard.ai` | `Viewer@123` | Read-only dashboard, reports, analytics |
+| **Administrator** | `admin@sentinelos.ai` | `Admin@123` | Full platform + Admin Panel |
+| **Operator** | `operator@sentinelos.ai` | `Operator@123` | Detection, monitoring, incidents |
+| **Viewer** | `viewer@sentinelos.ai` | `Viewer@123` | Read-only dashboard, reports, analytics |
 
 ---
 
@@ -69,7 +69,7 @@ Use this guide for college presentations, hackathons, portfolio demos, and clien
 
 ## Demo Script (Elevator Pitch)
 
-> "FireGuard AI transforms any CCTV network into an intelligent fire and smoke detection system. Our custom YOLOv8 model analyzes images, videos, and live streams in real time. When a threat is detected, alerts are pushed instantly via WebSocket to the Security Operations Center. Operators can manage incidents, export compliance reports, and monitor camera health — all from a single premium dashboard. Role-based access control ensures admins, operators, and viewers see exactly what they need."
+> "SentinelOS transforms any CCTV network into an intelligent fire and smoke detection system. Our custom YOLOv8 model analyzes images, videos, and live streams in real time. When a threat is detected, alerts are pushed instantly via WebSocket to the Security Operations Center. Operators can manage incidents, export compliance reports, and monitor camera health — all from a single premium dashboard. Role-based access control ensures admins, operators, and viewers see exactly what they need."
 
 ---
 

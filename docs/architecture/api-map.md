@@ -1,4 +1,4 @@
-# FireGuard AI — API Map (Phase 1)
+# SentinelOS — API Map (Phase 1)
 
 > Current API discovered from backend routes.
 

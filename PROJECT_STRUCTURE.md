@@ -1,4 +1,4 @@
-# FireGuard AI — Project Structure
+# SentinelOS — Project Structure
 
 Complete reference for every folder and major module in the repository.
 
@@ -83,7 +83,7 @@ Complete reference for every folder and major module in the repository.
 |------|---------|
 | `models/best.pt` | YOLOv8 trained weights |
 | `evidence/` | Runtime annotated detection images |
-| `fireguard.db` | SQLite database (auto-generated) |
+| `sentinelos.db` | SQLite database (auto-generated) |
 | `alembic/` | Database migrations |
 | `tests/` | pytest test suite |
 | `requirements.txt` | Python dependencies |

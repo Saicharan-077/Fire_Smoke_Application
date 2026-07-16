@@ -234,7 +234,7 @@ def export_history_pdf(
 
     y = height - 50
     c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, y, "FireGuard AI — History Export")
+    c.drawString(50, y, "SentinelOS — History Export")
     y -= 20
     c.setFont("Helvetica", 8)
 

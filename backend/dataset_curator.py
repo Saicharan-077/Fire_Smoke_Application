@@ -299,7 +299,7 @@ def cmd_stats(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="FireGuard AI - Training Dataset Curation Utility")
+    parser = argparse.ArgumentParser(description="SentinelOS - Training Dataset Curation Utility")
     parser.add_argument("-d", "--dataset", default="dataset", help="Path to YOLO dataset directory (default: 'dataset')")
     subparsers = parser.add_subparsers(dest="command", required=True, help="Subcommands")
 

@@ -1,9 +1,9 @@
-# FireGuard AI - Architecture Review
+# SentinelOS - Architecture Review
 
 ## Current State Analysis
 
 The legacy repository was originally designed as a PPE (Personal Protective Equipment) Detection System and underwent a partial migration. The state prior to refactor revealed several architectural anomalies:
-1. **Repository Duplication**: The workspace contained nested duplication of frontend and backend applications within a `fireguard-ai/` subdirectory.
+1. **Repository Duplication**: The workspace contained nested duplication of frontend and backend applications within a `sentinelos/` subdirectory.
 2. **Framework Selection**: 
    - **Frontend**: React + Vite + Tailwind CSS.
    - **Backend**: FastAPI + SQLAlchemy (SQLite) + YOLOv8 (ultralytics).

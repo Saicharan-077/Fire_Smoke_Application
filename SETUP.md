@@ -1,6 +1,6 @@
-# FireGuard AI — Setup Guide
+# SentinelOS — Setup Guide
 
-Step-by-step instructions to run FireGuard AI locally or in production.
+Step-by-step instructions to run SentinelOS locally or in production.
 
 ---
 
@@ -79,7 +79,7 @@ Key variables:
 
 Tables are created automatically on first startup via SQLAlchemy. Schema migrations for new columns run automatically.
 
-To reset with fresh seed data, delete `backend/fireguard.db` and restart with `SEED_DATABASE=true`.
+To reset with fresh seed data, delete `backend/sentinelos.db` and restart with `SEED_DATABASE=true`.
 
 ### Run Backend
 

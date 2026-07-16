@@ -1,4 +1,4 @@
-# FireGuard AI - Hybrid Detection Pipeline Validation Report
+# SentinelOS - Hybrid Detection Pipeline Validation Report
 
 Generated on: 2026-07-16 05:43:21 UTC
 

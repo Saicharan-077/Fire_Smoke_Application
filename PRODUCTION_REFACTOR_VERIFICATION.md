@@ -1,4 +1,4 @@
-# FireGuard AI - Production Refactor Verification Guide
+# SentinelOS - Production Refactor Verification Guide
 
 ## 📋 Verification Checklist
 
@@ -6,10 +6,10 @@
 
 #### 1.1 Database & Seeding
 - [ ] Backend starts without errors
-- [ ] Admin user created: `admin@fireguard.ai` / `password123`
+- [ ] Admin user created: `admin@sentinelos.ai` / `password123`
 - [ ] 5 Default cameras seeded (CAM-01 through CAM-05)
-- [ ] Check database: `sqlite3 backend/fireguard.db "SELECT * FROM users;"`
-- [ ] Check cameras: `sqlite3 backend/fireguard.db "SELECT id, name, status FROM cameras;"`
+- [ ] Check database: `sqlite3 backend/sentinelos.db "SELECT * FROM users;"`
+- [ ] Check cameras: `sqlite3 backend/sentinelos.db "SELECT id, name, status FROM cameras;"`
 
 #### 1.2 API Endpoints Validation
 - [ ] `GET /api/v1/cameras` returns 5 cameras
@@ -39,7 +39,7 @@
 #### 3.1 Login Page
 - [ ] Navigate to http://localhost:5173 → redirected to `/login`
 - [ ] Login page displays with:
-  - [ ] FireGuard AI branding
+  - [ ] SentinelOS branding
   - [ ] Username/Email input field
   - [ ] Password input field with show/hide toggle
   - [ ] Remember me checkbox
@@ -51,7 +51,7 @@
   - [ ] Error message displays: "Invalid username/email or password"
 - [ ] Try empty fields
   - [ ] Validation errors appear
-- [ ] Try valid credentials: `admin@fireguard.ai` / `password123`
+- [ ] Try valid credentials: `admin@sentinelos.ai` / `password123`
   - [ ] Login succeeds
   - [ ] Token stored in localStorage as `fg-token`
   - [ ] Redirected to `/dashboard`
@@ -244,7 +244,7 @@
 - [ ] Shows user avatar with initials
 - [ ] Displays current user:
   - [ ] Username: "admin"
-  - [ ] Email: "admin@fireguard.ai"
+  - [ ] Email: "admin@sentinelos.ai"
   - [ ] Role: "admin"
   - [ ] Last Login: timestamp
 - [ ] All fields read-only (informational)
@@ -325,7 +325,7 @@
 #### 11.3 Token Expiry Simulation
 - [ ] Manually expire token in database:
   ```sql
-  UPDATE users SET session_token = NULL WHERE email='admin@fireguard.ai';
+  UPDATE users SET session_token = NULL WHERE email='admin@sentinelos.ai';
   ```
 - [ ] Try API request from frontend
 - [ ] Backend returns 401
@@ -353,9 +353,9 @@ npm run build
 ### Check Backend Database
 ```bash
 cd backend
-sqlite3 fireguard.db ".schema users"
-sqlite3 fireguard.db "SELECT COUNT(*) FROM cameras;"
-sqlite3 fireguard.db "SELECT COUNT(*) FROM alerts;"
+sqlite3 sentinelos.db ".schema users"
+sqlite3 sentinelos.db "SELECT COUNT(*) FROM cameras;"
+sqlite3 sentinelos.db "SELECT COUNT(*) FROM alerts;"
 ```
 ✓ Should show User table with all columns
 ✓ Should show 5 cameras initially
@@ -402,8 +402,8 @@ sqlite3 fireguard.db "SELECT COUNT(*) FROM alerts;"
 ### Common Issues
 
 1. **Login fails with "Invalid credentials"**
-   - Verify credentials: admin@fireguard.ai / password123
-   - Check database: `SELECT * FROM users WHERE email='admin@fireguard.ai';`
+   - Verify credentials: admin@sentinelos.ai / password123
+   - Check database: `SELECT * FROM users WHERE email='admin@sentinelos.ai';`
    - Check password hash is not NULL
 
 2. **WebSocket connection fails**

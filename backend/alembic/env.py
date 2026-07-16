@@ -60,7 +60,7 @@ def run_migrations_online() -> None:
         config.set_main_option("sqlalchemy.url", url)
     else:
         # Default to postgres fallback or sqlite for local dev migrations if POSTGRES_URL not set
-        db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "fireguard.db"))
+        db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "sentinelos.db"))
         fallback_url = f"sqlite:///{db_path}"
         config.set_main_option("sqlalchemy.url", fallback_url)
 

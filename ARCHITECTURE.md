@@ -1,4 +1,4 @@
-# FireGuard AI — Architecture
+# SentinelOS — Architecture
 
 ## System Overview
 

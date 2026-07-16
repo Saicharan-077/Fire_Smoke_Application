@@ -1,7 +1,7 @@
-# FireGuard AI - Production Refactor Implementation Summary
+# SentinelOS - Production Refactor Implementation Summary
 
 ## 🎯 Project Overview
-Transformed FireGuard AI from a prototype into a production-grade Security Operations Center (SOC) Fire & Smoke Monitoring Platform with enterprise-grade authentication, real data persistence, and simplified workflows.
+Transformed SentinelOS from a prototype into a production-grade Security Operations Center (SOC) Fire & Smoke Monitoring Platform with enterprise-grade authentication, real data persistence, and simplified workflows.
 
 ---
 
@@ -24,7 +24,7 @@ Transformed FireGuard AI from a prototype into a production-grade Security Opera
 - **Session Management**: UUID-based session tokens stored per user
 
 #### Seeding System
-- **Admin User**: Pre-created `admin@fireguard.ai` / `password123` on startup
+- **Admin User**: Pre-created `admin@sentinelos.ai` / `password123` on startup
 - **Default Cameras**: 5 sample cameras (CAM-01 through CAM-05) with zones and statuses
 - **Auto-initialization**: Runs once on database creation, safe for repeated restarts
 
@@ -190,7 +190,7 @@ Backend Status:
 
 **Admin Account**
 - Username: `admin`
-- Email: `admin@fireguard.ai`
+- Email: `admin@sentinelos.ai`
 - Password: `password123`
 - Role: `admin`
 
@@ -271,7 +271,7 @@ Comprehensive 11-phase verification guide included:
 ### Environment Variables
 ```bash
 # Backend
-DATABASE_URL=sqlite:///./fireguard.db
+DATABASE_URL=sqlite:///./sentinelos.db
 CORS_ORIGINS=https://yourfrontend.com
 LOG_LEVEL=info
 
@@ -290,7 +290,7 @@ VITE_WEBSOCKET_URL=wss://yourapi.com/ws
 
 ## 🎓 Key Takeaways
 
-This refactor transforms FireGuard AI into a **production-ready SOC platform** with:
+This refactor transforms SentinelOS into a **production-ready SOC platform** with:
 - **Professional authentication** - Enterprise security standards
 - **Real data flows** - No mock data, everything API-driven
 - **Simplified workflows** - Removed unnecessary states and complexity

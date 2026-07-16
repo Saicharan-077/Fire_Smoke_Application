@@ -1,6 +1,6 @@
-# Deployment Guide — FireGuard AI
+# Deployment Guide — SentinelOS
 
-This guide details how to deploy the FireGuard AI platform in production environments using **Docker**, **Docker Compose**, and **Nginx**.
+This guide details how to deploy the SentinelOS platform in production environments using **Docker**, **Docker Compose**, and **Nginx**.
 
 ---
 
@@ -39,7 +39,7 @@ The easiest way to launch the entire stack is using **Docker Compose**.
 Create a `.env` file in the root directory:
 ```env
 SECRET_KEY=production-secret-key-change-me
-DATABASE_URL=sqlite:///./fireguard.db
+DATABASE_URL=sqlite:///./sentinelos.db
 YOLO_MODEL_PATH=models/best.pt
 CORS_ORIGINS=http://localhost
 ```

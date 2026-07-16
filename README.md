@@ -1,4 +1,4 @@
-# FireGuard AI — Enterprise Fire & Smoke Detection Platform
+# SentinelOS — Enterprise Fire & Smoke Detection Platform
 
 <p align="center">
   <strong>AI-Powered Real-Time Fire & Smoke Detection for Enterprise Security Operations</strong>
@@ -16,7 +16,7 @@
 
 ## Project Overview
 
-FireGuard AI is a premium, full-stack AI surveillance platform that transforms standard CCTV networks into intelligent fire and smoke detection systems. Built with a custom-trained **YOLOv8** model, it delivers real-time threat detection, a Security Operations Center (SOC) dashboard, incident management, and role-based access control — suitable for college projects, hackathons, portfolio showcases, startup demos, and client presentations.
+SentinelOS is a premium, full-stack AI surveillance platform that transforms standard CCTV networks into intelligent fire and smoke detection systems. Built with a custom-trained **YOLOv8** model, it delivers real-time threat detection, a Security Operations Center (SOC) dashboard, incident management, and role-based access control — suitable for college projects, hackathons, portfolio showcases, startup demos, and client presentations.
 
 ---
 
@@ -28,7 +28,7 @@ Traditional surveillance systems rely on human operators to visually monitor doz
 
 ## Solution
 
-FireGuard AI overlays computer vision intelligence onto existing camera infrastructure:
+SentinelOS overlays computer vision intelligence onto existing camera infrastructure:
 
 - **Automated detection** of fire and smoke using YOLOv8
 - **Real-time SOC dashboard** with KPIs, timelines, and alert feeds
@@ -191,9 +191,9 @@ See [SETUP.md](SETUP.md) for complete instructions.
 
 | Role | Email | Password |
 |------|-------|----------|
-| Administrator | `admin@fireguard.ai` | `Admin@123` |
-| Operator | `operator@fireguard.ai` | `Operator@123` |
-| Viewer | `viewer@fireguard.ai` | `Viewer@123` |
+| Administrator | `admin@sentinelos.ai` | `Admin@123` |
+| Operator | `operator@sentinelos.ai` | `Operator@123` |
+| Viewer | `viewer@sentinelos.ai` | `Viewer@123` |
 
 See [DEMO.md](DEMO.md) for presentation script.
 

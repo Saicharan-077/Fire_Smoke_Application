@@ -1,4 +1,4 @@
-# FireGuard AI - Refactor Strategy
+# SentinelOS - Refactor Strategy
 
 ## Technical Modifications
 

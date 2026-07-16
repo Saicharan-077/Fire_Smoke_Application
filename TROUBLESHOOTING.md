@@ -1,4 +1,4 @@
-# FireGuard AI — Troubleshooting
+# SentinelOS — Troubleshooting
 
 Common issues and solutions.
 
@@ -9,7 +9,7 @@ Common issues and solutions.
 ### "Invalid username/email or password"
 - Verify demo credentials from [DEMO.md](DEMO.md)
 - Ensure backend is running and database is seeded (`SEED_DATABASE=true`)
-- Delete `backend/fireguard.db` and restart to re-seed
+- Delete `backend/sentinelos.db` and restart to re-seed
 
 ### "Account is deactivated"
 - Admin must reactivate the user via Admin Panel → Users → Activate
@@ -65,7 +65,7 @@ Common issues and solutions.
 
 ### "no such column" errors
 - Restart backend — automatic schema migration adds new columns
-- Or delete `fireguard.db` and re-seed
+- Or delete `sentinelos.db` and re-seed
 
 ### Data not appearing
 - Confirm `SEED_DATABASE=true` on first run

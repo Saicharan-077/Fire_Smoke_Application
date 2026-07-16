@@ -1,4 +1,4 @@
-# FireGuard AI — Module Documentation
+# SentinelOS — Module Documentation
 
 Detailed explanation of each application module.
 

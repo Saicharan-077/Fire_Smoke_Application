@@ -259,7 +259,7 @@ def run_performance_evaluation():
     # 1. Write the Validation Report markdown file
     report_path = os.path.join(os.path.dirname(__file__), "..", "evidence", "validation_report.md")
     
-    report_content = f"""# FireGuard AI - Hybrid Detection Pipeline Validation Report
+    report_content = f"""# SentinelOS - Hybrid Detection Pipeline Validation Report
 
 Generated on: {datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")}
 
