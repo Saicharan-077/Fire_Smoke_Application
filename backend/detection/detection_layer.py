@@ -344,6 +344,10 @@ class DetectionLayer:
             else:
                 is_valid, reason, scores = False, f"unsupported_class_{det_type}", {}
 
+            # Cache verification details for debug logging
+            det["rejection_reason"] = reason
+            det["verification_scores"] = scores
+
             if is_valid:
                 # Calculate final confidence score derived from Stage 1 (YOLO) and Stage 2 (Verification)
                 # Phase 4 - Decision Fusion
@@ -354,7 +358,6 @@ class DetectionLayer:
                 
                 final_conf = 0.6 * det["confidence"] + 0.4 * verify_score
                 det["confidence"] = round(float(final_conf), 4)
-                det["verification_scores"] = scores
                 verified_detections.append(det)
             else:
                 logger.info(f"[Stage 2 Reject] {det_type} conf={det['confidence']:.4f} rejected: {reason}")
@@ -377,8 +380,14 @@ class DetectionLayer:
         if not self.ready or self.model is None:
             return []
 
+        org_h, org_w = frame.shape[:2]
+        imgsz = active_cfg.imgsz
+
+        # Explicitly resize frame to YOLO model's resolution to ensure correct stretching features and speed up inference
+        resized_frame = cv2.resize(frame, (imgsz, imgsz), interpolation=cv2.INTER_LINEAR)
+
         results = self.model(
-            frame,
+            resized_frame,
             verbose=False,
             conf=active_cfg.conf_threshold,
             iou=active_cfg.iou_threshold,
@@ -395,7 +404,15 @@ class DetectionLayer:
                 cls_id = int(box.cls[0])
                 raw_name = self.class_names.get(cls_id, str(cls_id))
                 conf = round(float(box.conf[0]), 4)
+                # Bounding box coordinates on resized frame
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
+                
+                # Scale coordinates back to original image shape
+                x1_scaled = int(x1 * org_w / imgsz)
+                y1_scaled = int(y1 * org_h / imgsz)
+                x2_scaled = int(x2 * org_w / imgsz)
+                y2_scaled = int(y2 * org_h / imgsz)
+                
                 mapped_cls = self._map_class(cls_id, raw_name)
 
                 if mapped_cls is None:
@@ -404,7 +421,7 @@ class DetectionLayer:
                 raw_candidates.append({
                     "detection_type": mapped_cls,
                     "confidence": conf,
-                    "bbox": {"x1": x1, "y1": y1, "x2": x2, "y2": y2},
+                    "bbox": {"x1": x1_scaled, "y1": y1_scaled, "x2": x2_scaled, "y2": y2_scaled},
                     "raw_class_name": raw_name,
                     "class_id": cls_id,
                 })
@@ -425,10 +442,7 @@ class DetectionLayer:
         
         if not raw_dets:
             t_total = (time.perf_counter() - t_start) * 1000.0
-            logger.info(
-                f"[Inference Profile] Image Upload | Prep: {t_prep:.2f}ms | YOLO Inference: {t_inf:.2f}ms | "
-                f"Verification: 0.00ms | Total: {t_total:.2f}ms | Detections: 0"
-            )
+            self._print_pipeline_debug_logs(frame.shape, t_prep, t_inf, 0.0, t_total, [], [], camera_id="IMAGE-UPLOAD")
             return frame, []
 
         # Stage 2: Verification
@@ -440,11 +454,7 @@ class DetectionLayer:
         annotated = self.annotate_frame(frame, verified_dets)
         
         t_total = (time.perf_counter() - t_start) * 1000.0
-        det_summary = ", ".join([f"{d['detection_type']} ({d['confidence']:.2f})" for d in verified_dets]) or "none"
-        logger.info(
-            f"[Inference Profile] Image Upload | Prep: {t_prep:.2f}ms | YOLO Inference: {t_inf:.2f}ms | "
-            f"Verification: {t_ver:.2f}ms | Total: {t_total:.2f}ms | Detections: {len(verified_dets)} ({det_summary})"
-        )
+        self._print_pipeline_debug_logs(frame.shape, t_prep, t_inf, t_ver, t_total, raw_dets, verified_dets, camera_id="IMAGE-UPLOAD")
         return annotated, verified_dets
 
     def temporal_verify(self, source_id: str, detections: List[Dict[str, Any]], active_cfg: DetectionConfig) -> List[Dict[str, Any]]:
@@ -523,10 +533,7 @@ class DetectionLayer:
         if not raw_dets:
             _ = self.temporal_verify(source_id, [], active_cfg)
             t_total = (time.perf_counter() - t_start) * 1000.0
-            logger.info(
-                f"[Inference Profile] Camera {source_id} | Prep: {t_prep:.2f}ms | YOLO Inference: {t_inf:.2f}ms | "
-                f"Verification: 0.00ms | Total: {t_total:.2f}ms | Detections: 0"
-            )
+            self._print_pipeline_debug_logs(frame.shape, t_prep, t_inf, 0.0, t_total, [], [], camera_id=source_id)
             return frame, [], True
 
         t_ver_start = time.perf_counter()
@@ -539,11 +546,7 @@ class DetectionLayer:
         annotated = self.annotate_frame(frame, temporally_verified_dets)
         
         t_total = (time.perf_counter() - t_start) * 1000.0
-        det_summary = ", ".join([f"{d['detection_type']} ({d['confidence']:.2f})" for d in temporally_verified_dets]) or "none"
-        logger.info(
-            f"[Inference Profile] Camera {source_id} | Prep: {t_prep:.2f}ms | YOLO Inference: {t_inf:.2f}ms | "
-            f"Verification: {t_ver:.2f}ms | Total: {t_total:.2f}ms | Detections: {len(temporally_verified_dets)} ({det_summary})"
-        )
+        self._print_pipeline_debug_logs(frame.shape, t_prep, t_inf, t_ver, t_total, raw_dets, temporally_verified_dets, camera_id=source_id)
         return annotated, temporally_verified_dets, True
 
     def detect_video(self, video_path: str, consecutive: int = 3, db_settings: dict | None = None) -> Generator[Tuple[int, List[Dict[str, Any]], np.ndarray], None, None]:
@@ -622,3 +625,91 @@ class DetectionLayer:
             cv2.rectangle(out, (bb["x1"], rect_y1), (bb["x1"] + tw + 6, rect_y2), color, -1)
             cv2.putText(out, label, (bb["x1"] + 3, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
         return out
+
+    def _print_pipeline_debug_logs(
+        self,
+        frame_shape: Tuple[int, int, ...],
+        t_prep: float,
+        t_inf: float,
+        t_ver: float,
+        t_total: float,
+        raw_dets: List[Dict[str, Any]],
+        verified_dets: List[Dict[str, Any]],
+        camera_id: str | None = None
+    ):
+        h, w = frame_shape[:2]
+        
+        log_lines = []
+        log_lines.append("\n==================================================")
+        log_lines.append("Image Loaded ✓")
+        log_lines.append(f"Original Size: {w}x{h}")
+        log_lines.append("")
+        log_lines.append("Resize Strategy:")
+        log_lines.append("Current:\n  YOLO Internal Letterbox (REPLACED)")
+        log_lines.append("Candidate:\n  Explicit Resize 640x640 (ACTIVE)")
+        log_lines.append("")
+        log_lines.append(f"Preprocessing Time: {t_prep:.2f} ms")
+        log_lines.append(f"Inference Time: {t_inf:.2f} ms")
+        log_lines.append(f"Verification Time: {t_ver:.2f} ms")
+        log_lines.append("")
+        
+        log_lines.append("Detected Classes:")
+        if not raw_dets:
+            log_lines.append("  None")
+        else:
+            for d in raw_dets:
+                log_lines.append(f"  Class: {d['detection_type'].capitalize()}")
+                log_lines.append(f"  Confidence: {d['confidence']:.4f}")
+                log_lines.append("")
+                
+        log_lines.append("Bounding Boxes:")
+        if not raw_dets:
+            log_lines.append("  None")
+        else:
+            for d in raw_dets:
+                bb = d['bbox']
+                log_lines.append(f"  Class: {d['detection_type'].capitalize()}")
+                log_lines.append(f"  Bbox: ({bb['x1']},{bb['y1']},{bb['x2']},{bb['y2']})")
+                
+        log_lines.append("")
+        log_lines.append("Verification:")
+        if not raw_dets:
+            log_lines.append("  No candidates to verify.")
+        else:
+            for d in raw_dets:
+                det_type = d['detection_type']
+                log_lines.append(f"  - Class: {det_type.capitalize()} (conf={d['confidence']:.4f})")
+                
+                # Check if it was verified successfully
+                matching_ver = next((v for v in verified_dets if v['class_id'] == d['class_id'] and v['bbox'] == d['bbox']), None)
+                if matching_ver:
+                    scores = matching_ver.get('verification_scores', {})
+                    if det_type == "fire":
+                        log_lines.append(f"    Fire HSV Score (Ratio): {scores.get('flame_color_ratio', 0.0):.4f}")
+                        log_lines.append(f"    Brightness: {scores.get('avg_brightness', 0.0):.1f}")
+                        log_lines.append(f"    Pixel Density: {scores.get('flame_color_ratio', 0.0):.4f}")
+                    else:
+                        log_lines.append(f"    Avg Saturation: {scores.get('avg_saturation', 0.0):.1f}")
+                        log_lines.append(f"    Avg Brightness: {scores.get('avg_brightness', 0.0):.1f}")
+                        log_lines.append(f"    Laplacian Var (std): {scores.get('laplacian_var', 0.0):.1f}")
+                    log_lines.append("    Decision: PASSED")
+                else:
+                    reason = d.get('rejection_reason', 'Failed rule checks')
+                    scores = d.get('verification_scores', {})
+                    if det_type == "fire":
+                        log_lines.append(f"    Fire HSV Score (Ratio): {scores.get('flame_color_ratio', 0.0):.4f}")
+                        log_lines.append(f"    Brightness: {scores.get('avg_brightness', 0.0):.1f}")
+                    else:
+                        log_lines.append(f"    Avg Saturation: {scores.get('avg_saturation', 0.0):.1f}")
+                        log_lines.append(f"    Avg Brightness: {scores.get('avg_brightness', 0.0):.1f}")
+                    log_lines.append(f"    Decision: REJECTED (Reason: {reason})")
+                    
+        log_lines.append("")
+        decision_str = "PASSED" if verified_dets else "REJECTED"
+        log_lines.append(f"Final Decision: {decision_str}")
+        log_lines.append(f"Total Pipeline Time: {t_total:.2f} ms")
+        log_lines.append("==================================================\n")
+        
+        log_text = "\n".join(log_lines)
+        print(log_text)
+        logger.info(log_text)

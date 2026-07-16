@@ -106,7 +106,8 @@ def test_fire_verification_success():
     """Verify that a synthetic fire ROI passes deterministic checks."""
     layer = DetectionLayer()
     fire_img = create_fire_roi()
-    is_valid, reason, scores = layer.verify_fire(fire_img, layer.config.fire)
+    hsv_img = cv2.cvtColor(fire_img, cv2.COLOR_BGR2HSV)
+    is_valid, reason, scores = layer.verify_fire(fire_img, hsv_img, layer.config.fire)
     assert is_valid is True, f"Fire verification failed: {reason}"
     assert scores["flame_color_ratio"] >= layer.config.fire.min_pixel_ratio
     assert scores["avg_brightness"] >= layer.config.fire.min_brightness
@@ -115,7 +116,9 @@ def test_smoke_verification_success():
     """Verify that a synthetic smoke ROI passes deterministic checks."""
     layer = DetectionLayer()
     smoke_img = create_smoke_roi()
-    is_valid, reason, scores = layer.verify_smoke(smoke_img, layer.config.smoke)
+    hsv_img = cv2.cvtColor(smoke_img, cv2.COLOR_BGR2HSV)
+    gray_img = cv2.cvtColor(smoke_img, cv2.COLOR_BGR2GRAY)
+    is_valid, reason, scores = layer.verify_smoke(smoke_img, hsv_img, gray_img, layer.config.smoke)
     assert is_valid is True, f"Smoke verification failed: {reason}"
     assert scores["avg_saturation"] <= layer.config.smoke.max_saturation
     assert scores["laplacian_var"] <= layer.config.smoke.max_laplacian_var
@@ -124,7 +127,9 @@ def test_distractor_wall_rejection():
     """Verify that a flat wall ROI is rejected as smoke (low texture variance)."""
     layer = DetectionLayer()
     wall_img = create_flat_wall_roi()
-    is_valid, reason, scores = layer.verify_smoke(wall_img, layer.config.smoke)
+    hsv_img = cv2.cvtColor(wall_img, cv2.COLOR_BGR2HSV)
+    gray_img = cv2.cvtColor(wall_img, cv2.COLOR_BGR2GRAY)
+    is_valid, reason, scores = layer.verify_smoke(wall_img, hsv_img, gray_img, layer.config.smoke)
     assert is_valid is False
     assert "bad_texture_variance" in reason or "bad_entropy" in reason
 
@@ -132,16 +137,20 @@ def test_distractor_steam_rejection():
     """Verify that steam is rejected as smoke due to low texture std/laplacian variance."""
     layer = DetectionLayer()
     steam_img = create_steam_roi()
-    is_valid, reason, scores = layer.verify_smoke(steam_img, layer.config.smoke)
+    hsv_img = cv2.cvtColor(steam_img, cv2.COLOR_BGR2HSV)
+    gray_img = cv2.cvtColor(steam_img, cv2.COLOR_BGR2GRAY)
+    is_valid, reason, scores = layer.verify_smoke(steam_img, hsv_img, gray_img, layer.config.smoke)
     # Steam is too uniform and blurry
     assert is_valid is False
-    assert "bad_texture_variance" in reason or "bad_entropy" in reason
+    assert "bad_texture_variance" in reason or "bad_entropy" in reason or "too_blurry_or_uniform" in reason
 
 def test_distractor_reflection_rejection():
     """Verify that bright specular reflections are rejected as smoke (sharp boundaries, high chroma/saturation/laplacian)."""
     layer = DetectionLayer()
     refl_img = create_reflection_roi()
-    is_valid, reason, scores = layer.verify_smoke(refl_img, layer.config.smoke)
+    hsv_img = cv2.cvtColor(refl_img, cv2.COLOR_BGR2HSV)
+    gray_img = cv2.cvtColor(refl_img, cv2.COLOR_BGR2GRAY)
+    is_valid, reason, scores = layer.verify_smoke(refl_img, hsv_img, gray_img, layer.config.smoke)
     assert is_valid is False
 
 def test_distractor_sky_cloud_rejection():
@@ -149,7 +158,9 @@ def test_distractor_sky_cloud_rejection():
     layer = DetectionLayer()
     sky_img = create_sky_cloud_roi()
     # Test as smoke - high chroma or blue saturation should reject it
-    is_valid, reason, scores = layer.verify_smoke(sky_img, layer.config.smoke)
+    hsv_img = cv2.cvtColor(sky_img, cv2.COLOR_BGR2HSV)
+    gray_img = cv2.cvtColor(sky_img, cv2.COLOR_BGR2GRAY)
+    is_valid, reason, scores = layer.verify_smoke(sky_img, hsv_img, gray_img, layer.config.smoke)
     assert is_valid is False
     assert "high_chroma" in reason or "highly_saturated" in reason
 

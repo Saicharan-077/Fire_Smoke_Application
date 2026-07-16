@@ -15,8 +15,8 @@ class FireVerificationConfig(BaseModel):
         description="List of HSV range bounds (lower_bound, upper_bound) for fire color."
     )
     min_pixel_ratio: float = Field(0.02, description="Minimum ratio of fire pixels in ROI.")
-    min_brightness: float = Field(80.0, description="Minimum average V value of fire pixels.")
-    min_saturation: float = Field(50.0, description="Minimum average S value of fire pixels.")
+    min_brightness: float = Field(110.0, description="Minimum average V value of fire pixels.")
+    min_saturation: float = Field(110.0, description="Minimum average S value of fire pixels.")
     min_component_size: int = Field(4, description="Minimum connected component area to filter out single-pixel noise.")
 
 class SmokeVerificationConfig(BaseModel):
@@ -61,8 +61,8 @@ def get_mode_presets(mode: str) -> dict:
             "conf_threshold": 0.55,
             "fire": {
                 "min_pixel_ratio": 0.06,
-                "min_brightness": 120.0,
-                "min_saturation": 75.0,
+                "min_brightness": 125.0,
+                "min_saturation": 125.0,
                 "min_component_size": 6,
             },
             "smoke": {
@@ -77,8 +77,8 @@ def get_mode_presets(mode: str) -> dict:
             "conf_threshold": 0.30,
             "fire": {
                 "min_pixel_ratio": 0.01,
-                "min_brightness": 70.0,
-                "min_saturation": 40.0,
+                "min_brightness": 80.0,
+                "min_saturation": 80.0,
                 "min_component_size": 2,
             },
             "smoke": {
