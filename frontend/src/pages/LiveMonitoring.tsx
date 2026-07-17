@@ -502,10 +502,13 @@ const LiveMonitoring = () => {
                       </div>
                     </div>
                   ) : (
-                    <div className="aspect-video rounded-xl bg-[var(--surface-2)]/30 border border-[var(--border)] flex flex-col items-center justify-center text-center text-[var(--text-3)]">
-                      <Camera size={30} className="mb-3 text-[var(--text-3)]" />
-                      <p className="text-[10px] font-bold uppercase tracking-wider mb-4">Webcam stream disarmed</p>
-                      <Button variant="primary" size="sm" onClick={startWebcam} className="text-xs">Arm local scanner</Button>
+                    <div className="aspect-video rounded-xl bg-slate-50/30 dark:bg-slate-900/30 border border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center p-6 transition-all duration-300">
+                      <div className="w-12 h-12 rounded-full bg-sky-50 dark:bg-sky-950/30 flex items-center justify-center text-sky-600 dark:text-sky-400 mb-3 shadow-xs">
+                        <Camera size={20} />
+                      </div>
+                      <h4 className="text-xs font-bold text-[var(--text)] uppercase tracking-wider">Webcam stream disarmed</h4>
+                      <p className="text-[10.5px] text-[var(--text-2)] max-w-xs mt-1 mb-4 leading-relaxed">Arm the local video scanning sensor to initiate real-time visual anomaly processing.</p>
+                      <Button variant="primary" size="sm" onClick={startWebcam}>Arm local scanner</Button>
                     </div>
                   )}
 
@@ -587,10 +590,13 @@ const LiveMonitoring = () => {
                       </div>
                     </div>
                   ) : (
-                    <div className="aspect-video rounded-xl bg-[var(--surface-2)]/30 border border-[var(--border)] flex flex-col items-center justify-center text-center text-[var(--text-3)]">
-                      <MonitorPlay size={30} className="mb-3 text-[var(--text-3)]" />
-                      <p className="text-[10px] font-bold uppercase tracking-wider mb-4">RTSP stream disconnected</p>
-                      <Button variant="primary" size="sm" onClick={connectRtsp} isLoading={rtspLoading} className="text-xs">Connect Ingest</Button>
+                    <div className="aspect-video rounded-xl bg-slate-50/30 dark:bg-slate-900/30 border border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center p-6 transition-all duration-300">
+                      <div className="w-12 h-12 rounded-full bg-sky-50 dark:bg-sky-950/30 flex items-center justify-center text-sky-600 dark:text-sky-400 mb-3 shadow-xs">
+                        <MonitorPlay size={20} />
+                      </div>
+                      <h4 className="text-xs font-bold text-[var(--text)] uppercase tracking-wider">RTSP stream disconnected</h4>
+                      <p className="text-[10.5px] text-[var(--text-2)] max-w-xs mt-1 mb-4 leading-relaxed">Establish connection to the remote network stream decoders to analyze incoming surveillance frames.</p>
+                      <Button variant="primary" size="sm" onClick={connectRtsp} isLoading={rtspLoading}>Connect Ingest</Button>
                     </div>
                   )}
 

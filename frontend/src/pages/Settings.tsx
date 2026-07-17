@@ -127,7 +127,7 @@ const SettingsPage = () => {
     <div className="space-y-2 pb-5 border-b border-[var(--border)] last:border-0 last:pb-0">
       <div className="flex items-center justify-between">
         <label className="text-[13px] font-bold text-[var(--text)]">{label}</label>
-        <span className="text-[12px] font-mono font-bold text-[var(--primary)] bg-[var(--primary-light)] px-2 py-0.5 rounded-md border border-[var(--primary-ring)]">
+        <span className="text-[12px] font-mono font-bold text-sky-700 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/30 px-2 py-0.5 rounded-md border border-sky-100 dark:border-sky-900/30">
           {format ? format(value) : value}
         </span>
       </div>
@@ -135,7 +135,7 @@ const SettingsPage = () => {
       <input
         type="range" min={min} max={max} step={step} value={value}
         onChange={e => onChange(parseFloat(e.target.value))}
-        className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-[var(--primary)] bg-[var(--surface-3)]"
+        className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-sky-600 bg-slate-100 dark:bg-slate-800"
       />
       <div className="flex justify-between text-[10px] text-[var(--text-3)] font-bold">
         <span>{min}</span><span>{max}</span>
@@ -151,7 +151,7 @@ const SettingsPage = () => {
       </div>
       <button
         onClick={() => onChange(!value)}
-        className={`relative shrink-0 w-10 h-6 rounded-full transition-colors duration-200 cursor-pointer ${value ? 'bg-[var(--primary)]' : 'bg-[var(--surface-3)]'}`}
+        className={`relative shrink-0 w-10 h-6 rounded-full transition-colors duration-200 cursor-pointer ${value ? 'bg-sky-600' : 'bg-slate-250 dark:bg-slate-800'}`}
       >
         <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-200 ${value ? 'left-5' : 'left-1'}`} />
       </button>
@@ -170,7 +170,7 @@ const SettingsPage = () => {
         {activeSection === 'cameras' && (
           <button
             onClick={() => { setFormMode('create'); setForm(DEFAULT_FORM); setModalOpen(true); }}
-            className="flex items-center gap-1.5 px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-[12px] font-bold rounded-lg transition-colors cursor-pointer shadow-sm"
+            className="flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-[12px] font-bold rounded-xl transition-all duration-200 cursor-pointer shadow-xs hover:-translate-y-0.5 active:translate-y-0"
           >
             <Plus size={14} /> Add Camera
           </button>
@@ -190,11 +190,13 @@ const SettingsPage = () => {
                 <button
                   key={sec.id}
                   onClick={() => setActiveSection(sec.id as any)}
-                  className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-bold transition-all cursor-pointer ${
-                    active ? 'bg-[var(--primary-light)] text-[var(--primary)] font-bold' : 'text-[var(--text-3)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
+                  className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-bold transition-all cursor-pointer border ${
+                    active 
+                      ? 'bg-sky-50 dark:bg-sky-950/20 text-sky-700 dark:text-sky-400 border-sky-100 dark:border-sky-900/30' 
+                      : 'text-[var(--text-3)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)] border-transparent'
                   }`}
                 >
-                  <Icon size={15} className={active ? 'text-[var(--primary)]' : 'text-[var(--text-3)]'} />
+                  <Icon size={15} className={active ? 'text-sky-600 dark:text-sky-400' : 'text-[var(--text-3)]'} />
                   {sec.label}
                 </button>
               );
@@ -219,7 +221,7 @@ const SettingsPage = () => {
                   <select
                     value={operatingMode}
                     onChange={(e) => setOperatingMode(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[var(--surface)] border border-[var(--border)] text-[13px] text-[var(--text)] outline-none focus:border-[var(--primary)] transition-all cursor-pointer"
+                    className="w-full px-3 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-[13px] text-[var(--text)] outline-none focus:ring-2 focus:ring-sky-100 focus:border-sky-500 transition-all cursor-pointer font-semibold"
                   >
                     <option value="Balanced">Balanced Preset (Recommended)</option>
                     <option value="High Precision">High Precision (Minimize False Alarms)</option>
@@ -239,7 +241,7 @@ const SettingsPage = () => {
                   desc="Minimum confidence required to trigger a smoke alert. Elevated to reduce false positives."
                   value={smokeConfidence}
                   min={0.1} max={0.9} step={0.05}
-                  onChange={setSmokeConfidence}
+                  onChange={smokeConfidence}
                   format={(v: number) => `${Math.round(v * 100)}%`}
                 />
                 <SliderField
@@ -265,16 +267,16 @@ const SettingsPage = () => {
                   </div>
                   <button
                     onClick={() => setSaveEvidence(!saveEvidence)}
-                    className={`relative shrink-0 w-10 h-6 rounded-full transition-colors duration-200 cursor-pointer ${saveEvidence ? 'bg-[var(--primary)]' : 'bg-[var(--surface-3)]'}`}
+                    className={`relative shrink-0 w-10 h-6 rounded-full transition-colors duration-200 cursor-pointer ${saveEvidence ? 'bg-sky-600' : 'bg-slate-200 dark:bg-slate-800'}`}
                   >
                     <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-200 ${saveEvidence ? 'left-5' : 'left-1'}`} />
                   </button>
                 </div>
                 <div className="flex gap-2 justify-end pt-1">
-                  <button onClick={fetchAIConfig} className="px-3 py-2 border border-[var(--border)] rounded-lg text-[12px] font-bold text-[var(--text-2)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer">
+                  <button onClick={fetchAIConfig} className="px-3 py-2 border border-[var(--border)] rounded-xl text-[12px] font-bold text-[var(--text-2)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer bg-[var(--surface)]">
                     Reset
                   </button>
-                  <button onClick={saveAIConfig} className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-[12px] font-bold rounded-lg transition-colors cursor-pointer">
+                  <button onClick={saveAIConfig} className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-[12px] font-bold rounded-xl transition-all duration-200 cursor-pointer shadow-xs hover:-translate-y-0.5 active:translate-y-0">
                     Save Changes
                   </button>
                 </div>
@@ -391,7 +393,7 @@ const SettingsPage = () => {
                   <select
                     value={theme}
                     onChange={e => setTheme(e.target.value as any)}
-                    className="px-3 py-2 border border-[var(--border)] rounded-lg text-[12px] bg-[var(--surface)] text-[var(--text)] outline-none focus:border-[var(--primary)] transition-colors cursor-pointer font-bold"
+                    className="px-3 py-2 border border-[var(--border)] rounded-xl text-[12px] bg-[var(--surface)] text-[var(--text)] outline-none focus:ring-2 focus:ring-sky-100 focus:border-sky-500 transition-all cursor-pointer font-bold"
                   >
                     <option value="light">Light Mode</option>
                     <option value="dark">Dark Mode</option>
@@ -414,10 +416,10 @@ const SettingsPage = () => {
               </div>
             </>
           )}
-
+ 
         </div>
       </div>
-
+ 
       {/* Camera Modal */}
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={formMode === 'create' ? 'Add Camera' : 'Edit Camera'}>
         <form onSubmit={handleSaveCamera} className="space-y-4">
@@ -437,14 +439,14 @@ const SettingsPage = () => {
             />
           </div>
           <div className="flex items-center justify-between pt-3 border-t border-[var(--border)]">
-            <button type="button" onClick={testConn} disabled={testingConn} className="flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-lg text-[12px] font-bold text-[var(--text-2)] hover:bg-[var(--surface-hover)] transition-colors disabled:opacity-50 cursor-pointer">
+            <button type="button" onClick={testConn} disabled={testingConn} className="flex items-center gap-1.5 px-3 py-2 border border-[var(--border)] rounded-xl text-[12px] font-bold text-[var(--text-2)] hover:bg-[var(--surface-hover)] transition-colors disabled:opacity-50 cursor-pointer">
               <Wifi size={13} /> {testingConn ? 'Testing...' : 'Test Connection'}
             </button>
             <div className="flex gap-2">
-              <button type="button" onClick={() => setModalOpen(false)} className="px-3 py-2 border border-[var(--border)] rounded-lg text-[12px] font-bold text-[var(--text-2)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer">
+              <button type="button" onClick={() => setModalOpen(false)} className="px-3 py-2 border border-[var(--border)] rounded-xl text-[12px] font-bold text-[var(--text-2)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer bg-[var(--surface)]">
                 Cancel
               </button>
-              <button type="submit" disabled={savingCam} className="px-4 py-2 bg-[var(--primary)] text-white text-[12px] font-bold rounded-lg hover:bg-[var(--primary-hover)] transition-colors disabled:opacity-50 cursor-pointer shadow-sm">
+              <button type="submit" disabled={savingCam} className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-[12px] font-bold rounded-xl transition-all duration-200 disabled:opacity-50 cursor-pointer shadow-xs hover:-translate-y-0.5 active:translate-y-0">
                 {savingCam ? 'Saving...' : (formMode === 'create' ? 'Add Camera' : 'Save')}
               </button>
             </div>

@@ -115,32 +115,32 @@ const Profile = () => {
     <div className="space-y-6 max-w-6xl mx-auto text-[var(--text)] font-sans select-none pb-12">
       {/* Cover Header */}
       <div 
-        className="relative h-44 w-full rounded-2xl overflow-hidden border border-[var(--border)] bg-gradient-to-r from-red-500/20 via-amber-500/20 to-blue-500/20"
+        className="relative h-44 w-full rounded-2xl overflow-hidden border border-[var(--border)] bg-gradient-to-r from-sky-400/20 via-blue-500/10 to-indigo-600/20"
       >
         <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg)] to-transparent" />
       </div>
-
+ 
       {/* Avatar Initials Overlap */}
       <div className="relative -mt-16 ml-6 mb-4 flex items-end justify-between px-2">
         <div className="relative flex">
-          <div className="h-24 w-24 rounded-2xl bg-[var(--primary-light)] border-4 border-[var(--surface)] flex items-center justify-center text-[var(--primary)] text-2xl font-black font-mono shadow-md z-10 select-none">
+          <div className="h-24 w-24 rounded-2xl bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-400 border-4 border-[var(--surface)] flex items-center justify-center text-2xl font-black font-mono shadow-md z-10 select-none">
             {initials}
           </div>
         </div>
       </div>
-
+ 
       <div>
-        <h2 className="text-xl font-bold tracking-tight uppercase px-2">Account Profile</h2>
+        <h2 className="text-xl font-bold tracking-tight uppercase px-2 text-[var(--text)]">Account Profile</h2>
         <p className="text-xs text-[var(--text-2)] mt-1 px-2 font-semibold leading-relaxed">Manage credentials, review active roles, and audit security log histories inside SentinelOS.</p>
       </div>
-
+ 
       {/* Platform & Detection Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-2">
         {/* Card 1: AI Vision Engine Stats */}
         <div className="border border-[var(--border)] bg-[var(--surface)] p-5 rounded-2xl shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-[var(--text-3)] uppercase tracking-wider">AI Vision Engine Stats</span>
-            <Cpu size={14} className="text-purple-500" />
+            <Cpu size={14} className="text-sky-500" />
           </div>
           <div className="space-y-2 text-xs font-semibold text-[var(--text-2)]">
             <div className="flex justify-between border-b border-[var(--border)]/50 pb-1.5">
@@ -157,12 +157,12 @@ const Profile = () => {
             </div>
           </div>
         </div>
-
+ 
         {/* Card 2: Detection Analytics */}
         <div className="border border-[var(--border)] bg-[var(--surface)] p-5 rounded-2xl shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-[var(--text-3)] uppercase tracking-wider">Detection Analytics</span>
-            <ShieldAlert size={14} className="text-red-500" />
+            <ShieldAlert size={14} className="text-rose-500" />
           </div>
           <div className="space-y-2 text-xs font-semibold text-[var(--text-2)]">
             <div className="flex justify-between border-b border-[var(--border)]/50 pb-1.5">
@@ -174,17 +174,17 @@ const Profile = () => {
               <span className="text-[var(--text)] font-mono">22 anomalies</span>
             </div>
             <div className="flex justify-between">
-              <span>False alarms blocked:</span>
-              <span className="text-[var(--safe-text)] font-mono">3,124 frames</span>
+              <span>False Alarms Blocked:</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-mono">3,124 frames</span>
             </div>
           </div>
         </div>
-
+ 
         {/* Card 3: Operator Logistics */}
         <div className="border border-[var(--border)] bg-[var(--surface)] p-5 rounded-2xl shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-[var(--text-3)] uppercase tracking-wider">Operator Logistics</span>
-            <Activity size={14} className="text-blue-500" />
+            <Activity size={14} className="text-sky-600" />
           </div>
           <div className="space-y-2 text-xs font-semibold text-[var(--text-2)]">
             <div className="flex justify-between border-b border-[var(--border)]/50 pb-1.5">
@@ -196,7 +196,7 @@ const Profile = () => {
               <span className="text-[var(--text)] font-mono">4.2 seconds</span>
             </div>
             <div className="flex justify-between">
-              <span>Active incident tickets:</span>
+              <span>Active Incident Tickets:</span>
               <span className="text-[var(--text)] font-mono">1 pending</span>
             </div>
           </div>
@@ -233,7 +233,7 @@ const Profile = () => {
                       type="text" 
                       value={role} 
                       disabled 
-                      className="w-full px-4 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] text-xs font-bold text-[var(--text-3)] cursor-not-allowed capitalize"
+                      className="w-full px-4 py-2.5 rounded-xl bg-[var(--surface-2)]/55 border border-[var(--border)] text-xs font-bold text-[var(--text-3)] cursor-not-allowed capitalize outline-none"
                     />
                   </div>
                   <div>
@@ -241,7 +241,7 @@ const Profile = () => {
                     <select 
                       value={theme}
                       onChange={(e) => setTheme(e.target.value as any)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] text-xs font-bold text-[var(--text)] cursor-pointer"
+                      className="w-full px-4 py-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] text-xs font-bold text-[var(--text)] cursor-pointer outline-none focus:ring-2 focus:ring-sky-100 focus:border-sky-500 transition-all"
                     >
                       <option value="light">Light Mode</option>
                       <option value="dark">Dark Mode</option>
@@ -267,7 +267,7 @@ const Profile = () => {
                     <button
                       type="button"
                       onClick={() => setGoogleModalOpen(true)}
-                      className="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface-hover)] text-[11px] font-bold text-[var(--text)] cursor-pointer transition-colors"
+                      className="px-3 py-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface-hover)] text-[11px] font-bold text-[var(--text)] cursor-pointer transition-all shadow-xs hover:-translate-y-0.5 active:translate-y-0"
                     >
                       Link Google
                     </button>
@@ -385,7 +385,7 @@ const Profile = () => {
                   <p className="text-[12px] font-bold text-[var(--text)]">{acc.name}</p>
                   <p className="text-[10px] text-[var(--text-3)] font-mono">{acc.email}</p>
                 </div>
-                <span className="text-[9px] font-black uppercase text-[var(--primary)] bg-[var(--primary-light)] px-2 py-0.5 rounded-md border border-[var(--primary-ring)]">
+                <span className="text-[9px] font-black uppercase text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40 px-2 py-0.5 rounded-xl border border-sky-100 dark:border-sky-900/30">
                   Link Account
                 </span>
               </button>
@@ -405,13 +405,13 @@ const Profile = () => {
               value={customEmail}
               onChange={(e) => setCustomEmail(e.target.value)}
               disabled={googleLoading}
-              className="w-full px-3 py-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] focus:border-[var(--primary)] text-xs outline-none transition-all placeholder-[var(--text-3)] font-semibold"
+              className="w-full px-3 py-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] focus:ring-2 focus:ring-sky-100 focus:border-sky-500 text-xs outline-none transition-all placeholder-[var(--text-3)] font-semibold"
             />
             <button
               type="button"
               disabled={googleLoading || !customEmail}
               onClick={() => handleLinkGoogle(customEmail, `google_custom_${customEmail.replace(/[^a-zA-Z0-9]/g, '')}`)}
-              className="w-full py-2 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-xs font-bold text-white transition-all shadow-sm cursor-pointer disabled:opacity-50"
+              className="w-full py-2 bg-sky-600 hover:bg-sky-700 text-xs font-bold text-white rounded-xl transition-all duration-200 shadow-xs cursor-pointer hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50"
             >
               Link Custom Simulated Google Account
             </button>

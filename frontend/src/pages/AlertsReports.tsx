@@ -215,11 +215,11 @@ const AlertsReports = () => {
   }, [activeTab, alertFilterType, alertFilterStatus, incFilterSeverity, incFilterStatus, incSearch]);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto text-[#37352f] select-none">
+    <div className="space-y-6 max-w-7xl mx-auto text-[var(--text)] select-none">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold tracking-tight uppercase tracking-wider">Alerts & Incidents Center</h2>
-          <p className="text-xs text-[#7c7b77] mt-1 font-semibold leading-relaxed">Review active warning flags, manage incident lifecycles, and export operations logs.</p>
+          <h2 className="text-xl font-bold tracking-tight uppercase tracking-wider text-[var(--text)]">Alerts & Incidents Center</h2>
+          <p className="text-xs text-[var(--text-2)] mt-1 font-semibold leading-relaxed">Review active warning flags, manage incident lifecycles, and export operations logs.</p>
         </div>
         <div className="flex gap-2">
           {activeTab === 'incidents' && (
@@ -227,7 +227,7 @@ const AlertsReports = () => {
               variant="primary" 
               size="sm" 
               onClick={() => { setFormMode('create'); setForm({ ...DEFAULT_INCIDENT_FORM }); setFormOpen(true); }} 
-              className="flex items-center gap-1.5 shadow-sm text-xs"
+              className="flex items-center gap-1.5 shadow-sm text-xs font-bold"
             >
               <Plus size={14} /> File Incident Ticket
             </Button>
@@ -236,7 +236,7 @@ const AlertsReports = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex bg-[#f7f7f5] border border-[#e9e9e6] p-1 rounded-2xl gap-1 overflow-x-auto custom-scrollbar">
+      <div className="flex bg-slate-50 dark:bg-slate-900 border border-[var(--border)] p-1 rounded-2xl gap-1 overflow-x-auto custom-scrollbar">
         {[
           { id: 'alerts', label: 'Live Warning Flags', icon: <AlertOctagon size={14} /> },
           { id: 'incidents', label: 'Incident Ticket Log', icon: <FileText size={14} /> },
@@ -245,10 +245,10 @@ const AlertsReports = () => {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`px-5 py-3 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+            className={`px-5 py-3 rounded-xl text-xs font-bold transition-all duration-200 shrink-0 cursor-pointer ${
               activeTab === tab.id 
-                ? 'bg-white text-[#006fee] border border-[#e9e9e6] shadow-sm' 
-                : 'text-[#7c7b77] hover:text-[#37352f] border border-transparent'
+                ? 'bg-white dark:bg-slate-800 text-sky-700 dark:text-sky-400 border border-slate-200/50 dark:border-slate-700 shadow-sm' 
+                : 'text-[var(--text-2)] hover:text-[var(--text)] hover:bg-white/40 border border-transparent'
             }`}
           >
             <div className="flex items-center gap-2">
@@ -263,7 +263,7 @@ const AlertsReports = () => {
       {activeTab === 'alerts' && (
         <div className="space-y-6">
           {/* Filters Card */}
-          <Card className="bg-white border-[#e9e9e6] shadow-sm">
+          <Card className="bg-[var(--surface)] border-[var(--border)] shadow-xs">
             <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-4 gap-4">
               <Input 
                 placeholder="Search cam, location, file..." 
@@ -305,8 +305,8 @@ const AlertsReports = () => {
 
           {/* Sorting Row */}
           <div className="flex justify-between items-center px-1 text-xs">
-            <span className="text-[#7c7b77] font-bold uppercase tracking-wider">{processedAlerts.length} Warnings Logged</span>
-            <div className="flex gap-2 items-center font-semibold text-[#7c7b77]">
+            <span className="text-[var(--text-2)] font-bold uppercase tracking-wider">{processedAlerts.length} Warnings Logged</span>
+            <div className="flex gap-2 items-center font-semibold text-[var(--text-2)]">
               <span>Sort By:</span>
               <button 
                 onClick={() => {
@@ -317,7 +317,7 @@ const AlertsReports = () => {
                     setAlertSortOrder('desc');
                   }
                 }}
-                className={`px-2.5 py-1 rounded-lg border border-[#e9e9e6] bg-white cursor-pointer hover:bg-[#f7f7f5] hover:text-[#37352f] transition-all flex items-center gap-1 ${alertSortBy === 'timestamp' ? 'text-[#006fee] border-[#006fee]/20 bg-[#006fee]/5' : ''}`}
+                className={`px-2.5 py-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] cursor-pointer hover:bg-[var(--surface-hover)] hover:text-[var(--text)] transition-all flex items-center gap-1 ${alertSortBy === 'timestamp' ? 'text-sky-600 border-sky-200 bg-sky-50/50 dark:text-sky-400 dark:border-sky-800 dark:bg-sky-950/20' : ''}`}
               >
                 Time {alertSortBy === 'timestamp' && (alertSortOrder === 'asc' ? '▲' : '▼')}
               </button>
@@ -330,7 +330,7 @@ const AlertsReports = () => {
                     setAlertSortOrder('desc');
                   }
                 }}
-                className={`px-2.5 py-1 rounded-lg border border-[#e9e9e6] bg-white cursor-pointer hover:bg-[#f7f7f5] hover:text-[#37352f] transition-all flex items-center gap-1 ${alertSortBy === 'confidence' ? 'text-[#006fee] border-[#006fee]/20 bg-[#006fee]/5' : ''}`}
+                className={`px-2.5 py-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] cursor-pointer hover:bg-[var(--surface-hover)] hover:text-[var(--text)] transition-all flex items-center gap-1 ${alertSortBy === 'confidence' ? 'text-sky-600 border-sky-200 bg-sky-50/50 dark:text-sky-400 dark:border-sky-800 dark:bg-sky-950/20' : ''}`}
               >
                 Confidence {alertSortBy === 'confidence' && (alertSortOrder === 'asc' ? '▲' : '▼')}
               </button>
@@ -340,17 +340,17 @@ const AlertsReports = () => {
           {loading ? (
             <div className="py-20 text-center text-zinc-500 font-semibold"><RefreshCw className="animate-spin text-[#006fee] mx-auto mb-3" size={24} /> Syncing warnings database...</div>
           ) : processedAlerts.length === 0 ? (
-            <div className="p-16 text-center text-zinc-500 border border-[#e9e9e6] bg-[#f7f7f5]/30 rounded-2xl">
-              <ShieldCheck size={42} className="mx-auto mb-3 text-[#27ae60] animate-radar" />
-              <h4 className="text-[#37352f] font-bold mb-1 uppercase tracking-widest text-xs">Node Ingress Secure</h4>
-              <p className="text-[10px] text-[#7c7b77] font-bold">No warnings or threat flags found.</p>
+            <div className="p-16 text-center text-[var(--text-3)] border border-[var(--border)] bg-[var(--surface-2)]/30 rounded-2xl">
+              <ShieldCheck size={42} className="mx-auto mb-3 text-emerald-500 animate-radar" />
+              <h4 className="text-[var(--text)] font-bold mb-1 uppercase tracking-widest text-xs">Node Ingress Secure</h4>
+              <p className="text-[10px] text-[var(--text-2)] font-semibold">No warnings or threat flags found.</p>
             </div>
           ) : (
-            <div className="border border-[#e9e9e6] rounded-xl bg-white overflow-hidden shadow-sm">
+            <div className="border border-[var(--border)] rounded-xl bg-[var(--surface)] overflow-hidden shadow-xs">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="border-b border-[#e9e9e6] bg-[#f7f7f5]/35 text-[#7c7b77] font-bold uppercase tracking-wider">
+                    <tr className="border-b border-[var(--border)] bg-[var(--surface-2)]/35 text-[var(--text-2)] font-bold uppercase tracking-wider">
                       <th className="p-4 px-6">Thumbnail</th>
                       <th className="p-4 px-6">Threat Type</th>
                       <th className="p-4 px-6">Confidence</th>
@@ -363,19 +363,19 @@ const AlertsReports = () => {
                       <th className="p-4 px-6 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#e9e9e6] text-[#37352f] font-semibold">
+                  <tbody className="divide-y divide-[var(--border)] text-[var(--text)] font-semibold">
                     {processedAlerts.map((alert) => {
                       const severity = getSeverity(alert.detection_type, alert.confidence);
                       const isExpanded = expandedAlertId === alert.id;
                       return (
                         <Fragment key={alert.id}>
                           <tr 
-                            className="hover:bg-[#f7f7f5]/40 transition-colors cursor-pointer"
+                            className="hover:bg-[var(--surface-hover)] transition-all duration-150 cursor-pointer"
                             onClick={() => setExpandedAlertId(isExpanded ? null : alert.id)}
                           >
                             <td className="p-4 px-6">
                               {alert.evidence_path ? (
-                                <div className="h-10 w-16 shrink-0 rounded-lg overflow-hidden border border-[#e9e9e6] bg-black flex items-center justify-center relative group shadow-sm">
+                                <div className="h-10 w-16 shrink-0 rounded-lg overflow-hidden border border-[var(--border)] bg-black flex items-center justify-center relative group shadow-xs">
                                   <img src={evidenceUrl(alert.evidence_path) || ''} alt="Evidence" className="w-full h-full object-cover" />
                                   <button 
                                     onClick={(e) => { e.stopPropagation(); setZoomUrl(evidenceUrl(alert.evidence_path)); }} 
@@ -385,7 +385,7 @@ const AlertsReports = () => {
                                   </button>
                                 </div>
                               ) : (
-                                <span className="text-[10px] text-[#7c7b77] font-mono">No Image</span>
+                                <span className="text-[10px] text-[var(--text-3)] font-mono">No Image</span>
                               )}
                             </td>
                             <td className="p-4 px-6">
@@ -397,13 +397,13 @@ const AlertsReports = () => {
                             <td className="p-4 px-6">
                               <div className="space-y-0.5">
                                 <p className="font-bold text-xs">{alert.camera_id || 'Upload Feed'}</p>
-                                <p className="text-[10px] text-[#7c7b77]">{alert.location || 'N/A'}</p>
+                                <p className="text-[10px] text-[var(--text-3)]">{alert.location || 'N/A'}</p>
                               </div>
                             </td>
-                            <td className="p-4 px-6 capitalize text-[#7c7b77] font-mono text-[10px]">
+                            <td className="p-4 px-6 capitalize text-[var(--text-3)] font-mono text-[10px]">
                               {alert.source_type || 'image'}
                             </td>
-                            <td className="p-4 px-6 text-[#7c7b77]">
+                            <td className="p-4 px-6 text-[var(--text-3)]">
                               <div className="space-y-0.5">
                                 <p>{new Date(alert.timestamp).toLocaleDateString()}</p>
                                 <p className="font-mono text-[10px]">{new Date(alert.timestamp).toLocaleTimeString()}</p>
@@ -411,8 +411,8 @@ const AlertsReports = () => {
                             </td>
                             <td className="p-4 px-6">
                               <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border ${
-                                severity === 'critical' ? 'bg-[#fdebeb] text-[#eb5757] border-[#f8cfcf]' :
-                                severity === 'warning' ? 'bg-[#fef5ed] text-[#f2994a] border-[#fcdcb8]' : 'bg-[#eef6ff] text-[#006fee] border-[#d3e5ff]'
+                                severity === 'critical' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                                severity === 'warning' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-blue-500/10 text-blue-500 border-blue-500/20'
                               }`}>
                                 {severity}
                               </span>
@@ -420,7 +420,7 @@ const AlertsReports = () => {
                             <td className="p-4 px-6">
                               <Badge type={alert.status === 'active' ? 'danger' : 'default'}>{alert.status}</Badge>
                             </td>
-                            <td className="p-4 px-6 text-[#7c7b77] font-mono text-[10px] font-bold">
+                            <td className="p-4 px-6 text-[var(--text-3)] font-mono text-[10px] font-bold">
                               {alert.status === 'resolved' 
                                 ? (alert.resolved_by || 'System Auto')
                                 : 'N/A'}
@@ -430,7 +430,7 @@ const AlertsReports = () => {
                                 <Button 
                                   variant="outline" 
                                   size="sm" 
-                                  className="h-8 p-2 rounded-lg bg-white border border-[#e9e9e6]" 
+                                  className="h-8 p-2 rounded-lg bg-[var(--surface)] border border-[var(--border)]" 
                                   onClick={() => void handleResolveAlert(alert.id)}
                                   title="Resolve Alert"
                                 >
@@ -449,16 +449,16 @@ const AlertsReports = () => {
                             </td>
                           </tr>
                           {isExpanded && (
-                            <tr className="bg-[#f7f7f5]/25 border-b border-[#e9e9e6]">
+                            <tr className="bg-[var(--surface-2)]/20 border-b border-[var(--border)]">
                               <td colSpan={10} className="p-6">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
                                   {/* Column 1: Image and CV analytics */}
                                   <div className="space-y-4">
-                                    <h4 className="text-[10px] font-bold text-[#7c7b77] uppercase tracking-wider flex items-center gap-1.5">
-                                      <Cpu size={12} className="text-[#006fee]" /> Visual Evidence & CV Analytics
+                                    <h4 className="text-[10px] font-bold text-[var(--text-3)] uppercase tracking-wider flex items-center gap-1.5">
+                                      <Cpu size={12} className="text-sky-500" /> Visual Evidence & CV Analytics
                                     </h4>
                                     {alert.evidence_path ? (
-                                      <div className="rounded-xl overflow-hidden border border-[#e9e9e6] bg-black max-w-md aspect-video relative group shadow-sm">
+                                      <div className="rounded-xl overflow-hidden border border-[var(--border)] bg-black max-w-md aspect-video relative group shadow-xs">
                                         <img src={evidenceUrl(alert.evidence_path) || undefined} alt="Evidence" className="w-full h-full object-cover animate-fade-in" />
                                         <button 
                                           onClick={() => setZoomUrl(evidenceUrl(alert.evidence_path))}
@@ -468,58 +468,58 @@ const AlertsReports = () => {
                                         </button>
                                       </div>
                                     ) : (
-                                      <div className="h-44 rounded-xl border border-dashed border-[#e9e9e6] flex items-center justify-center text-[#7c7b77] font-semibold text-xs">No visual evidence found</div>
+                                      <div className="h-44 rounded-xl border border-dashed border-[var(--border)] flex items-center justify-center text-[var(--text-3)] font-semibold text-xs">No visual evidence found</div>
                                     )}
                                     <div className="grid grid-cols-2 gap-4 text-[10px]">
                                       <div>
-                                        <span className="text-[#7c7b77] block uppercase tracking-wider">Resolution Status:</span>
-                                        <span className={`font-mono font-bold ${alert.status === 'resolved' ? 'text-[#27ae60]' : 'text-[#eb5757] animate-pulse'}`}>
+                                        <span className="text-[var(--text-3)] block uppercase tracking-wider">Resolution Status:</span>
+                                        <span className={`font-mono font-bold ${alert.status === 'resolved' ? 'text-emerald-500' : 'text-rose-500 animate-pulse'}`}>
                                           {alert.status === 'resolved' ? 'CLOSED / RESOLVED' : 'ACTIVE INVESTIGATION'}
                                         </span>
                                       </div>
                                       <div>
-                                        <span className="text-[#7c7b77] block uppercase tracking-wider">Detection Confidence:</span>
-                                        <span className="font-mono font-bold text-[#37352f]">{(alert.confidence * 100).toFixed(0)}% AI Confidence</span>
+                                        <span className="text-[var(--text-3)] block uppercase tracking-wider">Detection Confidence:</span>
+                                        <span className="font-mono font-bold text-[var(--text)]">{(alert.confidence * 100).toFixed(0)}% AI Confidence</span>
                                       </div>
                                     </div>
                                   </div>
-
+ 
                                   {/* Column 2: Forensic Timeline */}
-                                  <div className="space-y-4 border-t md:border-t-0 md:border-l border-[#e9e9e6] pt-4 md:pt-0 md:pl-6">
-                                    <h4 className="text-[10px] font-bold text-[#7c7b77] uppercase tracking-wider flex items-center gap-1.5">
-                                      <Activity size={12} className="text-[#006fee]" /> Forensic Investigation Timeline
+                                  <div className="space-y-4 border-t md:border-t-0 md:border-l border-[var(--border)] pt-4 md:pt-0 md:pl-6">
+                                    <h4 className="text-[10px] font-bold text-[var(--text-3)] uppercase tracking-wider flex items-center gap-1.5">
+                                      <Activity size={12} className="text-sky-500" /> Forensic Investigation Timeline
                                     </h4>
-                                    <div className="relative pl-4 border-l-2 border-[#e9e9e6] space-y-4 text-xs font-semibold">
+                                    <div className="relative pl-4 border-l-2 border-[var(--border)] space-y-4 text-xs font-semibold">
                                       {/* Event 1 */}
                                       <div className="relative">
-                                        <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-[#006fee] border-2 border-white" />
-                                        <p className="text-[#37352f] font-bold">Anomaly Flagged by YOLOv8 Vision Core</p>
-                                        <p className="text-[9px] text-[#7c7b77] mt-0.5 font-mono">{new Date(alert.timestamp).toLocaleString()}</p>
-                                        <p className="text-[10px] text-[#7c7b77] mt-1 leading-relaxed">
+                                        <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-sky-500 border-2 border-white dark:border-zinc-900" />
+                                        <p className="text-[var(--text)] font-bold">Anomaly Flagged by YOLOv8 Vision Core</p>
+                                        <p className="text-[9px] text-[var(--text-3)] mt-0.5 font-mono">{new Date(alert.timestamp).toLocaleString()}</p>
+                                        <p className="text-[10px] text-[var(--text-3)] mt-1 leading-relaxed">
                                           Autonomous engine flagged high-probability {alert.detection_type} anomaly. Bounding boxes drawn at frame coordinates.
                                         </p>
                                       </div>
-
+ 
                                       {/* Event 2 */}
                                       <div className="relative">
-                                        <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-purple-500 border-2 border-white" />
-                                        <p className="text-[#37352f] font-bold">Stage 2 Deterministic CV Verification Passed</p>
-                                        <p className="text-[9px] text-[#7c7b77] mt-0.5 font-mono">{new Date(new Date(alert.timestamp).getTime() + 10).toLocaleString()}</p>
-                                        <p className="text-[10px] text-[#7c7b77] mt-1 leading-relaxed">
+                                        <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-purple-500 border-2 border-white dark:border-zinc-900" />
+                                        <p className="text-[var(--text)] font-bold">Stage 2 Deterministic CV Verification Passed</p>
+                                        <p className="text-[9px] text-[var(--text-3)] mt-0.5 font-mono">{new Date(new Date(alert.timestamp).getTime() + 10).toLocaleString()}</p>
+                                        <p className="text-[10px] text-[var(--text-3)] mt-1 leading-relaxed">
                                           Chroma difference, Laplacian focus checks, connected components size thresholds, and local temporal pixel variance checks verified anomaly authenticity.
                                         </p>
                                       </div>
-
+ 
                                       {/* Event 3 */}
                                       <div className="relative">
-                                        <span className={`absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full border-2 border-white ${alert.status === 'resolved' ? 'bg-[#27ae60]' : 'bg-[#eb5757]'}`} />
-                                        <p className="text-[#37352f] font-bold">
+                                        <span className={`absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-zinc-900 ${alert.status === 'resolved' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                        <p className="text-[var(--text)] font-bold">
                                           {alert.status === 'resolved' ? 'Threat Acknowledged & Triage Closed' : 'Awaiting Operator Intervention'}
                                         </p>
-                                        <p className="text-[9px] text-[#7c7b77] mt-0.5 font-mono">
+                                        <p className="text-[9px] text-[var(--text-3)] mt-0.5 font-mono">
                                           {alert.status === 'resolved' ? new Date(alert.timestamp).toLocaleString() : 'PENDING ACTION'}
                                         </p>
-                                        <p className="text-[10px] text-[#7c7b77] mt-1 leading-relaxed">
+                                        <p className="text-[10px] text-[var(--text-3)] mt-1 leading-relaxed">
                                           {alert.status === 'resolved' 
                                             ? `Triage closed by ${alert.resolved_by || 'System Admin'}. Safe operations confirmed.`
                                             : 'System is monitoring this warning. Operator review required.'}
@@ -544,7 +544,7 @@ const AlertsReports = () => {
 
       {activeTab === 'incidents' && (
         <div className="space-y-6 animate-slide-up">
-          <Card className="bg-white border-[#e9e9e6] shadow-sm">
+          <Card className="bg-[var(--surface)] border-[var(--border)] shadow-xs">
             <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Input 
                 placeholder="Search tickets..." 
@@ -577,19 +577,19 @@ const AlertsReports = () => {
           </Card>
 
           {loading ? (
-            <div className="py-20 text-center text-[#7c7b77] font-semibold"><RefreshCw className="animate-spin text-[#006fee] mx-auto mb-3" size={24} /> Syncing incidents log...</div>
+            <div className="py-20 text-center text-[var(--text-3)] font-semibold"><RefreshCw className="animate-spin text-sky-500 mx-auto mb-3" size={24} /> Syncing incidents log...</div>
           ) : incidents.length === 0 ? (
-            <div className="p-16 text-center text-[#7c7b77] border border-[#e9e9e6] bg-[#f7f7f5]/30 rounded-2xl">
-              <ShieldCheck size={42} className="mx-auto mb-3 text-[#27ae60] animate-radar" />
-              <h4 className="text-[#37352f] font-bold mb-1 uppercase tracking-widest text-xs">Node Ingress Secure</h4>
-              <p className="text-[10px] text-[#7c7b77] font-bold">No incident tickets logged.</p>
+            <div className="p-16 text-center text-[var(--text-3)] border border-[var(--border)] bg-[var(--surface-2)]/30 rounded-2xl">
+              <ShieldCheck size={42} className="mx-auto mb-3 text-emerald-500 animate-radar" />
+              <h4 className="text-[var(--text)] font-bold mb-1 uppercase tracking-widest text-xs">Node Ingress Secure</h4>
+              <p className="text-[10px] text-[var(--text-2)] font-semibold">No incident tickets logged.</p>
             </div>
           ) : (
-            <div className="border border-[#e9e9e6] rounded-xl bg-white overflow-hidden shadow-sm">
+            <div className="border border-[var(--border)] rounded-xl bg-[var(--surface)] overflow-hidden shadow-xs">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="border-b border-[#e9e9e6] bg-[#f7f7f5]/35 text-[#7c7b77] font-bold uppercase tracking-wider">
+                    <tr className="border-b border-[var(--border)] bg-[var(--surface-2)]/35 text-[var(--text-2)] font-bold uppercase tracking-wider">
                       <th className="p-4 px-6">Title</th>
                       <th className="p-4 px-6">Severity</th>
                       <th className="p-4 px-6">Reporter</th>
@@ -598,24 +598,24 @@ const AlertsReports = () => {
                       <th className="p-4 px-6 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#e9e9e6] text-[#37352f] font-semibold">
+                  <tbody className="divide-y divide-[var(--border)] text-[var(--text)] font-semibold">
                     {incidents.map((inc) => (
-                      <tr key={inc.id} className="hover:bg-[#f7f7f5]/40 transition-colors">
+                      <tr key={inc.id} className="hover:bg-[var(--surface-hover)] transition-all duration-150">
                         <td className="p-4 px-6 font-bold text-xs">{inc.title}</td>
                         <td className="p-4 px-6">
                           <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border ${
-                            inc.severity === 'critical' ? 'bg-[#fdebeb] text-[#eb5757] border-[#f8cfcf]' :
-                            inc.severity === 'high' ? 'bg-[#fef5ed] text-[#f2994a] border-[#fcdcb8]' : 'bg-[#fdf8e7] text-[#b38b00] border-[#fae8b8]'
+                            inc.severity === 'critical' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                            inc.severity === 'high' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-blue-500/10 text-blue-500 border-blue-500/20'
                           }`}>
                             {inc.severity}
                           </span>
                         </td>
-                        <td className="p-4 px-6 text-[#7c7b77] font-bold">{inc.reporter || 'AI System'}</td>
-                        <td className="p-4 px-6 text-[#7c7b77] font-bold">{inc.assigned_user || 'Unassigned'}</td>
+                        <td className="p-4 px-6 text-[var(--text-3)] font-bold">{inc.reporter || 'AI System'}</td>
+                        <td className="p-4 px-6 text-[var(--text-3)] font-bold">{inc.assigned_user || 'Unassigned'}</td>
                         <td className="p-4 px-6"><Badge type={inc.status === 'active' ? 'danger' : 'default'}>{inc.status}</Badge></td>
                         <td className="p-4 px-6 text-right space-x-1.5">
                           {inc.status === 'active' && (
-                            <Button variant="outline" size="sm" onClick={() => void handleResolveIncident(inc.id)} className="h-8 p-2 rounded-lg bg-white border border-[#e9e9e6]" title="Mark Resolved">
+                            <Button variant="outline" size="sm" onClick={() => void handleResolveIncident(inc.id)} className="h-8 p-2 rounded-lg bg-[var(--surface)] border border-[var(--border)]" title="Mark Resolved">
                               <Check size={12} />
                             </Button>
                           )}
@@ -631,7 +631,7 @@ const AlertsReports = () => {
                               notes: inc.notes || '',
                             });
                             setFormOpen(true);
-                          }} className="h-8 p-2 rounded-lg bg-white border border-[#e9e9e6]" title="Edit Ticket">
+                          }} className="h-8 p-2 rounded-lg bg-[var(--surface)] border border-[var(--border)]" title="Edit Ticket">
                             <Edit2 size={12} />
                           </Button>
                           <Button variant="destructive" size="sm" onClick={() => void handleDeleteIncident(inc.id)} className="h-8 p-2 rounded-lg" title="Delete Ticket">
@@ -650,35 +650,35 @@ const AlertsReports = () => {
 
       {activeTab === 'reports' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-slide-up">
-          <Card className="bg-white border-[#e9e9e6] shadow-sm">
+          <Card className="bg-[var(--surface)] border-[var(--border)] shadow-xs">
             <CardContent className="p-6 space-y-4">
-              <div className="p-2.5 rounded-lg bg-[#eb5757]/10 border border-[#eb5757]/20 text-[#eb5757] w-fit">
+              <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-500 w-fit">
                 <FileText className="w-6 h-6" />
               </div>
-              <h3 className="font-bold text-xs uppercase tracking-wider text-[#37352f]">Generate Operations Incident Report</h3>
-              <p className="text-[11px] text-[#7c7b77] leading-relaxed font-bold">
+              <h3 className="font-bold text-xs uppercase tracking-wider text-[var(--text)]">Generate Operations Incident Report</h3>
+              <p className="text-[11px] text-[var(--text-2)] leading-relaxed font-semibold">
                 Compile all logged fire, smoke, and threat warnings. Creates a certified operational PDF audit log detailing timestamps, confidence percentages, and operator comments.
               </p>
-              <Button variant="primary" size="sm" onClick={handleExportPdf} className="w-full flex items-center justify-center gap-2 text-xs">
+              <Button variant="primary" size="sm" onClick={handleExportPdf} className="w-full flex items-center justify-center gap-2 text-xs font-bold">
                 <Download size={14} /> Download PDF Report
               </Button>
             </CardContent>
           </Card>
 
-          <Card className="bg-white border-[#e9e9e6] shadow-sm">
+          <Card className="bg-[var(--surface)] border-[var(--border)] shadow-xs">
             <CardContent className="p-6 space-y-4">
-              <div className="p-2.5 rounded-lg bg-[#f2994a]/10 border border-[#f2994a]/20 text-[#f2994a] w-fit">
+              <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500 w-fit">
                 <BarChart className="w-6 h-6" />
               </div>
-              <h3 className="font-bold text-xs uppercase tracking-wider text-[#37352f]">Download Ingest Logs (CSV)</h3>
-              <p className="text-[11px] text-[#7c7b77] leading-relaxed font-bold">
+              <h3 className="font-bold text-xs uppercase tracking-wider text-[var(--text)]">Download Ingest Logs (CSV)</h3>
+              <p className="text-[11px] text-[var(--text-2)] leading-relaxed font-semibold">
                 Export complete historical threat and surveillance activity records into a CSV spreadsheet. Perfect for import into external data analysis databases.
               </p>
               <Button variant="outline" size="sm" onClick={() => {
                 const token = localStorage.getItem('fg-token');
                 window.open(`${APP_CONFIG.apiBaseUrl}/api/v1/history/export/csv?token=${token || ''}`, '_blank');
                 toast('Exporting CSV logs...', 'info');
-              }} className="w-full flex items-center justify-center gap-2 bg-white border border-[#e9e9e6] text-xs">
+              }} className="w-full flex items-center justify-center gap-2 bg-[var(--surface)] border border-[var(--border)] text-xs font-bold">
                 <Download size={14} /> Download CSV Logs
               </Button>
             </CardContent>
@@ -688,7 +688,7 @@ const AlertsReports = () => {
 
       {/* Incident Modal */}
       <Modal isOpen={formOpen} onClose={() => setFormOpen(false)} title={formMode === 'create' ? 'Create Incident Ticket' : 'Edit Incident Ticket'}>
-        <form onSubmit={handleCreateOrEditIncident} className="space-y-4 text-xs font-semibold text-[#7c7b77]">
+        <form onSubmit={handleCreateOrEditIncident} className="space-y-4 text-xs font-semibold text-[var(--text-2)]">
           <Input 
             label="Incident Title" 
             value={form.title || ''} 
@@ -736,9 +736,9 @@ const AlertsReports = () => {
             onChange={(e) => setForm({ ...form, notes: e.target.value })} 
             placeholder="Triage steps or remarks."
           />
-          <div className="flex justify-end gap-2 pt-4 border-t border-[#e9e9e6] font-bold">
-            <Button variant="outline" size="sm" type="button" onClick={() => setFormOpen(false)} className="bg-white border border-[#e9e9e6] text-xs">Cancel</Button>
-            <Button variant="primary" size="sm" type="submit" isLoading={isSubmitting} className="text-xs">
+          <div className="flex justify-end gap-2 pt-4 border-t border-[var(--border)] font-bold">
+            <Button variant="outline" size="sm" type="button" onClick={() => setFormOpen(false)} className="bg-[var(--surface)] border border-[var(--border)] text-xs font-bold">Cancel</Button>
+            <Button variant="primary" size="sm" type="submit" isLoading={isSubmitting} className="text-xs font-bold">
               {formMode === 'create' ? 'File Ticket' : 'Save Details'}
             </Button>
           </div>
@@ -748,7 +748,7 @@ const AlertsReports = () => {
       {/* Image Zoom Modal */}
       <Modal isOpen={!!zoomUrl} onClose={() => setZoomUrl(null)} title="Full-Resolution Evidence Frame">
         {zoomUrl && (
-          <div className="rounded-xl overflow-hidden border border-[#e9e9e6] bg-black flex justify-center shadow-lg">
+          <div className="rounded-xl overflow-hidden border border-[var(--border)] bg-black flex justify-center shadow-lg">
             <img src={zoomUrl} alt="Evidence" className="w-full h-auto object-contain max-h-[500px]" />
           </div>
         )}

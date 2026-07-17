@@ -340,7 +340,7 @@ const Detection = () => {
       </motion.div>
 
       {/* Tabs */}
-      <motion.div variants={fadeUp} className="flex items-center gap-1 bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-1 w-fit">
+      <motion.div variants={fadeUp} className="flex items-center gap-1 bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl p-1 w-fit">
         {TABS.map(tab => {
           const Icon = tab.icon;
           const active = activeTab === tab.id;
@@ -348,11 +348,13 @@ const Detection = () => {
             <button
               key={tab.id}
               onClick={() => { stopWebcam(); setActiveTab(tab.id as any); }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-bold transition-all cursor-pointer ${
-                active ? 'bg-[var(--surface)] text-[var(--primary)] border border-[var(--border)] shadow-xs' : 'text-[var(--text-3)] hover:text-[var(--text)]'
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-bold transition-all duration-200 cursor-pointer ${
+                active 
+                  ? 'bg-white dark:bg-slate-800 text-sky-700 dark:text-sky-400 border border-slate-200/50 dark:border-slate-700 shadow-sm' 
+                  : 'text-[var(--text-2)] hover:text-[var(--text)] hover:bg-white/40'
               }`}
             >
-              <Icon size={14} />
+              <Icon size={14} className={active ? 'text-sky-600 dark:text-sky-400' : 'text-[var(--text-3)]'} />
               {tab.label}
             </button>
           );
@@ -382,8 +384,10 @@ const Detection = () => {
                   onClick={() => !imgLoading && imgInputRef.current?.click()}
                   onDragOver={e => e.preventDefault()}
                   onDrop={handleImgDrop}
-                  className={`border-2 border-dashed rounded-xl transition-all cursor-pointer ${
-                    imgPreview ? 'border-[var(--border)]' : 'border-[var(--border)] hover:border-[var(--primary)] hover:bg-[var(--surface-2)]'
+                  className={`border-2 border-dashed rounded-2xl p-6 transition-all duration-300 cursor-pointer text-center ${
+                    imgPreview 
+                      ? 'border-slate-200 bg-white' 
+                      : 'border-slate-200 dark:border-slate-700 hover:border-sky-300 dark:hover:border-sky-800 bg-slate-50/30 dark:bg-slate-900/30 hover:bg-sky-50/10'
                   }`}
                 >
                   <input type="file" ref={imgInputRef} className="hidden" accept="image/*" onChange={e => {
@@ -397,12 +401,12 @@ const Detection = () => {
                     </div>
                   ) : (
                     <div className="py-14 flex flex-col items-center gap-3 select-none">
-                      <div className="w-10 h-10 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] flex items-center justify-center text-[var(--text-3)]">
-                        <UploadCloud size={18} />
+                      <div className="w-12 h-12 rounded-full bg-sky-50 dark:bg-sky-950/30 flex items-center justify-center text-sky-600 dark:text-sky-400 mb-3 shadow-xs">
+                        <UploadCloud size={20} />
                       </div>
                       <div className="text-center">
-                        <p className="text-[13px] font-bold text-[var(--text)]">Drop image here or click to upload</p>
-                        <p className="text-[11px] text-[var(--text-3)] font-semibold mt-1">PNG, JPG, WEBP formats supported</p>
+                        <p className="text-[13px] font-bold text-[var(--text)]">Drop image here or click to browse</p>
+                        <p className="text-[11px] text-[var(--text-3)] font-medium mt-1">PNG, JPG, WEBP formats up to 10MB</p>
                       </div>
                     </div>
                   )}
@@ -410,10 +414,10 @@ const Detection = () => {
 
                 {imgFile && !imgLoading && (
                   <div className="flex gap-2 justify-end">
-                    <button onClick={() => { setImgFile(null); setImgPreview(null); setImgResult(null); }} className="px-3 py-2 border border-[var(--border)] rounded-lg text-[12px] font-bold text-[var(--text-2)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer">
+                    <button onClick={() => { setImgFile(null); setImgPreview(null); setImgResult(null); }} className="px-3.5 py-2 border border-[var(--border)] rounded-xl text-[12px] font-bold text-[var(--text-2)] hover:bg-[var(--surface-hover)] transition-all cursor-pointer">
                       Clear
                     </button>
-                    <button onClick={runImageInference} className="px-4 py-2 bg-[var(--primary)] text-white text-[12px] font-bold rounded-lg hover:bg-[var(--primary-hover)] transition-colors cursor-pointer shadow-sm">
+                    <button onClick={runImageInference} className="px-4.5 py-2 bg-sky-600 text-white text-[12px] font-bold rounded-xl hover:bg-sky-700 transition-all cursor-pointer shadow-xs">
                       Analyze Image
                     </button>
                   </div>
@@ -421,7 +425,7 @@ const Detection = () => {
 
                 {imgLoading && (
                   <div className="flex items-center justify-center py-12 gap-3">
-                    <RefreshCw size={18} className="animate-spin text-[var(--primary)]" />
+                    <RefreshCw size={18} className="animate-spin text-sky-600" />
                     <p className="text-[13px] text-[var(--text-2)] font-bold">Running YOLOv8 inference...</p>
                   </div>
                 )}
@@ -438,7 +442,7 @@ const Detection = () => {
                         <a
                           href={evidenceUrl(imgResult.evidence_path) || ''}
                           download={`detection_${Date.now()}.jpg`}
-                          className="absolute top-3 right-3 flex items-center gap-1.5 bg-[var(--surface)] border border-[var(--border)] px-3 py-1.5 rounded-lg text-[11px] font-bold text-[var(--text)] shadow-sm hover:bg-[var(--surface-hover)] transition-colors cursor-pointer"
+                          className="absolute top-3 right-3 flex items-center gap-1.5 bg-[var(--surface)] border border-[var(--border)] px-3.5 py-2 rounded-xl text-[11px] font-bold text-[var(--text)] shadow-xs hover:bg-[var(--surface-hover)] transition-all cursor-pointer"
                         >
                           <Download size={12} /> Download
                         </a>
@@ -459,8 +463,10 @@ const Detection = () => {
               <div className="space-y-5">
                 <div
                   onClick={() => !vidLoading && vidInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-xl transition-all cursor-pointer ${
-                    vidFile ? 'border-[var(--border)]' : 'border-[var(--border)] hover:border-[var(--primary)] hover:bg-[var(--surface-2)]'
+                  className={`border-2 border-dashed rounded-2xl p-6 transition-all duration-300 cursor-pointer text-center ${
+                    vidFile 
+                      ? 'border-slate-200 bg-white' 
+                      : 'border-slate-200 dark:border-slate-700 hover:border-sky-300 dark:hover:border-sky-800 bg-slate-50/30 dark:bg-slate-900/30 hover:bg-sky-50/10'
                   }`}
                 >
                   <input type="file" ref={vidInputRef} className="hidden" accept="video/*" onChange={e => {
@@ -469,22 +475,22 @@ const Detection = () => {
                   }} />
                   {vidFile ? (
                     <div className="py-8 flex flex-col items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-[var(--fire-bg)] border border-[var(--fire-border)] flex items-center justify-center text-[var(--fire)]">
-                        <FileVideo size={18} />
+                      <div className="w-12 h-12 rounded-full bg-sky-50 dark:bg-sky-950/30 flex items-center justify-center text-sky-600 dark:text-sky-400 mb-3 shadow-xs">
+                        <FileVideo size={20} />
                       </div>
                       <div className="text-center">
                         <p className="text-[13px] font-bold text-[var(--text)] truncate max-w-xs">{vidFile.name}</p>
-                        <p className="text-[11px] text-[var(--text-3)] font-semibold mt-1">{(vidFile.size / 1048576).toFixed(2)} MB</p>
+                        <p className="text-[11px] text-[var(--text-3)] font-medium mt-1">{(vidFile.size / 1048576).toFixed(2)} MB</p>
                       </div>
                     </div>
                   ) : (
                     <div className="py-14 flex flex-col items-center gap-3 select-none">
-                      <div className="w-10 h-10 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] flex items-center justify-center text-[var(--text-3)]">
-                        <UploadCloud size={18} />
+                      <div className="w-12 h-12 rounded-full bg-sky-50 dark:bg-sky-950/30 flex items-center justify-center text-sky-600 dark:text-sky-400 mb-3 shadow-xs">
+                        <UploadCloud size={20} />
                       </div>
                       <div className="text-center">
-                        <p className="text-[13px] font-bold text-[var(--text)]">Drop video here or click to upload</p>
-                        <p className="text-[11px] text-[var(--text-3)] font-semibold mt-1">MP4, AVI, MOV, MKV formats supported</p>
+                        <p className="text-[13px] font-bold text-[var(--text)]">Drop video here or click to browse</p>
+                        <p className="text-[11px] text-[var(--text-3)] font-medium mt-1">MP4, AVI, MOV, MKV formats up to 50MB</p>
                       </div>
                     </div>
                   )}
@@ -621,13 +627,13 @@ const Detection = () => {
                       type="text"
                       value={rtspUrl}
                       onChange={e => setRtspUrl(e.target.value)}
-                      className="flex-1 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs text-[var(--text)] font-semibold outline-none focus:border-[var(--primary)] placeholder-[var(--text-3)]"
+                      className="flex-1 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-xs text-[var(--text)] font-semibold outline-none focus:ring-2 focus:ring-sky-100 focus:border-sky-500 transition-all placeholder-[var(--text-3)]"
                       placeholder="rtsp://host:port/live_stream"
                     />
                     <button
                       onClick={connectRtsp}
                       disabled={rtspLoading || !rtspUrl}
-                      className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-bold rounded-lg disabled:opacity-50 transition-colors cursor-pointer shrink-0 flex items-center gap-1.5 shadow-sm"
+                      className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl disabled:opacity-50 transition-all duration-200 cursor-pointer shrink-0 flex items-center gap-1.5 shadow-xs hover:-translate-y-0.5 active:translate-y-0"
                     >
                       {rtspLoading ? <RefreshCw size={12} className="animate-spin" /> : <Wifi size={12} />}
                       {rtspLoading ? 'Connecting...' : 'Connect'}

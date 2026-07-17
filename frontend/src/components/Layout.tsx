@@ -222,7 +222,7 @@ const Layout = () => {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
         {/* Top header bar */}
-        <header className="h-13 bg-[var(--surface)] border-b border-[var(--border)] flex items-center justify-between px-5 shrink-0 z-20" style={{ height: '52px' }}>
+        <header className="sticky top-0 h-[52px] backdrop-blur-md bg-white/75 dark:bg-[#0f172a]/75 border-b border-[var(--border)]/80 flex items-center justify-between px-6 shrink-0 z-20">
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setSidebarOpen(true)}

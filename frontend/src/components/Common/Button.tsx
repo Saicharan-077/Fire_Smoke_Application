@@ -23,11 +23,11 @@ export const Button: React.FC<ButtonProps> = ({
   const baseClasses = "inline-flex items-center justify-center font-medium rounded-xl transition-all duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed";
   
   const variants = {
-    primary: "bg-red-600 text-white hover:bg-red-700 shadow-sm hover:shadow-md hover:shadow-red-500/20 active:scale-95",
-    ghost: "bg-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 active:scale-95",
-    danger: "bg-red-500/10 text-red-600 hover:bg-red-600 hover:text-white active:scale-95",
-    destructive: "bg-red-600 text-white hover:bg-red-700 shadow-sm active:scale-95",
-    outline: "border border-gray-300 dark:border-gray-700 bg-transparent text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 active:scale-95"
+    primary: "bg-sky-600 text-white hover:bg-sky-700 shadow-sm hover:shadow-md hover:shadow-sky-500/15 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
+    ghost: "bg-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-sky-50 dark:hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
+    danger: "bg-red-500/10 text-red-600 hover:bg-red-600 hover:text-white hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
+    destructive: "bg-red-600 text-white hover:bg-red-700 shadow-sm hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
+    outline: "border border-gray-300 dark:border-gray-700 bg-transparent text-gray-700 dark:text-gray-300 hover:bg-sky-50/50 dark:hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]"
   };
 
   const sizes = {

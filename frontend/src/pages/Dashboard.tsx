@@ -14,7 +14,7 @@ import {
   Volume2, VolumeX, Maximize, Minimize,
   Grid2x2, Map,
   ShieldAlert, Camera, AlertCircle,
-  Sliders, Search, ShieldCheck
+  ShieldCheck
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -268,17 +268,10 @@ const Dashboard = () => {
   
   // Custom states for Dynamic Camera Priority Grid
   const [camerasState, setCamerasState] = useState<CustomCameraState[]>([]);
-  const [injectedThreats, setInjectedThreats] = useState<Record<string, { threat: 'fire' | 'smoke'; confidence: number }>>({});
   
   const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
   const [selectedCamId, setSelectedCamId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
-  const [rightPanelOpen, setRightPanelOpen] = useState(true);
-  const [injectorOpen, setInjectorOpen] = useState(true);
-
-  // Alert Center Search and Filters
-  const [alertSearch, setAlertSearch] = useState('');
-  const [alertFilter, setAlertFilter] = useState<'all' | 'fire' | 'smoke'>('all');
 
   // Webcam variables
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -431,17 +424,6 @@ const Dashboard = () => {
         };
       }
 
-      // If a threat was injected, preserve it
-      const hasInjection = injectedThreats[cam.id];
-      if (hasInjection) {
-        return {
-          ...cam,
-          priority: hasInjection.threat === 'fire' ? 'red' : 'yellow',
-          threat: hasInjection.threat,
-          confidence: hasInjection.confidence
-        };
-      }
-
       // Otherwise reset to normal state
       return {
         ...cam,
@@ -450,7 +432,7 @@ const Dashboard = () => {
         confidence: 0
       };
     }));
-  }, [storeAlerts, injectedThreats]);
+  }, [storeAlerts]);
 
   // Webcam stream activation
   const startWebcam = async () => {
@@ -649,94 +631,6 @@ const Dashboard = () => {
     return () => { cancelAnimationFrame(raf); };
   }, [camActive, muted]);
 
-  // Demo Threat Injector Handlers
-  const injectThreat = (cameraId: string, type: 'fire' | 'smoke') => {
-    const confidence = type === 'fire' ? 0.94 + Math.random() * 0.05 : 0.82 + Math.random() * 0.1;
-    
-    // Add to injected threats state
-    setInjectedThreats(p => ({ ...p, [cameraId]: { threat: type, confidence } }));
-    
-    // Update camera priority
-    setCamerasState(prev => prev.map(c => {
-      if (c.id === cameraId) {
-        return {
-          ...c,
-          priority: type === 'fire' ? 'red' : 'yellow',
-          threat: type,
-          confidence: parseFloat(confidence.toFixed(4)),
-          lastSeen: new Date().toISOString()
-        };
-      }
-      return c;
-    }));
-
-    // Trigger local siren if any critical threat is injected
-    if (type === 'fire') {
-      startSiren();
-    }
-
-    // Trigger instant alert in Notification & Dashboard store
-    const mockAlert = {
-      id: `inject-${cameraId}-${Date.now()}`,
-      alertType: type,
-      cameraId: cameraId,
-      cameraName: camerasState.find(c => c.id === cameraId)?.name || cameraId,
-      zone: camerasState.find(c => c.id === cameraId)?.zone || 'Zone A',
-      confidence: parseFloat(confidence.toFixed(4)),
-      timestamp: new Date().toISOString(),
-      severity: type === 'fire' ? 'critical' : 'warning',
-      isRead: false
-    } as any;
-
-    addNotification(mockAlert);
-    pushPopup(mockAlert);
-    
-    toast(`Injected simulated ${type.toUpperCase()} on camera ${cameraId}`, 'info');
-  };
-
-  const clearThreat = (cameraId: string) => {
-    setInjectedThreats(p => {
-      const copy = { ...p };
-      delete copy[cameraId];
-      return copy;
-    });
-
-    setCamerasState(prev => prev.map(c => {
-      if (c.id === cameraId) {
-        return {
-          ...c,
-          priority: 'green',
-          threat: null,
-          confidence: 0
-        };
-      }
-      return c;
-    }));
-
-    // If no more red threats exist, stop sound
-    const hasRemainingFires = Object.values(injectedThreats).some(t => t.threat === 'fire');
-    if (!hasRemainingFires && !camThreat) {
-      stopSiren();
-    }
-
-    toast(`Cleared threat simulation on ${cameraId}`, 'success');
-  };
-
-  const clearAllThreats = () => {
-    setInjectedThreats({});
-    setCamerasState(prev => prev.map(c => ({
-      ...c,
-      priority: 'green',
-      threat: null,
-      confidence: 0
-    })));
-    stopSiren();
-    if (camActive) {
-      setCamThreat(null);
-    }
-    toast('All threats cleared. Grid layout returned to nominal states.', 'success');
-  };
-
   // Sort and arrange cameras dynamically
   const sortedCameras = useMemo(() => {
     return [...camerasState].sort((a, b) => {
@@ -760,9 +654,9 @@ const Dashboard = () => {
   // Computations for KPI counters
   const totalCamsCount = camerasState.length;
   const onlineCamsCount = camerasState.filter(c => c.status === 'online').length;
-  const activeAlertsCount = stats.active_alerts + Object.keys(injectedThreats).length + (camThreat ? 1 : 0);
-  const activeFiresCount = stats.fire_alerts + Object.values(injectedThreats).filter(t => t.threat === 'fire').length + (camThreat === 'fire' ? 1 : 0);
-  const activeSmokesCount = stats.smoke_alerts + Object.values(injectedThreats).filter(t => t.threat === 'smoke').length + (camThreat === 'smoke' ? 1 : 0);
+  const activeAlertsCount = stats.active_alerts + (camThreat ? 1 : 0);
+  const activeFiresCount = stats.fire_alerts + (camThreat === 'fire' ? 1 : 0);
+  const activeSmokesCount = stats.smoke_alerts + (camThreat === 'smoke' ? 1 : 0);
 
   const activeAlertsList = useMemo(() => (stats.recent_alerts || []).filter((a: any) => a.status === 'active'), [stats]);
 
@@ -773,20 +667,20 @@ const Dashboard = () => {
   };
 
   const handleResolveCamera = (camId: string) => {
-    clearThreat(camId);
+    setCamerasState(prev => prev.map(c => {
+      if (c.id === camId) {
+        return {
+          ...c,
+          priority: 'green',
+          threat: null,
+          confidence: 0
+        };
+      }
+      return c;
+    }));
+    stopSiren();
+    toast(`Cleared threat alert on ${camId}`, 'success');
   };
-
-  // Filtered Alerts for the Enterprise Alert Center sidebar
-  const filteredAlerts = useMemo(() => {
-    const list = stats.recent_alerts || [];
-    return list.filter((a: any) => {
-      const matchQuery = alertSearch === '' || 
-        a.camera_id?.toLowerCase().includes(alertSearch.toLowerCase()) ||
-        a.detection_type.toLowerCase().includes(alertSearch.toLowerCase());
-      const matchType = alertFilter === 'all' || a.detection_type === alertFilter;
-      return matchQuery && matchType;
-    });
-  }, [stats.recent_alerts, alertSearch, alertFilter]);
 
   return (
     <motion.div className="space-y-6" variants={stagger} initial="hidden" animate="show">
@@ -800,15 +694,6 @@ const Dashboard = () => {
           <p className="text-[12px] text-[var(--text-2)] mt-0.5">Commercial multi-channel AI surveillance matrix & incident response platform</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => setInjectorOpen(!injectorOpen)}
-            className={`flex items-center gap-1.5 px-3 py-2 border rounded-lg text-[11px] font-bold transition-all ${
-              injectorOpen ? 'bg-[var(--surface-hover)] text-amber-500 border-[var(--border-strong)] shadow-inner' : 'bg-[var(--surface)] text-[var(--text-2)] border-[var(--border)] hover:text-[var(--text)]'
-            }`}
-          >
-            <Sliders size={12} /> {injectorOpen ? 'Hide Injector' : 'Threat Injector'}
-          </button>
-          
           <div className="flex items-center bg-[var(--surface)] border border-[var(--border)] rounded-lg p-1 gap-1">
             <button
               onClick={() => setViewMode('grid')}
@@ -823,87 +708,15 @@ const Dashboard = () => {
               <Map size={12} className="mr-1" /> Facility Map
             </button>
           </div>
-
-          <button
-            onClick={() => setRightPanelOpen(!rightPanelOpen)}
-            className={`px-3 py-2 border rounded-lg text-[11px] font-bold transition-all ${rightPanelOpen ? 'bg-[var(--primary-light)] text-[var(--primary)] border-[var(--primary-ring)]' : 'bg-[var(--surface)] text-[var(--text-2)] border-[var(--border)] hover:text-[var(--text)]'}`}
-          >
-            {rightPanelOpen ? 'Hide Alert Hub' : 'Show Alert Hub'}
-          </button>
           
           <button
             onClick={load}
-            className="flex items-center gap-1 px-3 py-2 bg-[#18181b] border border-[#232326] rounded-lg text-[11px] font-bold text-[var(--text-2)] hover:text-[var(--text)] hover:border-[#2d2d30] transition-all"
+            className="flex items-center gap-1 px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[11px] font-bold text-[var(--text-2)] hover:text-[var(--text)] hover:border-[var(--border-strong)] transition-all"
           >
             <RefreshCw size={12} className="mr-1" /> Refresh
           </button>
         </div>
       </motion.div>
-
-      {/* Threat Simulator Injector Controls */}
-      <AnimatePresence>
-        {injectorOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="bg-[var(--surface)] border border-amber-500/20 rounded-xl p-4 flex flex-col gap-3">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <div>
-                  <h4 className="text-[12px] font-bold text-amber-500 uppercase tracking-wider flex items-center gap-1">
-                    💡 Presentation Threat Injector Controls
-                  </h4>
-                  <p className="text-[11px] text-[var(--text-3)] mt-0.5">
-                    Select any CCTV camera to inject a simulated threat. Watch the grid re-sort, highlight the active feed, sound the siren, and provide alert options.
-                  </p>
-                </div>
-                <button
-                  onClick={clearAllThreats}
-                  className="w-full sm:w-auto px-3.5 py-1.5 bg-red-500 text-white text-[10px] font-bold rounded-lg hover:bg-red-600 transition-colors shadow-sm text-center"
-                >
-                  Clear All Threats
-                </button>
-              </div>
-              
-              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[var(--border)]/40">
-                {camerasState.filter(c => c.status === 'online').map((cam) => {
-                  const hasThreat = !!injectedThreats[cam.id];
-                  return (
-                    <div key={cam.id} className="bg-[var(--surface-2)] border border-[var(--border-strong)] rounded-lg p-2 flex items-center gap-2">
-                      <span className="text-[10px] font-bold text-[var(--text)] font-mono">{cam.id}</span>
-                      {hasThreat ? (
-                        <button
-                          onClick={() => clearThreat(cam.id)}
-                          className="px-2 py-1 bg-green-500/10 text-green-400 border border-green-500/20 text-[9px] font-bold rounded-md hover:bg-green-500 hover:text-white transition-colors"
-                        >
-                          Clear Alert
-                        </button>
-                      ) : (
-                        <div className="flex gap-1.5">
-                          <button
-                            onClick={() => injectThreat(cam.id, 'fire')}
-                            className="px-2 py-1 bg-red-500/10 text-red-400 border border-red-500/20 text-[9px] font-bold rounded-md hover:bg-red-500 hover:text-white transition-colors"
-                          >
-                            Inject Fire
-                          </button>
-                          <button
-                            onClick={() => injectThreat(cam.id, 'smoke')}
-                            className="px-2 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[9px] font-bold rounded-md hover:bg-amber-500 hover:text-white transition-colors"
-                          >
-                            Inject Smoke
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Statistics Strip */}
       <motion.div variants={stagger} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -993,7 +806,7 @@ const Dashboard = () => {
                                 <p className="text-[12px] text-[var(--text-2)] font-semibold">Webcam Feed Paused</p>
                                 <button
                                   onClick={startWebcam}
-                                  className="px-3.5 py-1.5 bg-blue-500 text-white text-[11px] font-bold rounded-lg hover:bg-blue-600 transition-colors shadow-sm"
+                                  className="px-4 py-2 bg-sky-600 text-white text-[11px] font-bold rounded-xl hover:bg-sky-700 transition-all duration-200 shadow-xs cursor-pointer active:scale-[0.98]"
                                 >
                                   Activate Webcam
                                 </button>
@@ -1070,13 +883,13 @@ const Dashboard = () => {
                             <div className="flex gap-2 mt-4 lg:mt-0">
                               <button
                                 onClick={() => handleAcknowledgeCamera(camera.id)}
-                                className="flex-1 py-2 bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[11px] font-bold rounded-lg hover:bg-amber-500 hover:text-white transition-colors"
+                                className="flex-1 py-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[11px] font-bold rounded-xl hover:bg-amber-600 hover:text-white transition-all cursor-pointer"
                               >
                                 Acknowledge
                               </button>
                               <button
                                 onClick={() => handleResolveCamera(camera.id)}
-                                className="flex-1 py-2 bg-green-500 text-white text-[11px] font-bold rounded-lg hover:bg-green-600 transition-colors shadow-sm"
+                                className="flex-1 py-2 bg-emerald-600 text-white text-[11px] font-bold rounded-xl hover:bg-emerald-700 transition-all shadow-xs cursor-pointer"
                               >
                                 Resolve
                               </button>
@@ -1103,202 +916,125 @@ const Dashboard = () => {
               </div>
               <FacilityMap
                 cameras={camerasState.map((c, i) => ({ id: c.id, name: c.name, zone: c.zone || `Zone ${String.fromCharCode(65 + (i % 5))}`, x: 15 + ((i * 30) % 75), y: 25 + ((i * 20) % 55) }))}
-                activeAlerts={[...activeAlertsList.map((a: any) => a.camera_id), ...(camThreat ? ['CAM-01'] : []), ...Object.keys(injectedThreats)]}
+                activeAlerts={[...activeAlertsList.map((a: any) => a.camera_id), ...(camThreat ? ['CAM-01'] : [])]}
                 selectedCameraId={selectedCamId || undefined}
                 onCameraSelect={(id) => { setSelectedCamId(id); setViewMode('grid'); }}
               />
             </motion.div>
           )}
         </div>
+      </div>
 
-        {/* Right Column: Alert Center & Analytics Sidebar */}
-        {rightPanelOpen && (
-          <div className="w-full xl:w-80 shrink-0 space-y-5 animate-fade-up">
-
-            {/* AI Core Engine Health Widget */}
-            <motion.div variants={fadeUp} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xs overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--surface-2)]/30 flex items-center justify-between">
-                <span className="text-[11px] font-bold text-[var(--text)] uppercase tracking-wider flex items-center gap-1.5">
-                  <Cpu size={12} className="text-purple-400" /> AI Engine Core Health
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-green-500 animate-ping" />
-                  <span className="text-[9px] text-green-400 font-bold uppercase font-mono">ACTIVE</span>
-                </span>
-              </div>
-              <div className="p-4 space-y-3">
-                <div className="grid grid-cols-2 gap-3 text-[10px]">
-                  <div>
-                    <span className="text-[var(--text-3)] block">Model Name</span>
-                    <span className="text-[var(--text)] font-bold font-mono">YOLOv8s Fire-Smoke</span>
-                  </div>
-                  <div>
-                    <span className="text-[var(--text-3)] block">Model Version</span>
-                    <span className="text-[var(--text)] font-bold font-mono">v1.8.2-Custom</span>
-                  </div>
-                  <div>
-                    <span className="text-[var(--text-3)] block">Hardware Engine</span>
-                    <span className="text-purple-500 font-bold font-mono">CPU Core</span>
-                  </div>
-                  <div>
-                    <span className="text-[var(--text-3)] block">Uptime SLA</span>
-                    <span className="text-[var(--text)] font-bold font-mono">99.98% (12h 44m)</span>
-                  </div>
-                  <div>
-                    <span className="text-[var(--text-3)] block">Avg Inference</span>
-                    <span className="text-[var(--text)] font-bold font-mono">{avgInferenceLatency} ms</span>
-                  </div>
-                  <div>
-                    <span className="text-[var(--text-3)] block">Avg Core FPS</span>
-                    <span className="text-[var(--text)] font-bold font-mono">24 FPS</span>
-                  </div>
-                </div>
-                
-                <div className="pt-2.5 border-t border-[var(--border)] flex justify-between items-center text-[10px]">
-                  <span className="text-[var(--text-3)]">Last Detection:</span>
-                  <span className="text-[var(--text-2)] font-mono font-semibold">
-                    {stats.recent_alerts && stats.recent_alerts.length > 0 
-                      ? `${stats.recent_alerts[0].camera_id || 'CAM-01'} (${new Date(stats.recent_alerts[0].timestamp).toLocaleTimeString()})`
-                      : 'None'}
-                  </span>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Acknowledged / Resolved Alert Center */}
-            <motion.div variants={fadeUp} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xs overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--surface-2)]/30 flex items-center justify-between">
-                <span className="text-[11px] font-bold text-[var(--text)] uppercase tracking-wider flex items-center gap-1.5">
-                  <ShieldCheck size={12} className="text-blue-400" /> Enterprise Alert Center
-                </span>
-                {activeAlertsCount > 0 && (
-                  <span className="px-1.5 py-0.5 bg-red-500/10 text-red-400 text-[9px] font-bold rounded-full border border-red-500/20">
-                    {activeAlertsCount} active
-                  </span>
-                )}
-              </div>
-              
-              {/* Filter controls */}
-              <div className="p-3 bg-[var(--surface-2)]/20 border-b border-[var(--border)] space-y-2">
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Search alert logs..."
-                    value={alertSearch}
-                    onChange={(e) => setAlertSearch(e.target.value)}
-                    className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2.5 py-1.5 pl-8 text-[11px] text-[var(--text)] placeholder-[var(--text-3)] focus:outline-none focus:border-[var(--border-strong)] font-medium"
-                  />
-                  <Search size={11} className="absolute left-2.5 top-2.5 text-[var(--text-3)]" />
-                </div>
-                <div className="flex gap-1">
-                  {['all', 'fire', 'smoke'].map((f) => (
-                    <button
-                      key={f}
-                      onClick={() => setAlertFilter(f as any)}
-                      className={`flex-1 py-1 rounded text-[9px] font-bold uppercase transition-all border ${
-                        alertFilter === f 
-                          ? 'bg-[var(--surface-hover)] text-[var(--text)] border-[var(--border-strong)]' 
-                          : 'bg-[var(--surface)] text-[var(--text-2)] border-transparent hover:text-[var(--text)]'
-                      }`}
-                    >
-                      {f}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="divide-y divide-[var(--border)] max-h-48 overflow-y-auto custom-scrollbar">
-                {filteredAlerts.length === 0 ? (
-                  <div className="py-8 text-center text-[11px] text-[var(--text-3)] bg-[#18181b]">No alerts matching filters.</div>
-                ) : (
-                  filteredAlerts.map((alert: any) => (
-                    <div
-                      key={alert.id}
-                      onClick={() => navigate('/alerts-reports')}
-                      className="flex items-start gap-2.5 px-4 py-2.5 hover:bg-[var(--surface-hover)] cursor-pointer transition-colors bg-[var(--surface)]"
-                    >
-                      <span className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${alert.detection_type === 'fire' ? 'bg-red-500' : 'bg-amber-500'} ${alert.status === 'active' ? 'animate-pulse' : 'opacity-40'}`} />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <span className={`text-[10px] font-bold capitalize ${alert.detection_type === 'fire' ? 'text-red-400' : 'text-amber-400'}`}>
-                            {alert.detection_type}
-                          </span>
-                          <span className="text-[9px] text-[var(--text-3)] font-mono">{(alert.confidence * 100).toFixed(0)}% Match</span>
-                        </div>
-                        <p className="text-[10px] text-[var(--text-2)] truncate">{alert.camera_id || 'System Input'}</p>
-                        <p className="text-[8px] text-[var(--text-3)]">{new Date(alert.timestamp).toLocaleTimeString()}</p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </motion.div>
-
-            {/* Active Incidents */}
-            <motion.div variants={fadeUp} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xs overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--surface-2)]/30">
-                <span className="text-[11px] font-bold text-white uppercase tracking-wider">Active Incident Tickets</span>
-              </div>
-              <div className="divide-y divide-[var(--border)] max-h-40 overflow-y-auto custom-scrollbar">
-                {incidents.length === 0 ? (
-                  <div className="py-8 text-center text-[11px] text-[var(--text-3)] bg-[#18181b]">No incidents flagged.</div>
-                ) : (
-                  incidents.slice(0, 4).map((inc: any) => (
-                    <div
-                      key={inc.id}
-                      onClick={() => navigate('/alerts-reports')}
-                      className="flex items-center justify-between px-4 py-2.5 hover:bg-[var(--surface-hover)] cursor-pointer transition-colors bg-[var(--surface)]"
-                    >
-                      <div className="flex-1 min-w-0 mr-2">
-                        <p className="text-[11px] font-bold text-[var(--text)] truncate">{inc.title}</p>
-                        <p className="text-[9px] text-[var(--text-2)] mt-0.5 truncate">{inc.description || 'No notes'}</p>
-                      </div>
-                      <span className={`shrink-0 text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase ${
-                        inc.severity === 'critical' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                        inc.severity === 'high' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                        'bg-[var(--surface-2)] text-[var(--text-2)] border border-[var(--border)]'
-                      }`}>
-                        {inc.severity}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </motion.div>
-
-            {/* Timeline */}
-            <motion.div variants={fadeUp} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xs overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--surface-2)]/30">
-                <span className="text-[11px] font-bold text-[var(--text)] uppercase tracking-wider flex items-center gap-1.5">
-                  <Activity size={12} className="text-blue-500" /> Threat Analytics Timeline
-                </span>
-              </div>
-              <div className="p-3 bg-[#18181b] h-36">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={timeline} margin={{ top: 2, right: 2, left: -28, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="gFire" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#ef4444" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="gSmoke" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%"  stopColor="#f59e0b" stopOpacity={0.15} />
-                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                    <XAxis dataKey="time" tick={{ fontSize: 8, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 8, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
-                    <Tooltip content={<ChartTooltip />} />
-                    <Area type="monotone" dataKey="fire"  stroke="#ef4444" strokeWidth={1.5} fill="url(#gFire)"  name="Fire" />
-                    <Area type="monotone" dataKey="smoke" stroke="#f59e0b" strokeWidth={1.5} fill="url(#gSmoke)" name="Smoke" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </motion.div>
-
+      {/* Balanced Bottom SOC Widgets Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-[var(--border)]">
+        
+        {/* AI Engine Status Card */}
+        <motion.div variants={fadeUp} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xs overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--surface-2)]/30 flex items-center justify-between">
+            <span className="text-[11px] font-bold text-[var(--text)] uppercase tracking-wider flex items-center gap-1.5">
+              <Cpu size={12} className="text-sky-500" /> AI Core Status
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-ping" />
+              <span className="text-[9px] text-green-500 font-bold uppercase font-mono">ACTIVE</span>
+            </span>
           </div>
-        )}
+          <div className="p-5 space-y-4">
+            <div className="grid grid-cols-2 gap-4 text-[11px]">
+              <div>
+                <span className="text-[var(--text-3)] block uppercase text-[9px] tracking-wider">Model Name</span>
+                <span className="text-[var(--text)] font-semibold font-mono">YOLOv8s Fire-Smoke</span>
+              </div>
+              <div>
+                <span className="text-[var(--text-3)] block uppercase text-[9px] tracking-wider">Engine Hardware</span>
+                <span className="text-sky-600 font-semibold font-mono">CPU Core</span>
+              </div>
+              <div>
+                <span className="text-[var(--text-3)] block uppercase text-[9px] tracking-wider">Avg Inference</span>
+                <span className="text-[var(--text)] font-semibold font-mono">{avgInferenceLatency} ms</span>
+              </div>
+              <div>
+                <span className="text-[var(--text-3)] block uppercase text-[9px] tracking-wider">Uptime SLA</span>
+                <span className="text-[var(--text)] font-semibold font-mono">99.98%</span>
+              </div>
+            </div>
+            
+            <div className="pt-3 border-t border-[var(--border)] flex justify-between items-center text-[10px]">
+              <span className="text-[var(--text-3)]">Last Detection Event:</span>
+              <span className="text-[var(--text-2)] font-mono font-semibold">
+                {stats.recent_alerts && stats.recent_alerts.length > 0 
+                  ? `${stats.recent_alerts[0].camera_id || 'CAM-01'} (${new Date(stats.recent_alerts[0].timestamp).toLocaleTimeString()})`
+                  : 'None'}
+              </span>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Incidents Tickets Widget */}
+        <motion.div variants={fadeUp} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xs overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--surface-2)]/30">
+            <span className="text-[11px] font-bold text-[var(--text)] uppercase tracking-wider flex items-center gap-1.5">
+              <ShieldCheck size={12} className="text-sky-500" /> Active Incidents
+            </span>
+          </div>
+          <div className="divide-y divide-[var(--border)] max-h-40 overflow-y-auto custom-scrollbar">
+            {incidents.length === 0 ? (
+              <div className="py-8 text-center text-[11px] text-[var(--text-3)]">No incidents flagged.</div>
+            ) : (
+              incidents.slice(0, 3).map((inc: any) => (
+                <div
+                  key={inc.id}
+                  onClick={() => navigate('/alerts-reports')}
+                  className="flex items-center justify-between px-4 py-3 hover:bg-[var(--surface-hover)] cursor-pointer transition-colors bg-[var(--surface)]"
+                >
+                  <div className="flex-1 min-w-0 mr-2">
+                    <p className="text-[11px] font-bold text-[var(--text)] truncate">{inc.title}</p>
+                    <p className="text-[9px] text-[var(--text-2)] mt-0.5 truncate">{inc.description || 'No notes'}</p>
+                  </div>
+                  <span className={`shrink-0 text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase ${
+                    inc.severity === 'critical' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                    inc.severity === 'high' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                    'bg-[var(--surface-2)] text-[var(--text-2)] border border-[var(--border)]'
+                  }`}>
+                    {inc.severity}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        </motion.div>
+
+        {/* Analytics Timeline Chart Widget */}
+        <motion.div variants={fadeUp} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xs overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--surface-2)]/30">
+            <span className="text-[11px] font-bold text-[var(--text)] uppercase tracking-wider flex items-center gap-1.5">
+              <Activity size={12} className="text-sky-500" /> Threat Timeline
+            </span>
+          </div>
+          <div className="p-3 bg-[var(--surface)] h-[130px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={timeline} margin={{ top: 2, right: 2, left: -28, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="gFire" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#e11d48" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#e11d48" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="gSmoke" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor="#d97706" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#d97706" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="time" tick={{ fontSize: 8, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 8, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
+                <Tooltip content={<ChartTooltip />} />
+                <Area type="monotone" dataKey="fire"  stroke="#e11d48" strokeWidth={1.5} fill="url(#gFire)"  name="Fire" />
+                <Area type="monotone" dataKey="smoke" stroke="#d97706" strokeWidth={1.5} fill="url(#gSmoke)" name="Smoke" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
+
       </div>
     </motion.div>
   );

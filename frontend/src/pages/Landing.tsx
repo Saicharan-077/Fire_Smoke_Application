@@ -106,25 +106,25 @@ const Landing = () => {
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-2 font-bold cursor-pointer select-none group" onClick={() => navigate('/')}>
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[#7c3aed] flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
                 <Shield size={16} className="text-white fill-white" />
               </div>
               <span className="text-base font-bold tracking-tight text-[var(--text)]">SentinelOS</span>
             </div>
-
-            <nav className="hidden md:flex items-center gap-6 text-[13px] font-medium text-[var(--text-2)]">
+ 
+            <nav className="hidden md:flex items-center gap-6 text-[13px] font-semibold text-[var(--text-2)]">
               <a href="#features" className="hover:text-[var(--text)] transition-colors">Features</a>
               <a href="#solutions" className="hover:text-[var(--text)] transition-colors">Solutions</a>
               <a href="#tech" className="hover:text-[var(--text)] transition-colors">Technology</a>
               <a href="#faq" className="hover:text-[var(--text)] transition-colors">FAQ</a>
             </nav>
           </div>
-
+ 
           <div className="flex items-center gap-4 text-[13px] font-semibold">
             {isAuthenticated ? (
               <button 
                 onClick={() => navigate('/dashboard')}
-                className="px-4 py-2 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition-all cursor-pointer flex items-center gap-1.5 shadow-sm font-bold active:scale-[0.98]"
+                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white transition-all cursor-pointer flex items-center gap-1.5 shadow-xs font-bold active:scale-[0.98]"
               >
                 Enter Command Center <ArrowRight size={13} />
               </button>
@@ -138,7 +138,7 @@ const Landing = () => {
                 </button>
                 <button 
                   onClick={() => navigate('/register')}
-                  className="px-4.5 py-2 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition-all shadow-sm cursor-pointer font-bold active:scale-[0.98]"
+                  className="px-4.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white transition-all shadow-xs cursor-pointer font-bold active:scale-[0.98]"
                 >
                   Get Started
                 </button>
@@ -147,7 +147,7 @@ const Landing = () => {
           </div>
         </div>
       </header>
-
+ 
       {/* Main Content Container */}
       <main className="max-w-6xl mx-auto px-6 pt-16 sm:pt-24 pb-32 relative z-10 space-y-32">
         
@@ -156,22 +156,22 @@ const Landing = () => {
           
           {/* Release Tag */}
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--surface-2)] border border-[var(--border)] text-xs text-[var(--text-2)] font-semibold shadow-xs">
-            <span className="w-2 h-2 rounded-full bg-[var(--safe)] animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>Autonomous Facility Surveillance Matrix v2.0</span>
           </div>
-
+ 
           <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.08] text-[var(--text)] max-w-3xl">
-            Where Computer Vision and Industrial Campus Safety <span className="bg-gradient-to-r from-[var(--primary)] to-[#7c3aed] bg-clip-text text-transparent">Unify together.</span>
+            Where Computer Vision and Industrial Campus Safety <span className="bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent">Unify together.</span>
           </h1>
-
+ 
           <p className="text-base sm:text-lg text-[var(--text-2)] max-w-xl mx-auto font-normal leading-relaxed">
             Continuous AI-powered surveillance pipeline designed to scan campus networks, factory floors, and legacy CCTV cameras for real-time fire and smoke anomalies.
           </p>
-
+ 
           <div className="pt-2 flex flex-col sm:flex-row justify-center gap-4 font-bold text-sm w-full sm:w-auto">
             <button 
               onClick={() => navigate('/register')}
-              className="px-6 py-3.5 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98]"
+              className="px-6 py-3.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98]"
             >
               Get Started Free <ArrowRight size={15} />
             </button>
@@ -183,7 +183,7 @@ const Landing = () => {
             </button>
           </div>
         </section>
-
+ 
         {/* Premium Interactive Mockup Dashboard (Notion / Linear Reference) */}
         <section className="space-y-6 max-w-5xl mx-auto">
           {/* Tab Selector */}
@@ -198,7 +198,7 @@ const Landing = () => {
                 onClick={() => setActiveMockupTab(t.id as any)}
                 className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeMockupTab === t.id 
-                    ? 'bg-[var(--surface)] text-[var(--primary)] border border-[var(--border)] shadow-xs' 
+                    ? 'bg-[var(--surface)] text-sky-600 border border-[var(--border)] shadow-xs' 
                     : 'text-[var(--text-3)] hover:text-[var(--text)]'
                 }`}
               >
@@ -213,9 +213,9 @@ const Landing = () => {
             {/* Header bar */}
             <div className="h-10 bg-[var(--surface-2)] border-b border-[var(--border)] px-4 flex items-center justify-between shrink-0 select-none">
               <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-[var(--fire)]" />
-                <span className="w-2.5 h-2.5 rounded-full bg-[var(--smoke)]" />
-                <span className="w-2.5 h-2.5 rounded-full bg-[var(--safe)]" />
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
               </div>
               <span className="text-[10px] font-bold text-[var(--text-3)] font-mono tracking-wider">SENTINELOS SECURE OPERATIONS PREVIEW</span>
               <span className="text-[10px] font-mono text-[var(--text-3)]">SYSTEM: ONLINE</span>
@@ -230,15 +230,15 @@ const Landing = () => {
                   <div className="border border-[var(--border)] bg-[var(--surface)] rounded-xl p-3 flex flex-col justify-between relative overflow-hidden group">
                     <div className="flex justify-between items-center text-[10px] font-bold text-[var(--text-2)] uppercase tracking-wider mb-2 z-10">
                       <span>CCTV 01 · Warehouse</span>
-                      <span className="flex items-center gap-1 text-[var(--fire-text)] bg-[var(--fire-bg)] px-2 py-0.5 rounded border border-[var(--fire-border)]">
-                        <span className="w-1 h-1 rounded-full bg-[var(--fire)] animate-pulse" />
+                      <span className="flex items-center gap-1 text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-50 animate-pulse" />
                         Fire Detected
                       </span>
                     </div>
-                    <div className="flex-1 rounded-lg bg-[var(--bg-alt)] border border-[var(--border)] flex items-center justify-center overflow-hidden relative aspect-video">
-                      <div className="absolute inset-0 bg-red-900/10 pointer-events-none" />
-                      <div className="absolute border-2 border-[var(--fire)] w-28 h-20 top-8 left-12 flex flex-col justify-between p-1 bg-[var(--fire-bg)]">
-                        <span className="text-[8px] font-bold text-white bg-[var(--fire)] px-1 rounded-sm w-fit leading-none py-0.5">FIRE 96%</span>
+                    <div className="flex-1 rounded-lg bg-[var(--surface-2)]/30 border border-[var(--border)] flex items-center justify-center overflow-hidden relative aspect-video">
+                      <div className="absolute inset-0 bg-rose-500/5 pointer-events-none" />
+                      <div className="absolute border-2 border-rose-500 w-28 h-20 top-8 left-12 flex flex-col justify-between p-1 bg-rose-500/10">
+                        <span className="text-[8px] font-bold text-white bg-rose-500 px-1 rounded-sm w-fit leading-none py-0.5">FIRE 96%</span>
                       </div>
                     </div>
                   </div>
@@ -246,11 +246,11 @@ const Landing = () => {
                   <div className="border border-[var(--border)] bg-[var(--surface)] rounded-xl p-3 flex flex-col justify-between relative overflow-hidden group">
                     <div className="flex justify-between items-center text-[10px] font-bold text-[var(--text-2)] uppercase tracking-wider mb-2 z-10">
                       <span>CCTV 02 · Server Room</span>
-                      <span className="flex items-center gap-1 text-[var(--safe-text)] bg-[var(--safe-bg)] px-2 py-0.5 rounded border border-[var(--safe-border)]">
+                      <span className="flex items-center gap-1 text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
                         Active
                       </span>
                     </div>
-                    <div className="flex-1 rounded-lg bg-[var(--bg-alt)] border border-[var(--border)] flex items-center justify-center overflow-hidden relative aspect-video">
+                    <div className="flex-1 rounded-lg bg-[var(--surface-2)]/30 border border-[var(--border)] flex items-center justify-center overflow-hidden relative aspect-video">
                       <div className="text-[9px] font-mono text-[var(--text-3)]">[ CCTV ACTIVE STREAM ]</div>
                     </div>
                   </div>
@@ -267,7 +267,7 @@ const Landing = () => {
                         <div key={al.id} className="p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] flex items-center justify-between text-xs hover:border-[var(--border-strong)] transition-all">
                           <div className="space-y-0.5">
                             <div className="flex items-center gap-1.5">
-                              <span className={`w-1.5 h-1.5 rounded-full ${al.type === 'fire' ? 'bg-[var(--fire)] animate-pulse' : al.type === 'smoke' ? 'bg-[var(--smoke)] animate-pulse' : 'bg-[var(--safe)]'}`} />
+                              <span className={`w-1.5 h-1.5 rounded-full ${al.type === 'fire' ? 'bg-rose-500 animate-pulse' : al.type === 'smoke' ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
                               <span className="font-bold text-[var(--text)] capitalize">{al.type} Alert</span>
                               <span className="font-mono text-[10px] text-[var(--text-3)]">{al.conf}</span>
                             </div>
@@ -282,13 +282,13 @@ const Landing = () => {
                   <div className="w-full md:w-64 border border-[var(--border)] bg-[var(--surface)] rounded-xl p-4 flex flex-col justify-between shrink-0">
                     <div className="space-y-4">
                       <div className="flex items-center gap-1.5">
-                        <ShieldAlert className="text-[var(--fire)] w-4 h-4" />
+                        <ShieldAlert className="text-rose-500 w-4 h-4" />
                         <h4 className="text-[11px] font-bold text-[var(--text-2)] uppercase tracking-widest">Core Engine Diagnostics</h4>
                       </div>
                       <div className="space-y-2 text-xs font-semibold text-[var(--text-2)]">
                         <div className="flex justify-between border-b border-[var(--border)] pb-1.5">
                           <span>YOLO Model:</span>
-                          <span className="text-[var(--text)]">best.pt loaded</span>
+                          <span className="text-[var(--text)] font-semibold">best.pt loaded</span>
                         </div>
                         <div className="flex justify-between border-b border-[var(--border)] pb-1.5">
                           <span>Inference Latency:</span>
@@ -302,7 +302,7 @@ const Landing = () => {
                     </div>
                     <button 
                       onClick={() => navigate('/login')}
-                      className="w-full py-2 bg-[var(--primary)] text-white font-bold rounded-lg text-xs hover:bg-[var(--primary-hover)] transition-all flex items-center justify-center gap-1.5"
+                      className="w-full py-2 bg-sky-600 text-white font-bold rounded-xl text-xs hover:bg-sky-700 transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                     >
                       Authenticate and Resolve <ArrowRight size={12} />
                     </button>
@@ -329,7 +329,7 @@ const Landing = () => {
                   </div>
                   <div className="flex-1 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 flex items-center justify-center">
                     <div className="text-center space-y-1">
-                      <Activity size={24} className="mx-auto text-[var(--primary)] mb-1" />
+                      <Activity size={24} className="mx-auto text-sky-500 mb-1" />
                       <p className="text-xs font-bold text-[var(--text-2)]">Real-time analytical graphs simulation active</p>
                       <p className="text-[10px] text-[var(--text-3)]">Integrates Recharts area layers on standard metrics</p>
                     </div>
@@ -351,8 +351,8 @@ const Landing = () => {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {features.map((f, i) => (
-              <div key={i} className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)] hover:shadow-md transition-all space-y-4">
-                <div className="p-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] w-fit">
+              <div key={i} className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)] hover:shadow-xs transition-all space-y-4">
+                <div className="p-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] w-fit text-sky-600">
                   {f.icon}
                 </div>
                 <h3 className="font-bold text-sm tracking-tight text-[var(--text)]">{f.title}</h3>
@@ -376,35 +376,35 @@ const Landing = () => {
                 "Configurable frame-skipping & preprocessing threshold settings"
               ].map((text, idx) => (
                 <div key={idx} className="flex items-center gap-2.5">
-                  <CheckCircle size={15} className="text-[var(--safe)] shrink-0" />
+                  <CheckCircle size={15} className="text-emerald-500 shrink-0" />
                   <span>{text}</span>
                 </div>
               ))}
             </div>
           </div>
-          <div className="space-y-3 p-6 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]">
+          <div className="space-y-3 p-6 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]/30">
             <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-3)] mb-1">SOC Real-Time Log Ingestion</h3>
             <div className="space-y-2.5">
-              <div className="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-between text-xs">
+              <div className="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-between text-xs shadow-xs">
                 <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--fire)] animate-pulse" />
-                  <span className="font-bold text-[var(--fire-text)]">Fire Alert CAM-01</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                  <span className="font-bold text-rose-600">Fire Alert CAM-01</span>
                 </div>
-                <span className="font-mono text-[var(--text-3)] text-[10px]">98% Match</span>
+                <span className="font-mono text-[var(--text-3)] text-[10px] font-bold">98% Match</span>
               </div>
-              <div className="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-between text-xs">
+              <div className="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-between text-xs shadow-xs">
                 <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--smoke)] animate-pulse" />
-                  <span className="font-bold text-[var(--smoke-text)]">Smoke Alert CAM-02</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  <span className="font-bold text-amber-600">Smoke Alert CAM-02</span>
                 </div>
-                <span className="font-mono text-[var(--text-3)] text-[10px]">86% Match</span>
+                <span className="font-mono text-[var(--text-3)] text-[10px] font-bold">86% Match</span>
               </div>
-              <div className="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-between text-xs opacity-65">
+              <div className="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-between text-xs opacity-65 shadow-xs">
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 size={12} className="text-[var(--safe)]" />
+                  <CheckCircle2 size={12} className="text-emerald-500" />
                   <span className="text-[var(--text-2)]">Routine Diagnostic check</span>
                 </div>
-                <span className="font-mono text-[var(--text-3)] text-[10px]">OK</span>
+                <span className="font-mono text-[var(--text-3)] text-[10px] font-bold">OK</span>
               </div>
             </div>
           </div>
@@ -420,12 +420,12 @@ const Landing = () => {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             {[
-              { icon: <Cpu className="w-6 h-6 text-[var(--primary)] mx-auto" />, name: "YOLOv8 Vision Core", desc: "Object recognition engine" },
-              { icon: <HardDrive className="w-6 h-6 text-[#7c3aed] mx-auto" />, name: "FastAPI Routing", desc: "High performance Python API" },
-              { icon: <Terminal className="w-6 h-6 text-[var(--safe)] mx-auto" />, name: "Vite + React 19", desc: "Premium single-page web app" },
-              { icon: <Shield className="w-6 h-6 text-[var(--fire)] mx-auto" />, name: "Granular RBAC", desc: "SQLite database constraint logs" }
+              { icon: <Cpu className="w-6 h-6 text-sky-500 mx-auto" />, name: "YOLOv8 Vision Core", desc: "Object recognition engine" },
+              { icon: <HardDrive className="w-6 h-6 text-blue-500 mx-auto" />, name: "FastAPI Routing", desc: "High performance Python API" },
+              { icon: <Terminal className="w-6 h-6 text-emerald-500 mx-auto" />, name: "Vite + React 19", desc: "Premium single-page web app" },
+              { icon: <Shield className="w-6 h-6 text-rose-500 mx-auto" />, name: "Granular RBAC", desc: "SQLite database constraint logs" }
             ].map((stack, idx) => (
-              <div key={idx} className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] space-y-3">
+              <div key={idx} className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] space-y-3 shadow-xs">
                 <div className="mb-2">{stack.icon}</div>
                 <h4 className="text-xs font-bold text-[var(--text)]">{stack.name}</h4>
                 <p className="text-[10px] text-[var(--text-3)] uppercase tracking-wider">{stack.desc}</p>
@@ -437,7 +437,7 @@ const Landing = () => {
         {/* Frequently Asked Questions (FAQ Accordion) */}
         <section id="faq" className="space-y-8 max-w-3xl mx-auto pt-8">
           <div className="text-center space-y-3">
-            <HelpCircle className="w-7 h-7 text-[var(--primary)] mx-auto" />
+            <HelpCircle className="w-7 h-7 text-sky-500 mx-auto animate-bounce-slow" />
             <h2 className="text-2xl font-bold tracking-tight text-[var(--text)]">Frequently Asked Questions</h2>
             <p className="text-xs text-[var(--text-2)] font-semibold">Answers to general platform diagnostics and integration details.</p>
           </div>
@@ -448,7 +448,7 @@ const Landing = () => {
               return (
                 <div 
                   key={idx} 
-                  className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden transition-all duration-200"
+                  className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden transition-all duration-200 shadow-xs"
                 >
                   <button
                     onClick={() => toggleFaq(idx)}
@@ -472,7 +472,7 @@ const Landing = () => {
 
         {/* Footer Call to Action */}
         <section className="rounded-3xl border border-[var(--border-strong)] bg-[var(--surface)] p-8 sm:p-12 text-center max-w-4xl mx-auto space-y-6 relative overflow-hidden shadow-xl">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-radial from-[var(--primary-light)] to-transparent opacity-35 blur-xl pointer-events-none" />
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-radial from-sky-500/10 to-transparent opacity-35 blur-xl pointer-events-none" />
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--text)]">Begin securing your workspace today</h2>
           <p className="text-xs sm:text-sm text-[var(--text-2)] max-w-md mx-auto leading-relaxed font-semibold">
             Integrate local webcam feeds or link remote RTSP streams immediately inside the main operations dashboard.
@@ -480,7 +480,7 @@ const Landing = () => {
           <div className="flex justify-center pt-2">
             <button 
               onClick={() => navigate('/login')}
-              className="px-6 py-3 rounded-xl bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-xs font-bold text-white transition-all shadow-md cursor-pointer flex items-center gap-1.5 active:scale-[0.98]"
+              className="px-6 py-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-xs font-bold text-white transition-all shadow-md cursor-pointer flex items-center gap-1.5 active:scale-[0.98]"
             >
               Access Dashboard <ArrowRight size={13} />
             </button>
@@ -489,11 +489,11 @@ const Landing = () => {
       </main>
 
       {/* Enterprise SaaS Multi-column Footer */}
-      <footer className="bg-[var(--surface-2)] border-t border-[var(--border)] py-12 text-xs text-[var(--text-2)] select-none">
+      <footer className="bg-[var(--surface-2)]/50 border-t border-[var(--border)] py-12 text-xs text-[var(--text-2)] select-none">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
           <div className="space-y-4">
             <div className="flex items-center gap-2 font-bold select-none">
-              <div className="w-6 h-6 rounded-lg bg-[var(--primary)] flex items-center justify-center shrink-0">
+              <div className="w-6 h-6 rounded-lg bg-sky-600 flex items-center justify-center shrink-0">
                 <Shield size={12} className="text-white fill-white" />
               </div>
               <span className="text-sm font-semibold tracking-tight text-[var(--text)]">SentinelOS</span>
