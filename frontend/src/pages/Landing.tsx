@@ -6,6 +6,27 @@ import {
   Terminal, ShieldAlert, CheckCircle2, AlertTriangle 
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { motion } from 'framer-motion';
+
+const fadeInUp = {
+  hidden: { opacity: 0, y: 25 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } }
+};
+
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const scaleIn = {
+  hidden: { scale: 0.96, opacity: 0 },
+  visible: { scale: 1, opacity: 1, transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } }
+};
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -152,23 +173,29 @@ const Landing = () => {
       <main className="max-w-6xl mx-auto px-6 pt-16 sm:pt-24 pb-32 relative z-10 space-y-32">
         
         {/* Hero Section */}
-        <section className="text-center max-w-4xl mx-auto space-y-8 flex flex-col items-center">
+        <motion.section 
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          variants={staggerContainer}
+          className="text-center max-w-4xl mx-auto space-y-8 flex flex-col items-center"
+        >
           
           {/* Release Tag */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--surface-2)] border border-[var(--border)] text-xs text-[var(--text-2)] font-semibold shadow-xs">
+          <motion.div variants={fadeInUp} className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--surface-2)] border border-[var(--border)] text-xs text-[var(--text-2)] font-semibold shadow-xs">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>Autonomous Facility Surveillance Matrix v2.0</span>
-          </div>
+          </motion.div>
  
-          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.08] text-[var(--text)] max-w-3xl">
+          <motion.h1 variants={fadeInUp} className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.08] text-[var(--text)] max-w-3xl">
             Where Computer Vision and Industrial Campus Safety <span className="bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent">Unify together.</span>
-          </h1>
+          </motion.h1>
  
-          <p className="text-base sm:text-lg text-[var(--text-2)] max-w-xl mx-auto font-normal leading-relaxed">
+          <motion.p variants={fadeInUp} className="text-base sm:text-lg text-[var(--text-2)] max-w-xl mx-auto font-normal leading-relaxed">
             Continuous AI-powered surveillance pipeline designed to scan campus networks, factory floors, and legacy CCTV cameras for real-time fire and smoke anomalies.
-          </p>
+          </motion.p>
  
-          <div className="pt-2 flex flex-col sm:flex-row justify-center gap-4 font-bold text-sm w-full sm:w-auto">
+          <motion.div variants={fadeInUp} className="pt-2 flex flex-col sm:flex-row justify-center gap-4 font-bold text-sm w-full sm:w-auto">
             <button 
               onClick={() => navigate('/register')}
               className="px-6 py-3.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98]"
@@ -181,8 +208,42 @@ const Landing = () => {
             >
               Access SOC Dashboard
             </button>
+          </motion.div>
+        </motion.section>
+
+        {/* Detailed Product Demo Video Section */}
+        <motion.section 
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          variants={scaleIn}
+          className="space-y-8 max-w-5xl mx-auto text-center"
+        >
+          <div className="space-y-3">
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--text)] uppercase">
+              Live Command Center Video Tour
+            </h2>
+            <p className="text-xs sm:text-sm text-[var(--text-2)] font-semibold max-w-xl mx-auto leading-relaxed">
+              Watch SentinelOS process incoming frame buffers, flag active thermal risks with 99.4% precision, and manage visual incident triage.
+            </p>
           </div>
-        </section>
+
+          <div className="rounded-2xl border border-[var(--border-strong)] bg-[var(--surface)] p-3 shadow-2xl overflow-hidden max-w-4xl mx-auto relative group hover:border-sky-300 dark:hover:border-sky-900 transition-all duration-300">
+            <div className="rounded-xl overflow-hidden border border-[var(--border)] bg-black aspect-video relative flex items-center justify-center shadow-inner">
+              <img 
+                src="/demo_recording.webp" 
+                alt="SentinelOS Live Platform Walkthrough" 
+                className="w-full h-full object-cover group-hover:scale-[1.008] transition-transform duration-700" 
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
+              
+              <div className="absolute bottom-4 left-4 bg-black/75 text-white text-[9px] font-mono px-2.5 py-1.5 rounded-md flex items-center gap-2 backdrop-blur-md select-none border border-white/10">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse" />
+                HUD · DETECTOR ACTIVE · PROTOTYPE TOUR
+              </div>
+            </div>
+          </div>
+        </motion.section>
  
         {/* Premium Interactive Mockup Dashboard (Notion / Linear Reference) */}
         <section className="space-y-6 max-w-5xl mx-auto">
@@ -342,7 +403,14 @@ const Landing = () => {
         </section>
 
         {/* Feature Grid */}
-        <section id="features" className="space-y-12 pt-8">
+        <motion.section 
+          id="features" 
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          variants={staggerContainer}
+          className="space-y-12 pt-8"
+        >
           <div className="text-center max-w-xl mx-auto space-y-3">
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text)]">Enterprise Ingestion & Detection</h2>
             <p className="text-xs sm:text-sm text-[var(--text-2)] font-semibold leading-relaxed">
@@ -351,22 +419,33 @@ const Landing = () => {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {features.map((f, i) => (
-              <div key={i} className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)] hover:shadow-xs transition-all space-y-4">
+              <motion.div 
+                key={i} 
+                variants={fadeInUp}
+                whileHover={{ y: -6, transition: { duration: 0.2 } }}
+                className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] hover:border-sky-300 dark:hover:border-sky-900 hover:shadow-md transition-all space-y-4"
+              >
                 <div className="p-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)] w-fit text-sky-600">
                   {f.icon}
                 </div>
                 <h3 className="font-bold text-sm tracking-tight text-[var(--text)]">{f.title}</h3>
                 <p className="text-xs text-[var(--text-2)] font-semibold leading-relaxed">{f.desc}</p>
-              </div>
+              </motion.div>
             ))}
           </div>
-        </section>
+        </motion.section>
 
         {/* Dynamic Showcase Section (Introduction to Features) */}
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-12 py-8 border-y border-[var(--border)] items-center">
+        <motion.section 
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          variants={scaleIn}
+          className="grid grid-cols-1 md:grid-cols-2 gap-12 py-8 border-y border-[var(--border)] items-center"
+        >
           <div className="space-y-5">
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text)]">Continuous AI Live Feed Analysis</h2>
-            <p className="text-xs sm:text-sm text-[var(--text-2)] leading-relaxed font-semibold">
+            <p className="text-xs sm:text-sm text-[var(--text-2)] leading-relaxed font-semibold font-medium">
               Our automated command center continuously feeds camera matrices through the inference model. Changes in confidence levels, overlapping bounding boxes, and sudden changes are computed instantly, sending high-precision notifications and warnings without manual tracking.
             </p>
             <div className="space-y-3 pt-2 text-xs font-semibold text-[var(--text-2)]">
@@ -408,7 +487,7 @@ const Landing = () => {
               </div>
             </div>
           </div>
-        </section>
+        </motion.section>
 
         {/* Tech Stack Overview */}
         <section id="tech" className="space-y-12">
