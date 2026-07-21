@@ -82,7 +82,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       try {
         errText = await res.text();
-      } catch {}
+      } catch (_e) { /* ignore */ }
     }
     throw new Error(errText);
   }
@@ -121,8 +121,17 @@ export const uploadVideo = (file: File) => {
   fd.append('file', file);
   return api<{
     total_events: number;
-    events: Record<string, unknown>[];
+    events: Array<{
+      alert_id: string;
+      frame_number: number;
+      detection_type: string;
+      confidence: number;
+      evidence_path: string | null;
+    }>;
     file_name: string;
+    has_detections: boolean;
+    detection_summary: Record<string, number> | null;
+    annotated_video_path: string | null;
   }>(
     '/api/v1/upload/video',
     { method: 'POST', body: fd }

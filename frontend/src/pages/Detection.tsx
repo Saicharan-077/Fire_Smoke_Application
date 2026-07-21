@@ -71,9 +71,23 @@ const Detection = () => {
       setImgResult(res);
       setImgLatency(Math.round(performance.now() - t0));
       if (res.detections?.length > 0) {
-        toast(`Detected: ${res.detections.map((d: any) => d.detection_type).join(', ')}`, 'error');
+        // Play alert sound on detection
+        if (!mutedRef.current) void playAlertChime();
+        const types = res.detections.map((d: any) => d.detection_type).join(', ');
+        toast(`⚠ Detected: ${types.toUpperCase()}`, 'error');
+        addNotification({
+          id: `img-det-${Date.now()}`,
+          alertType: res.detections[0].detection_type,
+          cameraId: 'CAM-UPLOAD',
+          cameraName: 'Image Upload',
+          zone: 'Upload',
+          confidence: Math.max(...res.detections.map((d: any) => d.confidence)),
+          timestamp: new Date().toISOString(),
+          severity: res.detections.some((d: any) => d.detection_type === 'fire') ? 'critical' : 'warning',
+          isRead: false,
+        } as any);
       } else {
-        toast('No fire or smoke detected', 'success');
+        toast('✓ No fire or smoke detected', 'success');
       }
     } catch (e: any) {
       toast(e.message || 'Analysis failed', 'error');
@@ -89,7 +103,6 @@ const Detection = () => {
   const [vidLoading, setVidLoading] = useState(false);
   const [vidLatency, setVidLatency] = useState<number | null>(null);
   const [vidProgress, setVidProgress] = useState(0);
-  const [vidFps] = useState(28);
   const [vidFrames, setVidFrames] = useState(0);
 
   const runVideoInference = async () => {
@@ -99,22 +112,29 @@ const Detection = () => {
     const t0 = performance.now();
     const iv = setInterval(() => {
       setVidProgress(p => {
-        if (p < 92) {
-          const n = Math.min(p + Math.floor(Math.random() * 10) + 4, 92);
-          setVidFrames(Math.round((n / 100) * 450));
+        if (p < 90) {
+          const n = Math.min(p + Math.floor(Math.random() * 8) + 3, 90);
+          setVidFrames(Math.round((n / 100) * 600));
           return n;
         }
         return p;
       });
-    }, 380);
+    }, 500);
     try {
       const res = await uploadVideo(vidFile);
       clearInterval(iv);
       setVidProgress(100);
-      setVidFrames(450);
       setVidResult(res);
       setVidLatency(Math.round(performance.now() - t0));
-      toast('Video analysis complete', 'success');
+      if (res.has_detections) {
+        if (!mutedRef.current) void playAlertChime();
+        const summary = res.detection_summary
+          ? Object.entries(res.detection_summary).map(([k, v]) => `${v}× ${k}`).join(', ')
+          : `${res.total_events} event(s)`;
+        toast(`⚠ Video analysis: ${summary} detected`, 'error');
+      } else {
+        toast('✓ Video analysis complete — no threats detected', 'success');
+      }
     } catch (e: any) {
       clearInterval(iv);
       toast(e.message || 'Video analysis failed', 'error');
@@ -426,7 +446,7 @@ const Detection = () => {
                 {imgLoading && (
                   <div className="flex items-center justify-center py-12 gap-3">
                     <RefreshCw size={18} className="animate-spin text-sky-600" />
-                    <p className="text-[13px] text-[var(--text-2)] font-bold">Running YOLOv8 inference...</p>
+                    <p className="text-[13px] text-[var(--text-2)] font-bold">Running FireGuard AI inference...</p>
                   </div>
                 )}
 
@@ -441,7 +461,7 @@ const Detection = () => {
                         <img src={evidenceUrl(imgResult.evidence_path) || ''} alt="Detection result" className="w-full object-contain" />
                         <a
                           href={evidenceUrl(imgResult.evidence_path) || ''}
-                          download={`detection_${Date.now()}.jpg`}
+                          download="detection_result.jpg"
                           className="absolute top-3 right-3 flex items-center gap-1.5 bg-[var(--surface)] border border-[var(--border)] px-3.5 py-2 rounded-xl text-[11px] font-bold text-[var(--text)] shadow-xs hover:bg-[var(--surface-hover)] transition-all cursor-pointer"
                         >
                           <Download size={12} /> Download
@@ -510,33 +530,75 @@ const Detection = () => {
                 {vidLoading && (
                   <div className="space-y-3">
                     <div className="flex justify-between text-[11px] font-bold text-[var(--text-2)]">
-                      <span>Processing frames ({vidFrames}/450)...</span>
+                      <span>Processing video frames ({vidFrames} analyzed)...</span>
                       <span className="font-mono">{vidProgress}%</span>
                     </div>
                     <div className="h-2 bg-[var(--surface-2)] rounded-full overflow-hidden border border-[var(--border)]">
                       <div className="h-full bg-[var(--primary)] rounded-full transition-all duration-300" style={{ width: `${vidProgress}%` }} />
                     </div>
-                    <p className="text-[11px] text-[var(--text-3)] font-semibold">{vidFps} fps · YOLOv8 video frame parsing</p>
+                    <p className="text-[11px] text-[var(--text-3)] font-semibold">FireGuard AI · frame-by-frame fire/smoke detection</p>
                   </div>
                 )}
 
-                {vidResult?.events?.length > 0 && (
+                {vidResult !== null && !vidLoading && (
                   <div className="space-y-3 pt-4 border-t border-[var(--border)]">
+                    {/* Summary bar */}
                     <div className="flex justify-between items-center text-[11px] font-bold text-[var(--text-3)] uppercase tracking-wider">
-                      <span>Detected Frames ({vidResult.events.length})</span>
-                      {vidLatency && <span>Processing Time: {vidLatency}ms</span>}
+                      <span>
+                        {vidResult.has_detections
+                          ? `${vidResult.total_events} Detection Event(s)`
+                          : 'No Threats Detected'}
+                      </span>
+                      {vidLatency && <span>Time: {(vidLatency / 1000).toFixed(1)}s</span>}
                     </div>
-                    <div className="grid grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
-                      {vidResult.events.filter((e: any) => e.evidence_path).map((evt: any, i: number) => (
-                        <div key={i} className="rounded-xl border border-[var(--border)] overflow-hidden bg-[var(--surface-2)] hover:border-[var(--border-strong)] transition-all">
-                          <img src={evidenceUrl(evt.evidence_path) || ''} alt={`Frame ${i}`} className="aspect-video w-full object-cover bg-black" />
-                          <div className="px-3 py-2 border-t border-[var(--border)] flex justify-between items-center text-xs">
-                            <span className={`font-bold capitalize ${evt.detection_type === 'fire' ? 'text-[var(--fire)]' : 'text-[var(--smoke)]'}`}>{evt.detection_type}</span>
-                            <span className="text-[10px] text-[var(--text-3)] font-mono">Frame #{evt.frame_number}</span>
+
+                    {/* Detection summary pills */}
+                    {vidResult.detection_summary && Object.keys(vidResult.detection_summary).length > 0 && (
+                      <div className="flex gap-2">
+                        {Object.entries(vidResult.detection_summary as Record<string, number>).map(([type, count]) => (
+                          <span key={type} className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                            type === 'fire' ? 'bg-[var(--fire-bg)] text-[var(--fire)] border-[var(--fire-border)]' : 'bg-[var(--smoke-bg)] text-[var(--smoke)] border-[var(--smoke-border)]'
+                          }`}>
+                            {type.toUpperCase()} × {count as number}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Download annotated video */}
+                    {vidResult.annotated_video_path && (
+                      <a
+                        href={vidResult.annotated_video_path}
+                        download="fireguard_annotated.mp4"
+                        className="flex items-center gap-2 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-[12px] font-bold rounded-xl transition-all cursor-pointer shadow-xs w-fit"
+                      >
+                        <Download size={13} />
+                        Download Annotated Video
+                      </a>
+                    )}
+
+                    {/* Evidence frame grid */}
+                    {vidResult.events?.filter((e: any) => e.evidence_path).length > 0 && (
+                      <div className="grid grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
+                        {vidResult.events.filter((e: any) => e.evidence_path).map((evt: any, i: number) => (
+                          <div key={i} className="rounded-xl border border-[var(--border)] overflow-hidden bg-[var(--surface-2)] hover:border-[var(--border-strong)] transition-all">
+                            <img src={evidenceUrl(evt.evidence_path) || ''} alt={`Frame ${i}`} className="aspect-video w-full object-cover bg-black" />
+                            <div className="px-3 py-2 border-t border-[var(--border)] flex justify-between items-center text-xs">
+                              <span className={`font-bold capitalize ${evt.detection_type === 'fire' ? 'text-[var(--fire)]' : 'text-[var(--smoke)]'}`}>{evt.detection_type}</span>
+                              <span className="text-[10px] text-[var(--text-3)] font-mono">Frame #{evt.frame_number} · {(evt.confidence * 100).toFixed(0)}%</span>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* No detections state */}
+                    {!vidResult.has_detections && (
+                      <div className="flex items-center justify-center gap-2 py-8 text-[var(--safe-text)] bg-[var(--safe-bg)] border border-[var(--safe-border)] rounded-xl">
+                        <CheckCircle size={16} />
+                        <span className="text-[13px] font-bold">No fire or smoke detected in video</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

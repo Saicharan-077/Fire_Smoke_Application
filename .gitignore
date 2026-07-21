@@ -25,6 +25,8 @@ backend/sentinelos.db
 
 # Auto-generated model containers & runtime evidence
 backend/models/yolo26s_auto.pt
+backend/models/yolo26s.pt/
+backend/models/*.pt
 backend/evidence/
 backend/evidence/*
 
