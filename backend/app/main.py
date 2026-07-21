@@ -70,6 +70,11 @@ def run_schema_migrations():
                 conn.execute(text("ALTER TABLE cameras ADD COLUMN assigned_operator_id VARCHAR"))
                 conn.commit()
             logger.info("[DB] Added assigned_operator_id column to cameras")
+        if "priority" not in cam_cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE cameras ADD COLUMN priority VARCHAR DEFAULT 'MEDIUM'"))
+                conn.commit()
+            logger.info("[DB] Added priority column to cameras")
     if "alerts" in inspector.get_table_names():
         alert_cols = {c["name"] for c in inspector.get_columns("alerts")}
         if "resolved_by" not in alert_cols:
@@ -272,29 +277,34 @@ else:
     logger.info("[Seed] Skipped — SEED_DATABASE is not enabled")
 
 
+_detection_svc_instance: DetectionService | None = None
+_scheduler_instance = None
+
+
 # ── App lifespan ──────────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _detection_svc_instance
-    logger.info("[Startup] Loading YOLOv8 model...")
+    global _detection_svc_instance, _scheduler_instance
+    logger.info("[Startup] Loading YOLOv26s model from models/yolo26s.pt...")
     svc = DetectionService()
     _detection_svc_instance = svc
     upload_routes._detection_svc = svc
     detect_routes._detection_svc = svc
-    
+
     from .websocket.connection_manager import manager
     upload_routes._ws_manager = manager
     detect_routes._ws_manager = manager
 
-    # Start the continuous AI monitoring background loop for remote streams
-    import asyncio
-    from .services.camera_monitor import monitor_cameras_loop
-    monitor_task = asyncio.create_task(monitor_cameras_loop(svc))
+    # Start Intelligent Adaptive Camera Scheduler
+    from .services.camera_scheduler import CameraScheduler
+    scheduler = CameraScheduler(svc)
+    _scheduler_instance = scheduler
+    await scheduler.start()
 
-    logger.info("[Startup] Ready — model loaded, routes configured")
+    logger.info("[Startup] Ready — YOLOv26s model loaded, Intelligent Multi-Camera Scheduler active")
     yield
-    monitor_task.cancel()
-    logger.info("[Shutdown] Cleaning up")
+    await scheduler.stop()
+    logger.info("[Shutdown] Cleaning up scheduler resources")
 
 
 app = FastAPI(title="SentinelOS API", version="1.0.0", lifespan=lifespan)

@@ -9,6 +9,7 @@ class CameraCreate(BaseModel):
     location: Optional[str] = None
     zone: Optional[str] = None
     stream_url: Optional[str] = None
+    priority: Optional[str] = "MEDIUM"
 
 
 class CameraUpdate(BaseModel):
@@ -19,10 +20,15 @@ class CameraUpdate(BaseModel):
     stream_url: Optional[str] = None
     description: Optional[str] = None
     assigned_operator_id: Optional[str] = None
+    priority: Optional[str] = None
 
 
 class CameraStatusUpdate(BaseModel):
     status: str  # online | offline | maintenance
+
+
+class CameraPriorityUpdate(BaseModel):
+    priority: str  # HIGH | MEDIUM | LOW
 
 
 class CameraZoneUpdate(BaseModel):
@@ -38,6 +44,7 @@ class CameraOut(BaseModel):
     stream_url: Optional[str]
     description: Optional[str] = None
     assigned_operator_id: Optional[str] = None
+    priority: Optional[str] = "MEDIUM"
     last_seen: Optional[datetime]
     created_at: Optional[datetime]
 

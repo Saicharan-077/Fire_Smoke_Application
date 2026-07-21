@@ -51,6 +51,18 @@ def camera_count(db: Session = Depends(get_db)):
     return {"total": total, "online": online}
 
 
+@router.get("/metrics")
+def get_camera_metrics():
+    """Return real-time dynamic scheduler performance metrics for all cameras."""
+    from ..main import _scheduler_instance
+    if _scheduler_instance is None:
+        return {"status": "inactive", "metrics": []}
+    return {
+        "status": "active",
+        "metrics": _scheduler_instance.get_all_metrics()
+    }
+
+
 @router.get("/{camera_id}", response_model=schemas.CameraOut)
 def get_camera(camera_id: str, db: Session = Depends(get_db)):
     cam = db.query(models.Camera).filter(models.Camera.id == camera_id).first()
@@ -145,6 +157,31 @@ def patch_camera_zone(
     db.add(cam)
     db.commit()
     db.refresh(cam)
+    return cam
+
+
+@router.patch("/{camera_id}/priority", response_model=schemas.CameraOut, dependencies=[Depends(require_operator)])
+def patch_camera_priority(
+    camera_id: str,
+    body: schemas.CameraPriorityUpdate,
+    db: Session = Depends(get_db),
+):
+    """Update camera scheduler priority (HIGH | MEDIUM | LOW)."""
+    cam = _get_camera_or_404(camera_id, db)
+    prio = body.priority.upper()
+    if prio not in {"HIGH", "MEDIUM", "LOW"}:
+        raise HTTPException(status_code=400, detail="Priority must be HIGH, MEDIUM, or LOW")
+
+    cam.priority = prio
+    db.add(cam)
+    db.commit()
+    db.refresh(cam)
+
+    from ..main import _scheduler_instance
+    if _scheduler_instance and camera_id in _scheduler_instance.processors:
+        _scheduler_instance.processors[camera_id].update_priority(prio)
+
+    logger.info(f"Camera priority updated: camera_id={camera_id} priority={prio}")
     return cam
 
 

@@ -108,6 +108,18 @@ export async function patchCameraZone(cameraId: string, body: CameraZoneUpdateIn
   });
 }
 
+export async function patchCameraPriority(cameraId: string, priority: 'HIGH' | 'MEDIUM' | 'LOW'): Promise<Camera> {
+  return api<Camera>(`/api/v1/cameras/${cameraId}/priority`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ priority }),
+  });
+}
+
+export async function getCameraMetrics(): Promise<{ status: string; metrics: any[] }> {
+  return api<{ status: string; metrics: any[] }>('/api/v1/cameras/metrics');
+}
+
 export async function deleteCamera(cameraId: string): Promise<void> {
   await api<{ status: string; message?: string }>(`/api/v1/cameras/${cameraId}`, { method: 'DELETE' });
 }

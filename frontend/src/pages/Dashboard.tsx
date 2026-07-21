@@ -6,7 +6,8 @@ import {
   getSettings, uploadImage, type Detection
 } from '../services/api';
 import { useAuthStore } from '../store/authStore';
-import { listCameras } from '../services/cameraService';
+import { listCameras, getCameraMetrics, patchCameraPriority } from '../services/cameraService';
+import { CameraMetricsOverlay, type CameraMetric } from '../components/Dashboard/CameraMetricsOverlay';
 import { useDashboardStore } from '../store/dashboardStore';
 import { useNotificationsStore } from '../store/notificationsStore';
 import {
@@ -268,10 +269,27 @@ const Dashboard = () => {
   
   // Custom states for Dynamic Camera Priority Grid
   const [camerasState, setCamerasState] = useState<CustomCameraState[]>([]);
+  const [metricsMap, setMetricsMap] = useState<Record<string, CameraMetric>>({});
   
   const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
   const [selectedCamId, setSelectedCamId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
+
+  const handlePriorityChange = async (cameraId: string, newPriority: 'HIGH' | 'MEDIUM' | 'LOW') => {
+    try {
+      await patchCameraPriority(cameraId, newPriority);
+      toast(`Updated camera ${cameraId} priority to ${newPriority}`, 'success');
+      setMetricsMap(prev => ({
+        ...prev,
+        [cameraId]: {
+          ...prev[cameraId],
+          priority: newPriority
+        }
+      }));
+    } catch (e: any) {
+      toast(e.message || 'Failed to update priority', 'error');
+    }
+  };
 
   // Webcam variables
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -402,7 +420,26 @@ const Dashboard = () => {
 
   useEffect(() => {
     void load();
-    return () => { stopWebcam(); };
+
+    const metricsInterval = setInterval(async () => {
+      try {
+        const res = await getCameraMetrics();
+        if (res && res.metrics) {
+          const map: Record<string, CameraMetric> = {};
+          res.metrics.forEach((m: CameraMetric) => {
+            map[m.camera_id] = m;
+          });
+          setMetricsMap(map);
+        }
+      } catch (e) {
+        // Ignore silent metric polling error
+      }
+    }, 2000);
+
+    return () => {
+      clearInterval(metricsInterval);
+      stopWebcam();
+    };
   }, []);
 
   // Synchronize incoming real-time alerts from WebSocket store
@@ -724,7 +761,7 @@ const Dashboard = () => {
         <StatCard label="System Health" value={activeAlertsCount > 0 ? "WARNING" : "NOMINAL"} icon={CheckCircle2} color={activeAlertsCount > 0 ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : "bg-green-500/10 text-green-500 border border-green-500/20"} sub="AI model verified" ok={activeAlertsCount === 0} />
         <StatCard label="Active Alerts" value={activeAlertsCount} icon={ShieldAlert} color={activeAlertsCount > 0 ? "bg-red-500/10 text-red-500 border border-red-500/20" : "bg-[var(--surface-2)] text-[var(--text-2)] border border-[var(--border)]"} sub={`${activeFiresCount} Fire, ${activeSmokesCount} Smoke`} />
         <StatCard label="Average Speed" value={`${avgInferenceLatency} ms`} icon={Activity} color="bg-blue-500/10 text-blue-500 border border-blue-500/20" sub="End-to-End Latency" />
-        <StatCard label="AI Engine Status" value="YOLOv8 CPU" icon={Cpu} color="bg-purple-500/10 text-purple-500 border border-purple-500/20" sub="Model loaded successfully" />
+        <StatCard label="AI Engine Status" value="YOLOv26s Model" icon={Cpu} color="bg-purple-500/10 text-purple-500 border border-purple-500/20" sub="Exported model active" />
       </motion.div>
 
       {/* Main Grid View */}
@@ -828,27 +865,31 @@ const Dashboard = () => {
                           )}
                         </div>
 
-                        {/* Camera Health Details checklist Grid */}
-                        {!isEnlarged && (
-                          <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-[var(--border)]/60 text-[9px] text-[var(--text-2)]">
-                            <div>
-                              <span className="text-[var(--text-3)] block text-[8px] uppercase tracking-wider">AI Core</span>
-                              <span className="text-green-400 font-bold font-mono">Active (YOLOv8)</span>
-                            </div>
-                            <div>
-                              <span className="text-[var(--text-3)] block text-[8px] uppercase tracking-wider">Stream Decode</span>
-                              <span className="text-[var(--text)] font-mono">{camera.status === 'online' ? 'H.264 Active' : 'Offline'}</span>
-                            </div>
-                            <div>
-                              <span className="text-[var(--text-3)] block text-[8px] uppercase tracking-wider">Pipeline Latency</span>
-                              <span className="text-[var(--text)] font-mono">{camera.status === 'online' ? `${camera.latency || avgInferenceLatency} ms` : 'N/A'}</span>
-                            </div>
-                            <div>
-                              <span className="text-[var(--text-3)] block text-[8px] uppercase tracking-wider">Signal Strength</span>
-                              <span className={`font-mono font-bold ${camera.connectionHealth > 80 ? 'text-green-400' : 'text-amber-400'}`}>{camera.status === 'online' ? `${camera.connectionHealth}%` : '0%'}</span>
-                            </div>
-                          </div>
-                        )}
+                        {/* Intelligent Adaptive Scheduler Live Metrics Overlay */}
+                        <div className="mt-3">
+                          <CameraMetricsOverlay
+                            metric={
+                              metricsMap[camera.id] || {
+                                camera_id: camera.id,
+                                name: camera.name,
+                                stream_url: '',
+                                priority: 'MEDIUM',
+                                current_state: camera.status === 'online' ? (camera.threat ? 'FIRE' : 'IDLE') : 'IDLE',
+                                target_fps: camera.status === 'online' ? (camera.threat ? 15 : 2) : 0,
+                                actual_fps: camera.fps || 0,
+                                pixel_change_pct: camera.threat ? 14.2 : 0.4,
+                                motion_score: camera.threat ? 0.08 : 0.002,
+                                inference_latency_ms: camera.latency || avgInferenceLatency,
+                                dropped_frames: 0,
+                                queue_size: 1,
+                                last_detection_type: camera.threat,
+                                last_detection_conf: camera.confidence || 0,
+                                last_detection_timestamp: camera.lastSeen,
+                              }
+                            }
+                            onPriorityChange={handlePriorityChange}
+                          />
+                        </div>
 
                         {/* Enlarged Details Sidebar (Shows only if RED threat is active on this card) */}
                         {isEnlarged && (

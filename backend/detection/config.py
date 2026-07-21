@@ -30,12 +30,12 @@ class SmokeVerificationConfig(BaseModel):
     max_entropy: float = Field(7.8, description="Maximum Shannon entropy of grayscale histogram.")
     max_contrast: float = Field(50.0, description="Maximum local contrast (std dev).")
     max_laplacian_var: float = Field(80.0, description="Maximum variance of Laplacian (checks for soft blur/diffusion).")
-    min_laplacian_var: float = Field(2.0, description="Minimum variance of Laplacian (rejects completely flat/uniform backgrounds).")
+    min_laplacian_var: float = Field(1.5, description="Minimum variance of Laplacian (rejects completely flat/uniform backgrounds).")
     max_gradient_mag: float = Field(16.0, description="Maximum average gradient magnitude.")
     min_gradient_mag: float = Field(1.2, description="Minimum average gradient magnitude (rejects flat gradient drift).")
 
 class DetectionConfig(BaseModel):
-    model_path: str = Field("models/best.pt", description="Path to YOLOv8 weights.")
+    model_path: str = Field(default_factory=lambda: os.getenv("MODEL_PATH", "models/yolo26s.pt"), description="Path to YOLOv26s weights file or package directory.")
     device: str = Field("cuda", description="Preferred compute device ('cuda' or 'cpu').")
     imgsz: int = Field(640, description="Inference image resolution.")
     conf_threshold: float = Field(0.50, description="Initial Stage 1 YOLO confidence threshold.")
@@ -43,11 +43,21 @@ class DetectionConfig(BaseModel):
     operating_mode: str = Field("Balanced", description="Operational mode: Balanced | High Precision | High Recall.")
     consecutive_frames: int = Field(2, description="Number of consecutive frames required to confirm detection.")
     smoothing_alpha: float = Field(0.6, description="Exponential moving average factor for confidence smoothing.")
-    
+
+    # Adaptive Scheduler Parameters
+    pixel_change_threshold: float = Field(default_factory=lambda: float(os.getenv("PIXEL_CHANGE_THRESHOLD", "8.0")), description="Pixel difference percentage threshold to trigger inference.")
+    motion_threshold: float = Field(default_factory=lambda: float(os.getenv("MOTION_THRESHOLD", "0.01")), description="Motion score threshold.")
+    periodic_inference_interval: float = Field(default_factory=lambda: float(os.getenv("PERIODIC_INFERENCE_INTERVAL", "20.0")), description="Interval in seconds for forced periodic YOLO inference.")
+    suspicious_conf_min: float = Field(default_factory=lambda: float(os.getenv("SUSPICIOUS_CONF_MIN", "0.25")), description="Min confidence for suspicious region tracking.")
+    suspicious_conf_max: float = Field(default_factory=lambda: float(os.getenv("SUSPICIOUS_CONF_MAX", "0.45")), description="Max confidence for suspicious region tracking.")
+    min_fps: float = Field(default_factory=lambda: float(os.getenv("MIN_FPS", "2.0")), description="Minimum target FPS.")
+    max_fps: float = Field(default_factory=lambda: float(os.getenv("MAX_FPS", "20.0")), description="Maximum target FPS.")
+    queue_size: int = Field(default_factory=lambda: int(os.getenv("QUEUE_SIZE", "1")), description="Frame queue size (latest frame processing).")
+
     # Nested configs
     fire: FireVerificationConfig = Field(default_factory=FireVerificationConfig)
     smoke: SmokeVerificationConfig = Field(default_factory=SmokeVerificationConfig)
-    
+
     # Logging Config
     enable_logging: bool = Field(True, description="Enable False Positive / Rejection logging.")
     log_dir: str = Field("evidence", description="Base directory to save logs and images.")

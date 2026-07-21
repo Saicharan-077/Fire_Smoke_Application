@@ -403,7 +403,7 @@ const SettingsPage = () => {
                   <p className="text-[13px] font-bold text-[var(--text)] uppercase tracking-wider">System Information</p>
                   {[
                     { label: 'Platform', value: 'SentinelOS SOC v2.0' },
-                    { label: 'ML Vision Engine', value: 'YOLOv8 Object Detection (Ultralytics)' },
+                    { label: 'ML Vision Engine', value: 'YOLOv26s Fire & Smoke Model' },
                     { label: 'Backend Database', value: 'FastAPI + SQLAlchemy + SQLite' },
                     { label: 'Frontend Framework', value: 'React 19 + Vite 8 + TS' },
                   ].map(r => (
@@ -412,6 +412,65 @@ const SettingsPage = () => {
                       <span className="font-mono font-bold text-[var(--text)]">{r.value}</span>
                     </div>
                   ))}
+                </div>
+
+                <div className="pt-4 border-t border-[var(--border)] flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[13px] font-bold text-[var(--text)]">Backup & Export</p>
+                    <p className="text-[12px] text-[var(--text-2)] font-semibold mt-0.5">Export or import current app settings as JSON</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        const jsonStr = JSON.stringify({
+                          fireConfidence,
+                          smokeConfidence,
+                          iouThreshold,
+                          frameInterval,
+                          saveEvidence,
+                          operatingMode,
+                          theme,
+                        }, null, 2);
+                        const blob = new Blob([jsonStr], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `fireguard_settings_${Date.now()}.json`;
+                        a.click();
+                        toast('Settings exported successfully', 'success');
+                      }}
+                      className="px-3.5 py-2 border border-[var(--border)] rounded-xl text-[12px] font-bold text-[var(--text-2)] hover:bg-[var(--surface-hover)] transition-all cursor-pointer"
+                    >
+                      Export Config JSON
+                    </button>
+                    <label className="px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-[12px] font-bold transition-all cursor-pointer">
+                      Import Config JSON
+                      <input
+                        type="file"
+                        accept=".json"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = (evt) => {
+                            try {
+                              const parsed = JSON.parse(evt.target?.result as string);
+                              if (parsed.fireConfidence) setFireConfidence(parsed.fireConfidence);
+                              if (parsed.smokeConfidence) setSmokeConfidence(parsed.smokeConfidence);
+                              if (parsed.iouThreshold) setIouThreshold(parsed.iouThreshold);
+                              if (parsed.frameInterval) setFrameInterval(parsed.frameInterval);
+                              if (parsed.operatingMode) setOperatingMode(parsed.operatingMode);
+                              toast('Settings imported successfully! Click Save to apply.', 'success');
+                            } catch {
+                              toast('Invalid settings JSON file', 'error');
+                            }
+                          };
+                          reader.readAsText(file);
+                        }}
+                      />
+                    </label>
+                  </div>
                 </div>
               </div>
             </>

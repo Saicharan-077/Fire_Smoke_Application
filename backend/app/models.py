@@ -19,6 +19,7 @@ class Camera(Base):
     stream_url            = Column(String, nullable=True)
     description           = Column(Text, nullable=True)
     assigned_operator_id  = Column(String, ForeignKey("users.id"), nullable=True)
+    priority              = Column(String, default="MEDIUM")       # HIGH | MEDIUM | LOW
     last_seen             = Column(DateTime, default=datetime.utcnow)
     created_at            = Column(DateTime, default=datetime.utcnow)
 

@@ -30,16 +30,10 @@ class DetectionLayer:
         self.smoothed_confidence: Dict[str, Dict[str, float]] = {}
 
         # Resolve model path
-        default_model = os.path.join(os.path.dirname(__file__), "..", "models", "best.pt")
-        model_path = self.config.model_path if os.path.isabs(self.config.model_path) else os.path.normpath(os.path.join(os.path.dirname(__file__), "..", self.config.model_path))
-        if not os.path.exists(model_path):
-            model_path = default_model
+        self.model_path = self._resolve_model_path(self.config.model_path)
+        logger.info(f"[DetectionLayer] Resolved model path: {os.path.abspath(self.model_path)}")
 
-        if not os.path.isfile(model_path):
-            logger.warning(f"[DetectionLayer] Weights not found at {os.path.abspath(model_path)}.")
-        else:
-            self.model_path = model_path
-            self._load_model()
+        self._load_model()
 
         if self.ready:
             self._warmup()
@@ -50,16 +44,73 @@ class DetectionLayer:
         if self.config.enable_logging:
             os.makedirs(self.rejected_rois_dir, exist_ok=True)
 
+    def _resolve_model_path(self, raw_path: str) -> str:
+        """Finds valid model file or directory candidate across common project roots."""
+        base_dirs = [
+            os.getcwd(),
+            os.path.dirname(__file__),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")),
+        ]
+        candidates = []
+        if os.path.isabs(raw_path):
+            candidates.append(raw_path)
+        else:
+            for b in base_dirs:
+                candidates.append(os.path.normpath(os.path.join(b, raw_path)))
+        
+        for cand in candidates:
+            if os.path.exists(cand):
+                return cand
+        return raw_path
+
+    def _ensure_pt_container(self, target_dir: str) -> str:
+        """If target_dir is an unzipped PyTorch archive directory, packages it into a valid .pt zip container."""
+        import zipfile
+        sub_best = os.path.join(target_dir, "best")
+        source_folder = sub_best if os.path.exists(sub_best) else target_dir
+
+        container_pt = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "models", "yolo26s_auto.pt"))
+        os.makedirs(os.path.dirname(container_pt), exist_ok=True)
+
+        logger.info(f"[DetectionLayer] Packaging PyTorch directory package '{source_folder}' into container file '{container_pt}'...")
+        with zipfile.ZipFile(container_pt, "w", zipfile.ZIP_STORED) as zf:
+            for root, dirs, files in os.walk(source_folder):
+                for file in files:
+                    full_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(full_path, os.path.dirname(source_folder))
+                    zf.write(full_path, rel_path)
+        logger.info(f"[DetectionLayer] Created PyTorch model container: {container_pt}")
+        return container_pt
+
     def _load_model(self):
+        target_path = self.model_path
+        if not os.path.exists(target_path):
+            err_msg = f"[DetectionLayer] CRITICAL: Model weights not found at {os.path.abspath(target_path)}."
+            logger.error(err_msg)
+            self.ready = False
+            raise FileNotFoundError(err_msg)
+
+        if os.path.isdir(target_path):
+            try:
+                target_path = self._ensure_pt_container(target_path)
+            except Exception as exc:
+                err_msg = f"[DetectionLayer] Failed to package PyTorch directory into container: {exc}"
+                logger.error(err_msg)
+                self.ready = False
+                raise RuntimeError(err_msg) from exc
+
         try:
-            self.model = YOLO(self.model_path)
+            self.model = YOLO(target_path, task="detect")
             self.model.to(self.device)
             self.class_names = self.model.names
             self.ready = True
-            logger.info(f"[DetectionLayer] Model successfully loaded on {self.device.upper()} from {self.model_path}")
+            logger.info(f"[DetectionLayer] YOLOv26s model successfully loaded on {self.device.upper()} from {target_path}")
         except Exception as e:
-            logger.error(f"[DetectionLayer] Failed to load model: {e}")
+            err_msg = f"[DetectionLayer] CRITICAL: Failed to load exported YOLO model from {target_path}: {e}"
+            logger.error(err_msg)
             self.ready = False
+            raise RuntimeError(err_msg) from e
 
     def _warmup(self):
         if not self.model:

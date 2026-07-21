@@ -21,10 +21,12 @@ backend/**/__pycache__
 
 # SQLite database
 backend/fireguard.db
+backend/sentinelos.db
 
-# Evidence snapshots (generated at runtime)
-backend/evidence/*.jpg
-backend/evidence/*.png
+# Auto-generated model containers & runtime evidence
+backend/models/yolo26s_auto.pt
+backend/evidence/
+backend/evidence/*
 
 # Editor directories and files
 .vscode/*
