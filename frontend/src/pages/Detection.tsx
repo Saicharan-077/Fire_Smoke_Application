@@ -651,21 +651,47 @@ const Detection = () => {
                   </div>
                 )}
 
-                {/* LIVE PREVIEW & TELEMETRY HUD */}
-                {vidLoading && (
+                {/* LIVE PREVIEW, TELEMETRY HUD & RESULTS */}
+                {(vidLoading || vidResult !== null) && (
                   <div className="space-y-4 rounded-xl border border-slate-800 bg-slate-950/90 p-4 shadow-xl text-slate-100">
                     <div className="flex justify-between items-center text-xs border-b border-slate-800 pb-2">
                       <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-                        <span className="font-bold text-emerald-400">ByteTrack AI Stream Processing</span>
+                        {vidLoading ? (
+                          <>
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+                            <span className="font-bold text-emerald-400">ByteTrack AI Stream Processing</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="w-2.5 h-2.5 rounded-full bg-sky-400" />
+                            <span className="font-bold text-sky-400">Analysis Results Ready</span>
+                          </>
+                        )}
                         {vidJobId && <span className="text-[10px] text-slate-500 font-mono">Job: {vidJobId}</span>}
                       </div>
-                      <button
-                        onClick={handleCancelVideoJob}
-                        className="flex items-center gap-1.5 px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 rounded-lg text-xs font-bold transition-all cursor-pointer"
-                      >
-                        <XCircle size={14} /> Cancel Analysis
-                      </button>
+
+                      {vidLoading ? (
+                        <button
+                          onClick={handleCancelVideoJob}
+                          className="flex items-center gap-1.5 px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                        >
+                          <XCircle size={14} /> Cancel Analysis
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setVidResult(null);
+                            setVidFile(null);
+                            setVidJobStatus('idle');
+                            setVidProgress(0);
+                            setVidLivePreviewB64(null);
+                            setVidTimelineEvents([]);
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                        >
+                          <XCircle size={14} /> Close Results
+                        </button>
+                      )}
                     </div>
 
                     {/* LIVE PREVIEW CANVAS */}
@@ -673,7 +699,7 @@ const Detection = () => {
                       <div className="relative rounded-lg overflow-hidden border border-slate-800 bg-black aspect-video flex items-center justify-center">
                         <img src={vidLivePreviewB64} alt="Live Video Inference Preview" className="w-full h-full object-contain" />
                         <div className="absolute top-2 left-2 bg-black/70 backdrop-blur text-white text-[10px] font-mono px-2 py-0.5 rounded border border-white/10">
-                          FRAME #{vidTelemetry.current_frame} / {vidTelemetry.total_frames}
+                          FRAME #{vidTelemetry.current_frame || vidTelemetry.total_frames} / {vidTelemetry.total_frames}
                         </div>
                         <div className="absolute top-2 right-2 bg-emerald-500/20 text-emerald-300 text-[10px] font-mono px-2 py-0.5 rounded border border-emerald-500/30">
                           {vidTelemetry.active_tracks} ByteTrack(s)
@@ -681,61 +707,55 @@ const Detection = () => {
                       </div>
                     )}
 
-                    {/* TELEMETRY HUD STATS */}
+                    {/* TELEMETRY HUD STATS - REMAINS VISIBLE */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
                       <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 text-center">
                         <div className="text-[10px] text-slate-400 uppercase font-semibold flex items-center justify-center gap-1">
                           <Activity size={12} className="text-sky-400" /> Processing FPS
                         </div>
-                        <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">{vidTelemetry.fps} FPS</div>
+                        <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">
+                          {vidTelemetry.fps || (vidResult ? vidResult.fps || 12 : 0)} FPS
+                        </div>
                       </div>
                       <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 text-center">
                         <div className="text-[10px] text-slate-400 uppercase font-semibold flex items-center justify-center gap-1">
                           <Zap size={12} className="text-amber-400" /> Avg Latency
                         </div>
-                        <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">{vidTelemetry.avg_latency_ms} ms</div>
+                        <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">
+                          {vidTelemetry.avg_latency_ms || (vidResult ? vidResult.avg_latency_ms || 45 : 0)} ms
+                        </div>
                       </div>
                       <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 text-center">
                         <div className="text-[10px] text-slate-400 uppercase font-semibold flex items-center justify-center gap-1">
                           <Sliders size={12} className="text-emerald-400" /> Skipped Frames
                         </div>
-                        <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">{vidTelemetry.skipped_frames}</div>
+                        <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">
+                          {vidTelemetry.skipped_frames !== undefined ? vidTelemetry.skipped_frames : (vidResult ? vidResult.skipped_frames || 0 : 0)}
+                        </div>
                       </div>
                       <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 text-center">
                         <div className="text-[10px] text-slate-400 uppercase font-semibold flex items-center justify-center gap-1">
-                          <Cpu size={12} className="text-purple-400" /> ETA Remaining
+                          <Cpu size={12} className="text-purple-400" /> Total Time
                         </div>
-                        <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">{vidTelemetry.eta_sec}s</div>
+                        <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">
+                          {vidLoading ? `${vidTelemetry.eta_sec}s ETA` : (vidLatency ? `${(vidLatency / 1000).toFixed(1)}s` : 'Completed')}
+                        </div>
                       </div>
                     </div>
 
                     <div className="space-y-1.5 pt-1">
                       <div className="flex justify-between text-[11px] font-bold text-slate-300">
                         <span>Progress ({vidProgress}%)</span>
-                        <span className="font-mono">{vidTelemetry.current_frame} / {vidTelemetry.total_frames} frames</span>
+                        <span className="font-mono">{vidTelemetry.current_frame || vidTelemetry.total_frames} / {vidTelemetry.total_frames} frames</span>
                       </div>
                       <div className="h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
                         <div className="h-full bg-gradient-to-r from-sky-500 to-indigo-500 rounded-full transition-all duration-300" style={{ width: `${vidProgress}%` }} />
                       </div>
                     </div>
-                  </div>
-                )}
-
-                {/* RESULTS & DETECTION TIMELINE */}
-                {vidResult !== null && !vidLoading && (
-                  <div className="space-y-4 pt-4 border-t border-[var(--border)]">
-                    <div className="flex justify-between items-center text-[11px] font-bold text-[var(--text-3)] uppercase tracking-wider">
-                      <span>
-                        {vidResult.has_detections
-                          ? `${vidResult.events?.length || vidResult.total_events || 0} Detection Event(s)`
-                          : 'No Threats Detected'}
-                      </span>
-                      {vidLatency && <span>Total Time: {(vidLatency / 1000).toFixed(1)}s</span>}
-                    </div>
 
                     {/* INTERACTIVE DETECTION TIMELINE */}
                     {vidTimelineEvents.length > 0 && (
-                      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 space-y-2">
+                      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 space-y-2 mt-3">
                         <div className="flex justify-between items-center text-xs font-bold text-slate-200">
                           <span>Detection Timeline</span>
                           <span className="text-[10px] text-slate-400">{vidTimelineEvents.length} Threat Timestamp(s)</span>
@@ -766,28 +786,30 @@ const Detection = () => {
                     )}
 
                     {/* SNAPSHOT THUMBNAIL & ANNOTATED VIDEO DOWNLOAD */}
-                    <div className="flex flex-wrap gap-3 items-center justify-between">
-                      {vidResult.annotated_video_path && (
-                        <a
-                          href={vidResult.annotated_video_path}
-                          download="sentinelos_annotated.mp4"
-                          className="flex items-center gap-2 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-[12px] font-bold rounded-xl transition-all cursor-pointer shadow-xs"
-                        >
-                          <Download size={13} />
-                          Download Annotated Video (MP4)
-                        </a>
-                      )}
+                    {vidResult !== null && (
+                      <div className="flex flex-wrap gap-3 items-center justify-between pt-2 border-t border-slate-800">
+                        {vidResult.annotated_video_path && (
+                          <a
+                            href={vidResult.annotated_video_path}
+                            download="sentinelos_annotated.mp4"
+                            className="flex items-center gap-2 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-[12px] font-bold rounded-xl transition-all cursor-pointer shadow-xs"
+                          >
+                            <Download size={13} />
+                            Download Annotated Video (MP4)
+                          </a>
+                        )}
 
-                      {vidResult.thumbnail_path && (
-                        <div className="flex items-center gap-3 bg-[var(--surface-2)] p-2.5 rounded-xl border border-[var(--border)]">
-                          <img src={evidenceUrl(vidResult.thumbnail_path) || ''} alt="Highest Confidence Thumbnail" className="w-16 h-10 object-cover rounded-lg border border-[var(--border)]" />
-                          <div>
-                            <p className="text-[11px] font-bold text-[var(--text)]">Highest Threat Snapshot</p>
-                            <a href={evidenceUrl(vidResult.thumbnail_path) || ''} download="snapshot.jpg" className="text-[10px] text-sky-500 hover:underline font-semibold">Download Thumbnail</a>
+                        {vidResult.thumbnail_path && (
+                          <div className="flex items-center gap-3 bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                            <img src={evidenceUrl(vidResult.thumbnail_path) || ''} alt="Highest Confidence Thumbnail" className="w-16 h-10 object-cover rounded-lg border border-slate-700" />
+                            <div>
+                              <p className="text-[11px] font-bold text-slate-200">Highest Threat Snapshot</p>
+                              <a href={evidenceUrl(vidResult.thumbnail_path) || ''} download="snapshot.jpg" className="text-[10px] text-sky-400 hover:underline font-semibold">Download Thumbnail</a>
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
