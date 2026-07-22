@@ -220,12 +220,25 @@ async def upload_video(
         raise HTTPException(status_code=400, detail="Could not decode video file.")
     cap.release()
 
+    # Prepare annotated output video path
+    import uuid as _uuid
+    from datetime import datetime as _dt
+    ts = _dt.utcnow().strftime("%Y%m%d_%H%M%S")
+    uid = _uuid.uuid4().hex[:6]
+    evidence_dir = os.path.join(os.path.dirname(__file__), "..", "..", "evidence")
+    os.makedirs(evidence_dir, exist_ok=True)
+    out_video_filename = f"vid_annotated_{ts}_{uid}.mp4"
+    out_video_path = os.path.join(evidence_dir, out_video_filename)
+    out_video_rel = f"/evidence/{out_video_filename}"
+
     events_out = []
     try:
-        best_frames = {}
+        best_frames: dict = {}
         all_detections = []
 
-        for frame_num, detections, annotated in svc.infer_video(tmp_path):
+        for frame_num, detections, annotated in svc.infer_video(
+            tmp_path, output_video_path=out_video_path
+        ):
             if not detections:
                 continue
             cls_type = detections[0]["detection_type"]
@@ -244,7 +257,7 @@ async def upload_video(
                 "detections": detections,
             })
 
-        created_alerts = {}
+        created_alerts: dict = {}
         for cls_type, best_info in best_frames.items():
             evidence_path = save_evidence(best_info["annotated"], prefix=f"vid_{cls_type}_best")
             best_conf = max(d["confidence"] for d in best_info["detections"])
@@ -301,10 +314,303 @@ async def upload_video(
         except Exception:
             pass
 
-    logger.info(f"Video done — {len(events_out)} event(s)")
+    # Check if annotated video was actually written
+    annotated_path = out_video_rel if (os.path.exists(out_video_path) and os.path.getsize(out_video_path) > 0) else None
+
+    detection_summary = {
+        cls: len([e for e in events_out if e["detection_type"] == cls])
+        for cls in set(e["detection_type"] for e in events_out)
+    }
+
+    logger.info(f"Video done — {len(events_out)} event(s), annotated_video={annotated_path}")
     return schemas.VideoUploadResponse(
-        total_events=len(events_out), events=events_out, file_name=file.filename
+        total_events=len(events_out),
+        events=events_out,
+        file_name=file.filename,
+        annotated_video_path=annotated_path,
+        has_detections=len(events_out) > 0,
+        detection_summary=detection_summary if detection_summary else None,
     )
 
 
-# Debug endpoints have been removed from production.
+# ── Asynchronous Streaming Video Upload & Control ──────────────────────────────
+import asyncio
+import uuid as _uuid
+import base64
+from datetime import datetime as _dt
+
+active_video_jobs: dict = {}
+job_subscribers: dict = {}
+job_semaphore = asyncio.Semaphore(2)  # Max 2 concurrent heavy video inference workers
+
+
+def register_job_subscriber(job_id: str, ws):
+    if job_id not in job_subscribers:
+        job_subscribers[job_id] = []
+    if ws not in job_subscribers[job_id]:
+        job_subscribers[job_id].append(ws)
+
+
+def unregister_job_subscriber(job_id: str, ws):
+    if job_id in job_subscribers and ws in job_subscribers[job_id]:
+        job_subscribers[job_id].remove(ws)
+
+
+async def notify_job_subscribers(job_id: str, message: dict):
+    if job_id in job_subscribers:
+        import json
+        subscribers = list(job_subscribers[job_id])
+        msg_str = json.dumps(message)
+        for ws in subscribers:
+            try:
+                await ws.send_text(msg_str)
+            except Exception:
+                unregister_job_subscriber(job_id, ws)
+
+
+async def _run_video_job_task(job_id: str, tmp_path: str, filename: str):
+    from ..database import SessionLocal
+    db = SessionLocal()
+    
+    # Acquire concurrency semaphore
+    async with job_semaphore:
+        try:
+            svc = get_detection_svc()
+            evidence_dir = os.path.join(os.path.dirname(__file__), "..", "..", "evidence")
+            thumb_dir = os.path.join(evidence_dir, "thumbnails")
+            os.makedirs(evidence_dir, exist_ok=True)
+            os.makedirs(thumb_dir, exist_ok=True)
+
+            out_video_filename = f"vid_async_{job_id}.mp4"
+            out_video_path = os.path.join(evidence_dir, out_video_filename)
+            out_video_rel = f"/evidence/{out_video_filename}"
+
+            thumb_filename = f"thumb_{job_id}.jpg"
+            thumb_path = os.path.join(thumb_dir, thumb_filename)
+            thumb_rel = f"/evidence/thumbnails/{thumb_filename}"
+
+            job = active_video_jobs.get(job_id)
+            if not job:
+                return
+
+            job["status"] = "processing"
+            all_detections = []
+            best_confidence = 0.0
+            best_frame_b64 = None
+
+            def is_cancelled():
+                j = active_video_jobs.get(job_id)
+                return j.get("cancelled", False) if j else False
+
+            loop = asyncio.get_running_loop()
+            async_queue = asyncio.Queue()
+
+            def sync_video_worker():
+                try:
+                    for update in svc.layer.detect_video_stream(
+                        tmp_path,
+                        db_settings=svc._load_db_settings(),
+                        output_video_path=out_video_path,
+                        cancel_check_func=is_cancelled,
+                    ):
+                        if is_cancelled():
+                            break
+                        loop.call_soon_threadsafe(async_queue.put_nowait, update)
+                except Exception as exc:
+                    logger.error(f"[SyncVideoWorker] Error: {exc}")
+                finally:
+                    loop.call_soon_threadsafe(async_queue.put_nowait, {"__done__": True})
+
+            # Run heavy CPU OpenCV/YOLO inference in separate background thread
+            asyncio.create_task(asyncio.to_thread(sync_video_worker))
+
+            while True:
+                update = await async_queue.get()
+                if update.get("__done__"):
+                    break
+
+                if is_cancelled():
+                    job["status"] = "cancelled"
+                    await notify_job_subscribers(job_id, {"event": "cancelled", "type": "cancelled", "job_id": job_id})
+                    break
+
+                job["progress_pct"] = update["progress_pct"]
+                job["fps"] = update["fps"]
+                job["inference_fps"] = update.get("inference_fps", update["fps"])
+                job["avg_latency_ms"] = update.get("avg_latency_ms", 0.0)
+                job["skipped_frames"] = update.get("skipped_frames", 0)
+                job["active_tracks_count"] = update.get("active_tracks_count", 0)
+                job["eta_sec"] = update["eta_sec"]
+                job["current_frame"] = update["frame_number"]
+                job["total_frames"] = update["total_frames"]
+                job["latest_preview"] = update["preview_b64"]
+
+                dets = update["detections"]
+                if dets:
+                    job["has_detections"] = True
+                    cls_type = dets[0]["detection_type"]
+                    max_conf = max(d["confidence"] for d in dets)
+
+                    # High-confidence thumbnail tracking
+                    if max_conf > best_confidence and update.get("preview_b64"):
+                        best_confidence = max_conf
+                        best_frame_b64 = update["preview_b64"]
+
+                    all_detections.append({
+                        "frame_number": update["frame_number"],
+                        "timestamp_sec": update["timestamp_sec"],
+                        "detection_type": cls_type,
+                        "confidence": max_conf,
+                        "detections": dets
+                    })
+
+                if update.get("early_threat"):
+                    threat_type = update["early_threat"]
+                    alert = create_alert(
+                        db,
+                        detection_type=threat_type,
+                        confidence=max(d["confidence"] for d in dets) if dets else 0.85,
+                        source_type="video_stream",
+                        camera_id="CAM-STREAM",
+                        location="Video Stream",
+                        file_name=filename,
+                        frame_number=update["frame_number"],
+                    )
+                    await _broadcast(db, alert.id, threat_type, alert.confidence, camera_id="CAM-STREAM", location="Video Stream")
+
+                await notify_job_subscribers(job_id, update)
+                await asyncio.sleep(0.001)
+
+            if job["status"] != "cancelled":
+                # Write snapshot thumbnail if available
+                thumbnail_path = None
+                if best_frame_b64:
+                    try:
+                        img_bytes = base64.b64decode(best_frame_b64)
+                        with open(thumb_path, "wb") as f:
+                            f.write(img_bytes)
+                        thumbnail_path = thumb_rel
+                    except Exception as e:
+                        logger.warning(f"[AsyncVideoJob] Failed to write thumbnail: {e}")
+
+                job["status"] = "completed"
+                job["progress_pct"] = 100.0
+                job["eta_sec"] = 0.0
+                job["events"] = all_detections
+                job["thumbnail_path"] = thumbnail_path
+                job["annotated_video_path"] = out_video_rel if (os.path.exists(out_video_path) and os.path.getsize(out_video_path) > 0) else None
+
+                summary = {}
+                for d in all_detections:
+                    c = d["detection_type"]
+                    summary[c] = summary.get(c, 0) + 1
+                job["summary"] = summary
+
+                completion_msg = {
+                    "event": "completed",
+                    "type": "completed",
+                    "job_id": job_id,
+                    "status": "completed",
+                    "progress_pct": 100.0,
+                    "has_detections": job["has_detections"],
+                    "summary": summary,
+                    "events": all_detections,
+                    "thumbnail_path": thumbnail_path,
+                    "annotated_video_path": job["annotated_video_path"],
+                }
+                await notify_job_subscribers(job_id, completion_msg)
+
+        except Exception as exc:
+            logger.error(f"[AsyncVideoJob] Job {job_id} error: {exc}")
+            if job_id in active_video_jobs:
+                active_video_jobs[job_id]["status"] = "failed"
+                active_video_jobs[job_id]["error"] = str(exc)
+            await notify_job_subscribers(job_id, {"event": "error", "type": "error", "job_id": job_id, "error": str(exc)})
+        finally:
+            db.close()
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
+
+
+@router.post("/video_async", dependencies=[Depends(require_operator)])
+async def upload_video_async(
+    file: UploadFile = File(...),
+    svc: DetectionService = Depends(get_detection_svc),
+):
+    """Starts immediate background video prediction job and returns Job ID immediately."""
+    logger.info(f"Async Video Upload received: {file.filename}")
+
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in [".mp4", ".avi", ".mov", ".mkv", ".webm"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported video format. Allowed: MP4, AVI, MOV, MKV, WEBM.",
+        )
+
+    video_data = await _read_upload_with_limit(file, MAX_VIDEO_SIZE)
+
+    job_id = _uuid.uuid4().hex[:10]
+    suffix = ext or ".mp4"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(video_data)
+        tmp_path = tmp.name
+
+    active_video_jobs[job_id] = {
+        "job_id": job_id,
+        "filename": file.filename,
+        "status": "pending",
+        "progress_pct": 0.0,
+        "fps": 0.0,
+        "inference_fps": 0.0,
+        "avg_latency_ms": 0.0,
+        "skipped_frames": 0,
+        "active_tracks_count": 0,
+        "eta_sec": 0.0,
+        "current_frame": 0,
+        "total_frames": 0,
+        "has_detections": False,
+        "cancelled": False,
+        "events": [],
+        "latest_preview": None,
+        "thumbnail_path": None,
+        "annotated_video_path": None,
+        "summary": None,
+        "created_at": _dt.utcnow().isoformat(),
+    }
+
+    # Launch background task
+    asyncio.create_task(_run_video_job_task(job_id, tmp_path, file.filename))
+
+    return {
+        "job_id": job_id,
+        "status": "processing",
+        "file_name": file.filename,
+        "message": "Video analysis started immediately.",
+    }
+
+
+@router.get("/video_job/{job_id}")
+def get_video_job_status(job_id: str):
+    """Retrieves current job processing status."""
+    job = active_video_jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job ID not found")
+    return job
+
+
+@router.delete("/video_job/{job_id}", dependencies=[Depends(require_operator)])
+def cancel_video_job(job_id: str):
+    """Cancels an ongoing asynchronous video processing job."""
+    job = active_video_jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job ID not found")
+
+    job["cancelled"] = True
+    job["status"] = "cancelled"
+    logger.info(f"[VideoJob] Cancel requested for job {job_id}")
+    return {"job_id": job_id, "status": "cancelled", "message": "Job cancellation requested successfully."}
+
+
+

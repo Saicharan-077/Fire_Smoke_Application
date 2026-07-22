@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useToast } from '../components/ui/Toast';
-import { uploadImage, uploadVideo, testCctvConnection, getSettings, evidenceUrl } from '../services/api';
+import { uploadImage, uploadVideoAsync, getVideoJobStatus, cancelVideoJob, connectVideoStreamSocket, testCctvConnection, getSettings, evidenceUrl } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { useNotificationsStore } from '../store/notificationsStore';
 import { useAlertSound } from '../components/SOC/AlertSound';
 import {
   UploadCloud, FileVideo, Camera, MonitorPlay,
-  RefreshCw, Download,
+  RefreshCw, Download, XCircle, Activity, Cpu, Zap, Sliders,
   Volume2, VolumeX, Image as ImageIcon, Film, AlertTriangle,
   CheckCircle, Wifi, WifiOff
 } from 'lucide-react';
@@ -98,48 +98,152 @@ const Detection = () => {
 
   // ── Video ──
   const vidInputRef = useRef<HTMLInputElement>(null);
+  const playerRef = useRef<HTMLVideoElement>(null);
   const [vidFile, setVidFile] = useState<File | null>(null);
   const [vidResult, setVidResult] = useState<any>(null);
   const [vidLoading, setVidLoading] = useState(false);
   const [vidLatency, setVidLatency] = useState<number | null>(null);
   const [vidProgress, setVidProgress] = useState(0);
-  const [vidFrames, setVidFrames] = useState(0);
+  const [vidJobId, setVidJobId] = useState<string | null>(null);
+  const [vidJobStatus, setVidJobStatus] = useState<string>('idle');
+  const [vidLivePreviewB64, setVidLivePreviewB64] = useState<string | null>(null);
+  const [vidTimelineEvents, setVidTimelineEvents] = useState<Array<any>>([]);
+  const [vidTelemetry, setVidTelemetry] = useState({
+    fps: 0,
+    inference_fps: 0,
+    avg_latency_ms: 0,
+    skipped_frames: 0,
+    active_tracks: 0,
+    current_frame: 0,
+    total_frames: 0,
+    eta_sec: 0,
+  });
 
   const runVideoInference = async () => {
     if (!vidFile) return;
     setVidLoading(true);
-    setVidProgress(5);
+    setVidProgress(1);
+    setVidTimelineEvents([]);
+    setVidResult(null);
+    setVidJobStatus('processing');
+    setVidLivePreviewB64(null);
     const t0 = performance.now();
-    const iv = setInterval(() => {
-      setVidProgress(p => {
-        if (p < 90) {
-          const n = Math.min(p + Math.floor(Math.random() * 8) + 3, 90);
-          setVidFrames(Math.round((n / 100) * 600));
-          return n;
-        }
-        return p;
-      });
-    }, 500);
+
     try {
-      const res = await uploadVideo(vidFile);
-      clearInterval(iv);
-      setVidProgress(100);
-      setVidResult(res);
-      setVidLatency(Math.round(performance.now() - t0));
-      if (res.has_detections) {
-        if (!mutedRef.current) void playAlertChime();
-        const summary = res.detection_summary
-          ? Object.entries(res.detection_summary).map(([k, v]) => `${v}× ${k}`).join(', ')
-          : `${res.total_events} event(s)`;
-        toast(`⚠ Video analysis: ${summary} detected`, 'error');
-      } else {
-        toast('✓ Video analysis complete — no threats detected', 'success');
-      }
+      const init = await uploadVideoAsync(vidFile);
+      const jobId = init.job_id;
+      setVidJobId(jobId);
+
+      const pollTimer = setInterval(async () => {
+        try {
+          const status = await getVideoJobStatus(jobId);
+          if (status) {
+            setVidProgress(status.progress_pct || 0);
+            if (status.latest_preview) {
+              setVidLivePreviewB64(`data:image/jpeg;base64,${status.latest_preview}`);
+            }
+            setVidTelemetry({
+              fps: status.fps || 0,
+              inference_fps: status.inference_fps || status.fps || 0,
+              avg_latency_ms: status.avg_latency_ms || 0,
+              skipped_frames: status.skipped_frames || 0,
+              active_tracks: status.active_tracks_count || 0,
+              current_frame: status.current_frame || 0,
+              total_frames: status.total_frames || 0,
+              eta_sec: status.eta_sec || 0,
+            });
+
+            if (status.status === 'completed') {
+              clearInterval(pollTimer);
+              setVidProgress(100);
+              setVidJobStatus('completed');
+              setVidResult(status);
+              setVidLatency(Math.round(performance.now() - t0));
+              setVidLoading(false);
+            } else if (status.status === 'cancelled' || status.status === 'failed') {
+              clearInterval(pollTimer);
+              setVidJobStatus(status.status);
+              setVidLoading(false);
+            }
+          }
+        } catch { /* ignore */ }
+      }, 1000);
+
+      const ws = connectVideoStreamSocket(jobId, (msg: any) => {
+        if (msg.event === 'frame_update' || msg.type === 'frame') {
+          setVidProgress(msg.progress_pct || 0);
+          if (msg.preview_b64) {
+            setVidLivePreviewB64(`data:image/jpeg;base64,${msg.preview_b64}`);
+          }
+          setVidTelemetry({
+            fps: msg.fps || 0,
+            inference_fps: msg.inference_fps || msg.fps || 0,
+            avg_latency_ms: msg.avg_latency_ms || 0,
+            skipped_frames: msg.skipped_frames || 0,
+            active_tracks: msg.active_tracks_count || 0,
+            current_frame: msg.frame_number || 0,
+            total_frames: msg.total_frames || 0,
+            eta_sec: msg.eta_sec || 0,
+          });
+
+          if (msg.detections && msg.detections.length > 0) {
+            setVidTimelineEvents(prev => {
+              const existing = prev.some(e => e.frame_number === msg.frame_number);
+              if (existing) return prev;
+              return [
+                ...prev,
+                {
+                  frame_number: msg.frame_number,
+                  timestamp_sec: msg.timestamp_sec || 0,
+                  type: msg.detections[0].detection_type,
+                  confidence: Math.max(...msg.detections.map((d: any) => d.confidence)),
+                }
+              ];
+            });
+          }
+
+          if (msg.early_threat && !mutedRef.current) {
+            void playAlertChime();
+            toast(`🚨 EARLY THREAT TRIGGER: ${msg.early_threat.toUpperCase()} detected`, 'error');
+          }
+        } else if (msg.event === 'completed' || msg.type === 'completed') {
+          clearInterval(pollTimer);
+          setVidProgress(100);
+          setVidJobStatus('completed');
+          setVidResult(msg);
+          setVidLatency(Math.round(performance.now() - t0));
+          if (msg.has_detections) {
+            if (!mutedRef.current) void playAlertChime();
+            toast(`⚠ Video analysis complete: threats detected`, 'error');
+          } else {
+            toast('✓ Video analysis complete — no threats detected', 'success');
+          }
+          setVidLoading(false);
+          ws.close();
+        } else if (msg.event === 'cancelled' || msg.type === 'cancelled') {
+          clearInterval(pollTimer);
+          setVidJobStatus('cancelled');
+          toast('Video processing cancelled by user', 'info');
+          setVidLoading(false);
+          ws.close();
+        }
+      });
     } catch (e: any) {
-      clearInterval(iv);
-      toast(e.message || 'Video analysis failed', 'error');
-    } finally {
+      toast(e.message || 'Video upload failed', 'error');
       setVidLoading(false);
+      setVidJobStatus('failed');
+    }
+  };
+
+  const handleCancelVideoJob = async () => {
+    if (!vidJobId) return;
+    try {
+      await cancelVideoJob(vidJobId);
+      setVidJobStatus('cancelled');
+      setVidLoading(false);
+      toast('Job cancellation requested', 'info');
+    } catch (e: any) {
+      toast('Failed to cancel job: ' + e.message, 'error');
     }
   };
 
@@ -485,17 +589,17 @@ const Detection = () => {
                   onClick={() => !vidLoading && vidInputRef.current?.click()}
                   className={`border-2 border-dashed rounded-2xl p-6 transition-all duration-300 cursor-pointer text-center ${
                     vidFile 
-                      ? 'border-slate-200 bg-white' 
+                      ? 'border-slate-200 bg-white dark:bg-slate-900/60 dark:border-slate-800' 
                       : 'border-slate-200 dark:border-slate-700 hover:border-sky-300 dark:hover:border-sky-800 bg-slate-50/30 dark:bg-slate-900/30 hover:bg-sky-50/10'
                   }`}
                 >
                   <input type="file" ref={vidInputRef} className="hidden" accept="video/*" onChange={e => {
                     const f = e.target.files?.[0];
-                    if (f) { setVidFile(f); setVidResult(null); setVidProgress(0); }
+                    if (f) { setVidFile(f); setVidResult(null); setVidProgress(0); setVidLivePreviewB64(null); setVidTimelineEvents([]); }
                   }} />
                   {vidFile ? (
-                    <div className="py-8 flex flex-col items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-sky-50 dark:bg-sky-950/30 flex items-center justify-center text-sky-600 dark:text-sky-400 mb-3 shadow-xs">
+                    <div className="py-6 flex flex-col items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-sky-50 dark:bg-sky-950/30 flex items-center justify-center text-sky-600 dark:text-sky-400 mb-2 shadow-xs">
                         <FileVideo size={20} />
                       </div>
                       <div className="text-center">
@@ -504,101 +608,166 @@ const Detection = () => {
                       </div>
                     </div>
                   ) : (
-                    <div className="py-14 flex flex-col items-center gap-3 select-none">
-                      <div className="w-12 h-12 rounded-full bg-sky-50 dark:bg-sky-950/30 flex items-center justify-center text-sky-600 dark:text-sky-400 mb-3 shadow-xs">
+                    <div className="py-12 flex flex-col items-center gap-3 select-none">
+                      <div className="w-12 h-12 rounded-full bg-sky-50 dark:bg-sky-950/30 flex items-center justify-center text-sky-600 dark:text-sky-400 mb-2 shadow-xs">
                         <UploadCloud size={20} />
                       </div>
                       <div className="text-center">
-                        <p className="text-[13px] font-bold text-[var(--text)]">Drop video here or click to browse</p>
+                        <p className="text-[13px] font-bold text-[var(--text)]">Drop video file here or click to browse</p>
                         <p className="text-[11px] text-[var(--text-3)] font-medium mt-1">MP4, AVI, MOV, MKV formats up to 50MB</p>
                       </div>
                     </div>
                   )}
                 </div>
 
-                {vidFile && !vidLoading && (
+                {vidFile && !vidLoading && vidJobStatus !== 'processing' && (
                   <div className="flex gap-2 justify-end">
-                    <button onClick={() => { setVidFile(null); setVidResult(null); setVidProgress(0); }} className="px-3 py-2 border border-[var(--border)] rounded-lg text-[12px] font-bold text-[var(--text-2)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer">
+                    <button onClick={() => { setVidFile(null); setVidResult(null); setVidProgress(0); setVidLivePreviewB64(null); }} className="px-3 py-2 border border-[var(--border)] rounded-lg text-[12px] font-bold text-[var(--text-2)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer">
                       Clear
                     </button>
                     <button onClick={runVideoInference} className="px-4 py-2 bg-[var(--primary)] text-white text-[12px] font-bold rounded-lg hover:bg-[var(--primary-hover)] transition-colors cursor-pointer shadow-sm">
-                      Analyze Video
+                      Analyze Video Stream
                     </button>
                   </div>
                 )}
 
+                {/* LIVE PREVIEW & TELEMETRY HUD */}
                 {vidLoading && (
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-[11px] font-bold text-[var(--text-2)]">
-                      <span>Processing video frames ({vidFrames} analyzed)...</span>
-                      <span className="font-mono">{vidProgress}%</span>
+                  <div className="space-y-4 rounded-xl border border-slate-800 bg-slate-950/90 p-4 shadow-xl text-slate-100">
+                    <div className="flex justify-between items-center text-xs border-b border-slate-800 pb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+                        <span className="font-bold text-emerald-400">ByteTrack AI Stream Processing</span>
+                        {vidJobId && <span className="text-[10px] text-slate-500 font-mono">Job: {vidJobId}</span>}
+                      </div>
+                      <button
+                        onClick={handleCancelVideoJob}
+                        className="flex items-center gap-1.5 px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                      >
+                        <XCircle size={14} /> Cancel Analysis
+                      </button>
                     </div>
-                    <div className="h-2 bg-[var(--surface-2)] rounded-full overflow-hidden border border-[var(--border)]">
-                      <div className="h-full bg-[var(--primary)] rounded-full transition-all duration-300" style={{ width: `${vidProgress}%` }} />
+
+                    {/* LIVE PREVIEW CANVAS */}
+                    {vidLivePreviewB64 && (
+                      <div className="relative rounded-lg overflow-hidden border border-slate-800 bg-black aspect-video flex items-center justify-center">
+                        <img src={vidLivePreviewB64} alt="Live Video Inference Preview" className="w-full h-full object-contain" />
+                        <div className="absolute top-2 left-2 bg-black/70 backdrop-blur text-white text-[10px] font-mono px-2 py-0.5 rounded border border-white/10">
+                          FRAME #{vidTelemetry.current_frame} / {vidTelemetry.total_frames}
+                        </div>
+                        <div className="absolute top-2 right-2 bg-emerald-500/20 text-emerald-300 text-[10px] font-mono px-2 py-0.5 rounded border border-emerald-500/30">
+                          {vidTelemetry.active_tracks} ByteTrack(s)
+                        </div>
+                      </div>
+                    )}
+
+                    {/* TELEMETRY HUD STATS */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                      <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 text-center">
+                        <div className="text-[10px] text-slate-400 uppercase font-semibold flex items-center justify-center gap-1">
+                          <Activity size={12} className="text-sky-400" /> Processing FPS
+                        </div>
+                        <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">{vidTelemetry.fps} FPS</div>
+                      </div>
+                      <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 text-center">
+                        <div className="text-[10px] text-slate-400 uppercase font-semibold flex items-center justify-center gap-1">
+                          <Zap size={12} className="text-amber-400" /> Avg Latency
+                        </div>
+                        <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">{vidTelemetry.avg_latency_ms} ms</div>
+                      </div>
+                      <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 text-center">
+                        <div className="text-[10px] text-slate-400 uppercase font-semibold flex items-center justify-center gap-1">
+                          <Sliders size={12} className="text-emerald-400" /> Skipped Frames
+                        </div>
+                        <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">{vidTelemetry.skipped_frames}</div>
+                      </div>
+                      <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 text-center">
+                        <div className="text-[10px] text-slate-400 uppercase font-semibold flex items-center justify-center gap-1">
+                          <Cpu size={12} className="text-purple-400" /> ETA Remaining
+                        </div>
+                        <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">{vidTelemetry.eta_sec}s</div>
+                      </div>
                     </div>
-                    <p className="text-[11px] text-[var(--text-3)] font-semibold">FireGuard AI · frame-by-frame fire/smoke detection</p>
+
+                    <div className="space-y-1.5 pt-1">
+                      <div className="flex justify-between text-[11px] font-bold text-slate-300">
+                        <span>Progress ({vidProgress}%)</span>
+                        <span className="font-mono">{vidTelemetry.current_frame} / {vidTelemetry.total_frames} frames</span>
+                      </div>
+                      <div className="h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                        <div className="h-full bg-gradient-to-r from-sky-500 to-indigo-500 rounded-full transition-all duration-300" style={{ width: `${vidProgress}%` }} />
+                      </div>
+                    </div>
                   </div>
                 )}
 
+                {/* RESULTS & DETECTION TIMELINE */}
                 {vidResult !== null && !vidLoading && (
-                  <div className="space-y-3 pt-4 border-t border-[var(--border)]">
-                    {/* Summary bar */}
+                  <div className="space-y-4 pt-4 border-t border-[var(--border)]">
                     <div className="flex justify-between items-center text-[11px] font-bold text-[var(--text-3)] uppercase tracking-wider">
                       <span>
                         {vidResult.has_detections
-                          ? `${vidResult.total_events} Detection Event(s)`
+                          ? `${vidResult.events?.length || vidResult.total_events || 0} Detection Event(s)`
                           : 'No Threats Detected'}
                       </span>
-                      {vidLatency && <span>Time: {(vidLatency / 1000).toFixed(1)}s</span>}
+                      {vidLatency && <span>Total Time: {(vidLatency / 1000).toFixed(1)}s</span>}
                     </div>
 
-                    {/* Detection summary pills */}
-                    {vidResult.detection_summary && Object.keys(vidResult.detection_summary).length > 0 && (
-                      <div className="flex gap-2">
-                        {Object.entries(vidResult.detection_summary as Record<string, number>).map(([type, count]) => (
-                          <span key={type} className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${
-                            type === 'fire' ? 'bg-[var(--fire-bg)] text-[var(--fire)] border-[var(--fire-border)]' : 'bg-[var(--smoke-bg)] text-[var(--smoke)] border-[var(--smoke-border)]'
-                          }`}>
-                            {type.toUpperCase()} × {count as number}
-                          </span>
-                        ))}
+                    {/* INTERACTIVE DETECTION TIMELINE */}
+                    {vidTimelineEvents.length > 0 && (
+                      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 space-y-2">
+                        <div className="flex justify-between items-center text-xs font-bold text-slate-200">
+                          <span>Detection Timeline</span>
+                          <span className="text-[10px] text-slate-400">{vidTimelineEvents.length} Threat Timestamp(s)</span>
+                        </div>
+                        <div className="flex gap-2 overflow-x-auto py-1 custom-scrollbar">
+                          {vidTimelineEvents.map((evt, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                if (playerRef.current) {
+                                  playerRef.current.currentTime = evt.timestamp_sec;
+                                  playerRef.current.play();
+                                }
+                              }}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap ${
+                                evt.type === 'fire'
+                                  ? 'bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30'
+                                  : 'bg-purple-500/20 text-purple-400 border-purple-500/30 hover:bg-purple-500/30'
+                              }`}
+                            >
+                              <span>{evt.type === 'fire' ? '🔥' : '💨'}</span>
+                              <span>{Math.floor(evt.timestamp_sec / 60)}:{(evt.timestamp_sec % 60).toFixed(0).padStart(2, '0')}</span>
+                              <span className="text-[10px] opacity-75 font-mono">({(evt.confidence * 100).toFixed(0)}%)</span>
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
 
-                    {/* Download annotated video */}
-                    {vidResult.annotated_video_path && (
-                      <a
-                        href={vidResult.annotated_video_path}
-                        download="fireguard_annotated.mp4"
-                        className="flex items-center gap-2 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-[12px] font-bold rounded-xl transition-all cursor-pointer shadow-xs w-fit"
-                      >
-                        <Download size={13} />
-                        Download Annotated Video
-                      </a>
-                    )}
+                    {/* SNAPSHOT THUMBNAIL & ANNOTATED VIDEO DOWNLOAD */}
+                    <div className="flex flex-wrap gap-3 items-center justify-between">
+                      {vidResult.annotated_video_path && (
+                        <a
+                          href={vidResult.annotated_video_path}
+                          download="sentinelos_annotated.mp4"
+                          className="flex items-center gap-2 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-[12px] font-bold rounded-xl transition-all cursor-pointer shadow-xs"
+                        >
+                          <Download size={13} />
+                          Download Annotated Video (MP4)
+                        </a>
+                      )}
 
-                    {/* Evidence frame grid */}
-                    {vidResult.events?.filter((e: any) => e.evidence_path).length > 0 && (
-                      <div className="grid grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1 custom-scrollbar">
-                        {vidResult.events.filter((e: any) => e.evidence_path).map((evt: any, i: number) => (
-                          <div key={i} className="rounded-xl border border-[var(--border)] overflow-hidden bg-[var(--surface-2)] hover:border-[var(--border-strong)] transition-all">
-                            <img src={evidenceUrl(evt.evidence_path) || ''} alt={`Frame ${i}`} className="aspect-video w-full object-cover bg-black" />
-                            <div className="px-3 py-2 border-t border-[var(--border)] flex justify-between items-center text-xs">
-                              <span className={`font-bold capitalize ${evt.detection_type === 'fire' ? 'text-[var(--fire)]' : 'text-[var(--smoke)]'}`}>{evt.detection_type}</span>
-                              <span className="text-[10px] text-[var(--text-3)] font-mono">Frame #{evt.frame_number} · {(evt.confidence * 100).toFixed(0)}%</span>
-                            </div>
+                      {vidResult.thumbnail_path && (
+                        <div className="flex items-center gap-3 bg-[var(--surface-2)] p-2.5 rounded-xl border border-[var(--border)]">
+                          <img src={evidenceUrl(vidResult.thumbnail_path) || ''} alt="Highest Confidence Thumbnail" className="w-16 h-10 object-cover rounded-lg border border-[var(--border)]" />
+                          <div>
+                            <p className="text-[11px] font-bold text-[var(--text)]">Highest Threat Snapshot</p>
+                            <a href={evidenceUrl(vidResult.thumbnail_path) || ''} download="snapshot.jpg" className="text-[10px] text-sky-500 hover:underline font-semibold">Download Thumbnail</a>
                           </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* No detections state */}
-                    {!vidResult.has_detections && (
-                      <div className="flex items-center justify-center gap-2 py-8 text-[var(--safe-text)] bg-[var(--safe-bg)] border border-[var(--safe-border)] rounded-xl">
-                        <CheckCircle size={16} />
-                        <span className="text-[13px] font-bold">No fire or smoke detected in video</span>
-                      </div>
-                    )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

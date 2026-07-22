@@ -4,8 +4,12 @@ import cv2
 import numpy as np
 from typing import List, Dict, Tuple, Any
 
-from detection.detection_layer import DetectionLayer
-from detection.config import DetectionConfig
+try:
+    from detection.detection_layer import DetectionLayer
+    from detection.config import DetectionConfig
+except ModuleNotFoundError:
+    from backend.detection.detection_layer import DetectionLayer
+    from backend.detection.config import DetectionConfig
 
 logger = logging.getLogger("fireguard.detection.service_wrapper")
 
@@ -91,9 +95,22 @@ class DetectionService:
         db_settings = self._load_db_settings()
         return self.layer.detect_frame(frame, source_id, db_settings=db_settings)
 
-    def infer_video(self, video_path: str, consecutive: int = 3):
+    def infer_video(self, video_path: str, consecutive: int = 1, output_video_path: str | None = None):
         db_settings = self._load_db_settings()
-        yield from self.layer.detect_video(video_path, consecutive=consecutive, db_settings=db_settings)
+        yield from self.layer.detect_video(
+            video_path,
+            consecutive=consecutive,
+            db_settings=db_settings,
+            output_video_path=output_video_path,
+        )
+
+    def infer_video_stream(self, video_path: str, output_video_path: str | None = None):
+        db_settings = self._load_db_settings()
+        yield from self.layer.detect_video_stream(
+            video_path,
+            db_settings=db_settings,
+            output_video_path=output_video_path,
+        )
 
     def annotate_frame(self, frame: np.ndarray, detections: List[Dict]) -> np.ndarray:
         return self.layer.annotate_frame(frame, detections)

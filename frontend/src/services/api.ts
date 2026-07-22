@@ -138,6 +138,62 @@ export const uploadVideo = (file: File) => {
   );
 };
 
+export const uploadVideoAsync = (file: File) => {
+  const fd = new FormData();
+  fd.append('file', file);
+  return api<{
+    job_id: string;
+    status: string;
+    file_name: string;
+    message: string;
+  }>(
+    '/api/v1/upload/video_async',
+    { method: 'POST', body: fd }
+  );
+};
+
+export const getVideoJobStatus = (jobId: string) =>
+  api<{
+    job_id: string;
+    filename: string;
+    status: string;
+    progress_pct: number;
+    fps: number;
+    inference_fps?: number;
+    avg_latency_ms?: number;
+    skipped_frames?: number;
+    active_tracks_count?: number;
+    eta_sec: number;
+    current_frame: number;
+    total_frames: number;
+    has_detections: boolean;
+    cancelled?: boolean;
+    events: Array<{
+      frame_number: number;
+      timestamp_sec: number;
+      detection_type: string;
+      confidence: number;
+      detections: Detection[];
+    }>;
+    latest_preview: string | null;
+    thumbnail_path: string | null;
+    annotated_video_path: string | null;
+    summary: Record<string, number> | null;
+  }>(`/api/v1/upload/video_job/${jobId}`);
+
+export const cancelVideoJob = (jobId: string) =>
+  api<{ job_id: string; status: string; message: string }>(
+    `/api/v1/upload/video_job/${jobId}`,
+    { method: 'DELETE' }
+  );
+
+export const getAnalyticsHeatmap = (params?: { camera_id?: string; detection_type?: string }) =>
+  api<{
+    camera_id: string;
+    total_points: number;
+    heatmap_data: Array<{ id?: string; x: number; y: number; weight: number; type: string; camera_id?: string; timestamp?: string }>;
+  }>(`/api/v1/analytics/heatmap${toQuery(params)}`);
+
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 export const getDashboardStats = () =>
   api<DashboardStats>('/api/v1/dashboard/stats');
@@ -192,6 +248,15 @@ export const deleteAlert = (alertId: string) =>
 export const evidenceUrl = (path: string | null) =>
   path ? `${BASE}${path}` : null;
 
+export const exportHistoryCsvUrl = (params?: Record<string, unknown>) =>
+  `${BASE}/api/v1/history/export/csv${toQuery(params)}`;
+
+export const exportHistoryPdfUrl = (params?: Record<string, unknown>) =>
+  `${BASE}/api/v1/history/export/pdf${toQuery(params)}`;
+
+export const exportHistoryJsonUrl = (params?: Record<string, unknown>) =>
+  `${BASE}/api/v1/history/export/json${toQuery(params)}`;
+
 // ── WebSocket ─────────────────────────────────────────────────────────────────
 export const connectAlertSocket = (onMessage: (data: unknown) => void): WebSocket => {
   const wsBase = BASE.replace(/^http/, 'ws');
@@ -210,6 +275,24 @@ export const connectAlertSocket = (onMessage: (data: unknown) => void): WebSocke
   ws.onclose = () => clearInterval(ping);
   return ws;
 };
+
+export const connectVideoStreamSocket = (jobId: string, onMessage: (data: unknown) => void): WebSocket => {
+  const wsBase = BASE.replace(/^http/, 'ws');
+  const ws = new WebSocket(`${wsBase}/ws/video_stream/${encodeURIComponent(jobId)}`);
+  ws.onmessage = (e) => {
+    try {
+      onMessage(JSON.parse((e as MessageEvent).data));
+    } catch {
+      // ignore
+    }
+  };
+  const ping = setInterval(() => {
+    if (ws.readyState === 1) ws.send('ping');
+  }, 20_000);
+  ws.onclose = () => clearInterval(ping);
+  return ws;
+};
+
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 export interface Incident {

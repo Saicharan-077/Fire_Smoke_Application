@@ -140,6 +140,9 @@ class VideoUploadResponse(BaseModel):
     total_events: int
     events: List[dict]
     file_name: Optional[str]
+    annotated_video_path: Optional[str] = None
+    has_detections: bool = False
+    detection_summary: Optional[dict] = None
 
 
 # ── User Authentication ───────────────────────────────────────────────────────

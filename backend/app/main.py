@@ -19,7 +19,7 @@ from .middleware.rate_limit import RateLimitMiddleware
 from .routes import (
     auth_routes, upload_routes, alert_routes, dashboard_routes, camera_routes,
     history_routes, incident_routes, settings_routes, profile_routes, detect_routes,
-    admin_routes,
+    admin_routes, analytics_routes,
 )
 from .routes.auth_routes import get_user_by_websocket_token, get_current_user, get_user_by_token
 from .services.analytics_service import (
@@ -285,7 +285,7 @@ _scheduler_instance = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _detection_svc_instance, _scheduler_instance
-    logger.info("[Startup] Loading YOLOv26s model from models/yolo26s.pt...")
+    logger.info("[Startup] Loading FireGuard AI fire/smoke detection model...")
     svc = DetectionService()
     _detection_svc_instance = svc
     upload_routes._detection_svc = svc
@@ -301,7 +301,15 @@ async def lifespan(app: FastAPI):
     _scheduler_instance = scheduler
     await scheduler.start()
 
-    logger.info("[Startup] Ready — YOLOv26s model loaded, Intelligent Multi-Camera Scheduler active")
+    model_path = getattr(svc.layer, 'model_path', 'unknown')
+    class_names = getattr(svc.layer, 'class_names', {})
+    device = getattr(svc.layer, 'device', 'cpu').upper()
+    logger.info(
+        f"[Startup] \u2705 Model loaded: {model_path} | "
+        f"Device: {device} | Classes: {class_names} | "
+        f"Ready: {svc.ready}"
+    )
+    logger.info("[Startup] Intelligent Multi-Camera Scheduler active")
     yield
     await scheduler.stop()
     logger.info("[Shutdown] Cleaning up scheduler resources")
@@ -348,6 +356,7 @@ app.include_router(settings_routes.router)
 app.include_router(profile_routes.router)
 app.include_router(detect_routes.router)
 app.include_router(admin_routes.router)
+app.include_router(analytics_routes.router)
 
 
 # ── Dynamic router aliasing for spec compatibility ───────────────────────────
@@ -519,6 +528,35 @@ async def alert_ws(websocket: WebSocket):
             manager.disconnect(websocket)
     finally:
         db.close()
+
+
+@app.websocket("/ws/video_stream/{job_id}")
+async def video_stream_ws(websocket: WebSocket, job_id: str):
+    await websocket.accept()
+    from .routes import upload_routes
+    upload_routes.register_job_subscriber(job_id, websocket)
+
+    # Immediately send initial job state if available
+    job = upload_routes.active_video_jobs.get(job_id)
+    if job:
+        await websocket.send_json({
+            "event": "initial_state",
+            "job_id": job_id,
+            "status": job["status"],
+            "progress_pct": job.get("progress_pct", 0.0),
+            "fps": job.get("fps", 0.0),
+            "eta_sec": job.get("eta_sec", 0.0),
+            "current_frame": job.get("current_frame", 0),
+            "total_frames": job.get("total_frames", 0),
+            "latest_preview": job.get("latest_preview"),
+        })
+
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        upload_routes.unregister_job_subscriber(job_id, websocket)
+
 
 
 # ── Health check ──────────────────────────────────────────────────────────────

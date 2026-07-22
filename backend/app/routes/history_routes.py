@@ -272,3 +272,49 @@ def export_history_pdf(
     }
     return Response(content=pdf_bytes, headers=headers_resp)
 
+
+@router.get("/export/json")
+def export_history_json(
+    search: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    type: Optional[str] = Query(None, regex="^(fire|smoke)$"),
+    start_date: Optional[str] = Query(None, description="YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="YYYY-MM-DD"),
+    db: Session = Depends(get_db),
+):
+    import json
+    q = db.query(models.Alert)
+    q = _apply_common_filters(
+        q,
+        search=search,
+        status=status,
+        alert_type=type,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    alerts: List[models.Alert] = q.order_by(models.Alert.timestamp.desc()).all()
+    records = [
+        {
+            "id": a.id,
+            "detection_type": a.detection_type,
+            "confidence": a.confidence,
+            "status": a.status,
+            "source_type": a.source_type,
+            "camera_id": a.camera_id,
+            "location": a.location,
+            "file_name": a.file_name,
+            "evidence_path": a.evidence_path,
+            "frame_number": a.frame_number,
+            "timestamp": a.timestamp.isoformat(),
+        }
+        for a in alerts
+    ]
+    json_bytes = json.dumps(records, indent=2).encode("utf-8")
+    headers = {
+        "Content-Disposition": "attachment; filename=history.json",
+        "Content-Type": "application/json",
+    }
+    return Response(content=json_bytes, headers=headers)
+
+

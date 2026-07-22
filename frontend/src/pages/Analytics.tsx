@@ -11,6 +11,7 @@ import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, PieChart as ReChartsPieChart, Pie, Cell
 } from 'recharts';
+import { DetectionHeatmap } from '../components/SOC/DetectionHeatmap';
 import { PredictiveHeatmap } from '../components/Analytics/PredictiveHeatmap';
 
 const toDateLocal = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -207,10 +208,15 @@ const Analytics = () => {
         </div>
       </motion.div>
 
-      {/* Predictive heatmap */}
-      <motion.div variants={fadeUp}>
-        <PredictiveHeatmap />
-      </motion.div>
+      {/* Spatial & Predictive heatmaps */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <motion.div variants={fadeUp}>
+          <DetectionHeatmap />
+        </motion.div>
+        <motion.div variants={fadeUp}>
+          <PredictiveHeatmap />
+        </motion.div>
+      </div>
 
       {/* History log */}
       <motion.div variants={fadeUp} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-xs">
