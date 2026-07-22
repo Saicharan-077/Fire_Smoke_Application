@@ -868,14 +868,10 @@ class DetectionLayer:
         t_start = time.perf_counter()
         frame_latencies = []
 
-        user_frame_skip = int(db_settings.get("frame_skip", 0)) if db_settings else 0
-        base_skip = max(1, user_frame_skip + 1)
-
-        # Calculate optimal frame stride for demo & real-time monitoring
-        # Target ~15 FPS sampling rate (30 FPS video -> stride 2, 60 FPS video -> stride 3)
-        # Active Threat -> stride 1 (1:1 full resolution frame tracking)
+        # Decide sampling strides:
+        # Idle/Normal: ~15 FPS sampling
+        # Active Threat: 1:1 frame processing (stride 1) for uninterrupted tracking & alert accumulation
         normal_stride = max(1, int(round(fps / 15.0)))
-        threat_stride = 1
         static_stride = max(2, normal_stride * 2)
 
         while cap.isOpened():
@@ -893,7 +889,7 @@ class DetectionLayer:
             curr_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             curr_small = cv2.resize(curr_gray, (320, 180), interpolation=cv2.INTER_NEAREST)
             is_static = False
-            has_active_threat = consecutive_threats["fire"] > 0 or consecutive_threats["smoke"] > 0
+            has_active_threat = (consecutive_threats["fire"] > 0 or consecutive_threats["smoke"] > 0)
             
             if prev_gray is not None and prev_gray.shape == curr_small.shape:
                 diff = cv2.absdiff(curr_small, prev_gray)
@@ -904,7 +900,10 @@ class DetectionLayer:
             prev_gray = curr_small
 
             # Decide adaptive skip stride
-            current_stride = threat_stride if has_active_threat else (static_stride if is_static else normal_stride)
+            # During active threat: process every frame (stride 1)
+            # During normal scene: process ~15 FPS
+            # During static scene: process ~7.5 FPS
+            current_stride = 1 if has_active_threat else (static_stride if is_static else normal_stride)
             if user_frame_skip > 0:
                 current_stride = max(current_stride, base_skip)
 
@@ -955,7 +954,8 @@ class DetectionLayer:
                         early_alert_sent[cls] = True
                         early_threat_triggered = cls
                 else:
-                    consecutive_threats[cls] = 0
+                    # Gracefully decay count over 3 frames to avoid dropping state on 1 flickering frame
+                    consecutive_threats[cls] = max(0, consecutive_threats[cls] - 1)
 
             # Annotate frame
             annotated = self.annotate_frame(frame, tracked_dets) if tracked_dets else frame

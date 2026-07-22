@@ -710,63 +710,77 @@ const Detection = () => {
                     </div>
 
                     {/* LIVE PREVIEW CANVAS */}
-                    {vidLivePreviewB64 && (
-                      <div className="relative rounded-lg overflow-hidden border border-slate-800 bg-black aspect-video flex items-center justify-center">
-                        <img src={vidLivePreviewB64} alt="Live Video Inference Preview" className="w-full h-full object-contain" />
-                        <div className="absolute top-2 left-2 bg-black/70 backdrop-blur text-white text-[10px] font-mono px-2 py-0.5 rounded border border-white/10">
-                          FRAME #{vidTelemetry.current_frame || vidTelemetry.total_frames} / {vidTelemetry.total_frames}
-                        </div>
-                        <div className="absolute top-2 right-2 bg-emerald-500/20 text-emerald-300 text-[10px] font-mono px-2 py-0.5 rounded border border-emerald-500/30">
-                          {vidTelemetry.active_tracks} ByteTrack(s)
-                        </div>
-                      </div>
-                    )}
+                    {(() => {
+                      const displayTotal = vidTelemetry.total_frames || (vidResult ? vidResult.total_frames || 0 : 0);
+                      const displayCurrent = (vidProgress === 100 || vidJobStatus === 'completed' || !vidLoading)
+                        ? displayTotal
+                        : (vidTelemetry.current_frame || 1);
+                      const displaySkipped = vidTelemetry.skipped_frames !== undefined && vidTelemetry.skipped_frames > 0
+                        ? vidTelemetry.skipped_frames
+                        : (vidResult ? vidResult.skipped_frames || 0 : 0);
 
-                    {/* TELEMETRY HUD STATS - REMAINS VISIBLE */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
-                      <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 text-center">
-                        <div className="text-[10px] text-slate-400 uppercase font-semibold flex items-center justify-center gap-1">
-                          <Activity size={12} className="text-sky-400" /> Processing FPS
-                        </div>
-                        <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">
-                          {vidTelemetry.fps || (vidResult ? vidResult.fps || 15 : 0)} FPS
-                        </div>
-                      </div>
-                      <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 text-center">
-                        <div className="text-[10px] text-slate-400 uppercase font-semibold flex items-center justify-center gap-1">
-                          <Zap size={12} className="text-amber-400" /> Avg Latency
-                        </div>
-                        <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">
-                          {vidTelemetry.avg_latency_ms || (vidResult ? vidResult.avg_latency_ms || 45 : 0)} ms
-                        </div>
-                      </div>
-                      <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 text-center">
-                        <div className="text-[10px] text-slate-400 uppercase font-semibold flex items-center justify-center gap-1">
-                          <Sliders size={12} className="text-emerald-400" /> Skipped Frames
-                        </div>
-                        <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">
-                          {vidTelemetry.skipped_frames !== undefined ? vidTelemetry.skipped_frames : (vidResult ? vidResult.skipped_frames || 0 : 0)}
-                        </div>
-                      </div>
-                      <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 text-center">
-                        <div className="text-[10px] text-slate-400 uppercase font-semibold flex items-center justify-center gap-1">
-                          <Cpu size={12} className="text-purple-400" /> Total Time
-                        </div>
-                        <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">
-                          {vidLoading ? `${vidTelemetry.eta_sec}s ETA` : (vidLatency ? `${(vidLatency / 1000).toFixed(1)}s` : 'Completed')}
-                        </div>
-                      </div>
-                    </div>
+                      return (
+                        <>
+                          {vidLivePreviewB64 && (
+                            <div className="relative rounded-lg overflow-hidden border border-slate-800 bg-black aspect-video flex items-center justify-center">
+                              <img src={vidLivePreviewB64} alt="Live Video Inference Preview" className="w-full h-full object-contain" />
+                              <div className="absolute top-2 left-2 bg-black/70 backdrop-blur text-white text-[10px] font-mono px-2 py-0.5 rounded border border-white/10">
+                                FRAME #{displayCurrent} / {displayTotal}
+                              </div>
+                              <div className="absolute top-2 right-2 bg-emerald-500/20 text-emerald-300 text-[10px] font-mono px-2 py-0.5 rounded border border-emerald-500/30">
+                                {vidTelemetry.active_tracks || (vidResult?.events?.length || 1)} ByteTrack(s)
+                              </div>
+                            </div>
+                          )}
 
-                    <div className="space-y-1.5 pt-1">
-                      <div className="flex justify-between text-[11px] font-bold text-slate-300">
-                        <span>Progress ({vidProgress}%)</span>
-                        <span className="font-mono">{vidTelemetry.current_frame || vidTelemetry.total_frames} / {vidTelemetry.total_frames} frames</span>
-                      </div>
-                      <div className="h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
-                        <div className="h-full bg-gradient-to-r from-sky-500 to-indigo-500 rounded-full transition-all duration-300" style={{ width: `${vidProgress}%` }} />
-                      </div>
-                    </div>
+                          {/* TELEMETRY HUD STATS - REMAINS VISIBLE */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                            <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 text-center">
+                              <div className="text-[10px] text-slate-400 uppercase font-semibold flex items-center justify-center gap-1">
+                                <Activity size={12} className="text-sky-400" /> Processing FPS
+                              </div>
+                              <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">
+                                {vidTelemetry.fps || (vidResult ? vidResult.fps || 15 : 0)} FPS
+                              </div>
+                            </div>
+                            <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 text-center">
+                              <div className="text-[10px] text-slate-400 uppercase font-semibold flex items-center justify-center gap-1">
+                                <Zap size={12} className="text-amber-400" /> Avg Latency
+                              </div>
+                              <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">
+                                {vidTelemetry.avg_latency_ms || (vidResult ? vidResult.avg_latency_ms || 45 : 0)} ms
+                              </div>
+                            </div>
+                            <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 text-center">
+                              <div className="text-[10px] text-slate-400 uppercase font-semibold flex items-center justify-center gap-1">
+                                <Sliders size={12} className="text-emerald-400" /> Skipped Frames
+                              </div>
+                              <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">
+                                {displaySkipped}
+                              </div>
+                            </div>
+                            <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 text-center">
+                              <div className="text-[10px] text-slate-400 uppercase font-semibold flex items-center justify-center gap-1">
+                                <Cpu size={12} className="text-purple-400" /> Total Time
+                              </div>
+                              <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">
+                                {vidLoading ? `${vidTelemetry.eta_sec}s ETA` : (vidLatency ? `${(vidLatency / 1000).toFixed(1)}s` : 'Completed')}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5 pt-1">
+                            <div className="flex justify-between text-[11px] font-bold text-slate-300">
+                              <span>Progress ({vidProgress}%)</span>
+                              <span className="font-mono">{displayCurrent} / {displayTotal} frames</span>
+                            </div>
+                            <div className="h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                              <div className="h-full bg-gradient-to-r from-sky-500 to-indigo-500 rounded-full transition-all duration-300" style={{ width: `${vidProgress}%` }} />
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
 
                     {/* INTERACTIVE DETECTION TIMELINE */}
                     {vidTimelineEvents.length > 0 && (
