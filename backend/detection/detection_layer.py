@@ -871,11 +871,12 @@ class DetectionLayer:
         user_frame_skip = int(db_settings.get("frame_skip", 0)) if db_settings else 0
         base_skip = max(1, user_frame_skip + 1)
 
-        # Calculate optimal frame stride based on input video FPS
-        # Standard surveillance target: ~6-8 FPS sampling is optimal for fire/smoke tracking
-        normal_stride = max(2, int(round(fps / 6.0)))
-        threat_stride = max(1, int(round(fps / 12.0)))
-        static_stride = normal_stride * 3
+        # Calculate optimal frame stride for demo & real-time monitoring
+        # Target ~15 FPS sampling rate (30 FPS video -> stride 2, 60 FPS video -> stride 3)
+        # Active Threat -> stride 1 (1:1 full resolution frame tracking)
+        normal_stride = max(1, int(round(fps / 15.0)))
+        threat_stride = 1
+        static_stride = max(2, normal_stride * 2)
 
         while cap.isOpened():
             if cancel_check_func and cancel_check_func():

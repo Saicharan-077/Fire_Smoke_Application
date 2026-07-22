@@ -110,6 +110,9 @@ const Detection = () => {
   const [vidJobStatus, setVidJobStatus] = useState<string>('idle');
   const [vidLivePreviewB64, setVidLivePreviewB64] = useState<string | null>(null);
   const [vidTimelineEvents, setVidTimelineEvents] = useState<Array<any>>([]);
+  const [lightboxImg, setLightboxImg] = useState<string | null>(null);
+  const lastPopupTimeRef = useRef<number>(0);
+
   const [vidTelemetry, setVidTelemetry] = useState({
     fps: 0,
     inference_fps: 0,
@@ -120,6 +123,46 @@ const Detection = () => {
     total_frames: 0,
     eta_sec: 0,
   });
+
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('sentinel_video_analysis_cache');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.vidResult) setVidResult(parsed.vidResult);
+        if (parsed.vidTelemetry) setVidTelemetry(parsed.vidTelemetry);
+        if (parsed.vidTimelineEvents) setVidTimelineEvents(parsed.vidTimelineEvents);
+        if (parsed.vidLatency) setVidLatency(parsed.vidLatency);
+        if (parsed.vidLivePreviewB64) setVidLivePreviewB64(parsed.vidLivePreviewB64);
+        if (parsed.fileName) setVidFile(new File([], parsed.fileName));
+      }
+    } catch { /**/ }
+  }, []);
+
+  const saveVideoCache = (res: any, telemetry: any, timeline: any, latency: number | null, preview: string | null, fName: string) => {
+    try {
+      sessionStorage.setItem('sentinel_video_analysis_cache', JSON.stringify({
+        vidResult: res,
+        vidTelemetry: telemetry,
+        vidTimelineEvents: timeline,
+        vidLatency: latency,
+        vidLivePreviewB64: preview,
+        fileName: fName
+      }));
+    } catch { /**/ }
+  };
+
+  const clearVideoCache = () => {
+    try {
+      sessionStorage.removeItem('sentinel_video_analysis_cache');
+    } catch { /**/ }
+    setVidResult(null);
+    setVidFile(null);
+    setVidJobStatus('idle');
+    setVidProgress(0);
+    setVidLivePreviewB64(null);
+    setVidTimelineEvents([]);
+  };
 
   const runVideoInference = async () => {
     if (!vidFile) return;
@@ -144,29 +187,6 @@ const Detection = () => {
             if (status.latest_preview) {
               setVidLivePreviewB64(`data:image/jpeg;base64,${status.latest_preview}`);
             }
-            setVidTelemetry({
-              fps: status.fps || 0,
-              inference_fps: status.inference_fps || status.fps || 0,
-              avg_latency_ms: status.avg_latency_ms || 0,
-              skipped_frames: status.skipped_frames || 0,
-              active_tracks: status.active_tracks_count || 0,
-              current_frame: status.current_frame || 0,
-              total_frames: status.total_frames || 0,
-              eta_sec: status.eta_sec || 0,
-            });
-
-            if (status.status === 'completed') {
-              clearInterval(pollTimer);
-              setVidProgress(100);
-              setVidJobStatus('completed');
-              setVidResult(status);
-              setVidLatency(Math.round(performance.now() - t0));
-              setVidLoading(false);
-            } else if (status.status === 'cancelled' || status.status === 'failed') {
-              clearInterval(pollTimer);
-              setVidJobStatus(status.status);
-              setVidLoading(false);
-            }
           }
         } catch { /* ignore */ }
       }, 1000);
@@ -190,13 +210,11 @@ const Detection = () => {
 
           if (msg.detections && msg.detections.length > 0) {
             setVidTimelineEvents(prev => {
-              const existing = prev.some(e => e.frame_number === msg.frame_number);
-              if (existing) return prev;
+              if (prev.some((e) => Math.abs(e.timestamp_sec - msg.timestamp_sec) < 1.0)) return prev;
               return [
                 ...prev,
                 {
-                  frame_number: msg.frame_number,
-                  timestamp_sec: msg.timestamp_sec || 0,
+                  timestamp_sec: msg.timestamp_sec,
                   type: msg.detections[0].detection_type,
                   confidence: Math.max(...msg.detections.map((d: any) => d.confidence)),
                 }
@@ -208,17 +226,19 @@ const Detection = () => {
             startSiren();
           }
 
-          if (msg.early_threat && (msg.consecutive_threat_frames && msg.consecutive_threat_frames >= 15) && !mutedRef.current) {
-            toast(`🚨 SUSTAINED FIRE THREAT: ${msg.early_threat.toUpperCase()} detected continuously for 2-3s!`, 'error');
+          const now = Date.now();
+          if ((msg.continuous_alarm || msg.early_threat || (msg.consecutive_threat_frames && msg.consecutive_threat_frames >= 10)) && (now - lastPopupTimeRef.current > 2500)) {
+            lastPopupTimeRef.current = now;
+            toast(`🚨 CRITICAL FIRE ALERT: Fire detected continuously!`, 'error');
             const alertItem = {
-              id: `vid-threat-${Date.now()}`,
-              alertType: msg.early_threat,
+              id: `vid-threat-${now}`,
+              alertType: msg.early_threat || 'fire',
               cameraId: 'CAM-VIDEO',
               cameraName: 'Video Stream Analysis',
-              zone: 'Upload',
+              zone: 'Upload Feed',
               confidence: 0.95,
               timestamp: new Date().toISOString(),
-              severity: msg.early_threat === 'fire' ? 'critical' : 'warning',
+              severity: 'critical',
               isRead: false,
             } as any;
             addNotification(alertItem);
@@ -230,13 +250,15 @@ const Detection = () => {
           setVidProgress(100);
           setVidJobStatus('completed');
           setVidResult(msg);
-          setVidLatency(Math.round(performance.now() - t0));
+          const computedLatency = Math.round(performance.now() - t0);
+          setVidLatency(computedLatency);
           if (msg.has_detections) {
             if (!mutedRef.current) void playAlertChime();
             toast(`⚠ Video analysis complete: threats detected`, 'error');
           } else {
             toast('✓ Video analysis complete — no threats detected', 'success');
           }
+          saveVideoCache(msg, vidTelemetry, vidTimelineEvents, computedLatency, vidLivePreviewB64, vidFile.name);
           setVidLoading(false);
           ws.close();
         } else if (msg.event === 'cancelled' || msg.type === 'cancelled') {
@@ -679,14 +701,7 @@ const Detection = () => {
                         </button>
                       ) : (
                         <button
-                          onClick={() => {
-                            setVidResult(null);
-                            setVidFile(null);
-                            setVidJobStatus('idle');
-                            setVidProgress(0);
-                            setVidLivePreviewB64(null);
-                            setVidTimelineEvents([]);
-                          }}
+                          onClick={clearVideoCache}
                           className="flex items-center gap-1.5 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg text-xs font-bold transition-all cursor-pointer"
                         >
                           <XCircle size={14} /> Close Results
@@ -714,7 +729,7 @@ const Detection = () => {
                           <Activity size={12} className="text-sky-400" /> Processing FPS
                         </div>
                         <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">
-                          {vidTelemetry.fps || (vidResult ? vidResult.fps || 12 : 0)} FPS
+                          {vidTelemetry.fps || (vidResult ? vidResult.fps || 15 : 0)} FPS
                         </div>
                       </div>
                       <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 text-center">
@@ -792,6 +807,8 @@ const Detection = () => {
                           <a
                             href={vidResult.annotated_video_path}
                             download="sentinelos_annotated.mp4"
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="flex items-center gap-2 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-[12px] font-bold rounded-xl transition-all cursor-pointer shadow-xs"
                           >
                             <Download size={13} />
@@ -801,10 +818,33 @@ const Detection = () => {
 
                         {vidResult.thumbnail_path && (
                           <div className="flex items-center gap-3 bg-slate-900 p-2.5 rounded-xl border border-slate-800">
-                            <img src={evidenceUrl(vidResult.thumbnail_path) || ''} alt="Highest Confidence Thumbnail" className="w-16 h-10 object-cover rounded-lg border border-slate-700" />
+                            <img
+                              src={evidenceUrl(vidResult.thumbnail_path) || ''}
+                              alt="Highest Confidence Thumbnail"
+                              onClick={() => setLightboxImg(evidenceUrl(vidResult.thumbnail_path))}
+                              className="w-16 h-10 object-cover rounded-lg border border-slate-700 cursor-pointer hover:opacity-80 transition-opacity"
+                              title="Click to view full snapshot"
+                            />
                             <div>
                               <p className="text-[11px] font-bold text-slate-200">Highest Threat Snapshot</p>
-                              <a href={evidenceUrl(vidResult.thumbnail_path) || ''} download="snapshot.jpg" className="text-[10px] text-sky-400 hover:underline font-semibold">Download Thumbnail</a>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <button
+                                  onClick={() => setLightboxImg(evidenceUrl(vidResult.thumbnail_path))}
+                                  className="text-[10px] text-sky-400 hover:underline font-semibold cursor-pointer"
+                                >
+                                  View Fullscreen
+                                </button>
+                                <span className="text-[10px] text-slate-600">•</span>
+                                <a
+                                  href={evidenceUrl(vidResult.thumbnail_path) || ''}
+                                  download="snapshot.jpg"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] text-slate-400 hover:underline font-semibold"
+                                >
+                                  Download
+                                </a>
+                              </div>
                             </div>
                           </div>
                         )}
@@ -1005,13 +1045,38 @@ const Detection = () => {
             <div className="space-y-2 text-xs font-semibold text-[var(--text-2)] leading-relaxed">
               <p>1. **Formats**: Images (PNG, JPG, BMP) up to 10MB; Video streams (MP4, MKV) up to 50MB.</p>
               <p>2. **Webcam**: Relies on browser permission access. Continuous frames are uploaded every skip-interval for model decoding.</p>
-              <p>3. **RTSP**: Handshake connection tests the endpoint before registry. Bypasses duplicate proxy streams.</p>
             </div>
           </div>
 
         </div>
 
       </motion.div>
+
+      {/* LIGHTBOX MODAL OVERLAY */}
+      {lightboxImg && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+          onClick={() => setLightboxImg(null)}
+        >
+          <div
+            className="relative max-w-4xl w-full bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl space-y-2 p-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center px-3 py-1.5 border-b border-slate-800 bg-slate-950 rounded-xl">
+              <span className="text-xs font-bold text-slate-200">Threat Detection Snapshot (Fullscreen)</span>
+              <button
+                onClick={() => setLightboxImg(null)}
+                className="text-slate-400 hover:text-white transition-colors cursor-pointer p-1"
+              >
+                <XCircle size={18} />
+              </button>
+            </div>
+            <div className="p-2 flex items-center justify-center bg-black rounded-xl">
+              <img src={lightboxImg} alt="Expanded Snapshot" className="max-h-[75vh] w-auto object-contain rounded-lg" />
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };
