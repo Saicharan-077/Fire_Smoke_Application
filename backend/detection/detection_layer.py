@@ -868,6 +868,9 @@ class DetectionLayer:
         t_start = time.perf_counter()
         frame_latencies = []
 
+        user_frame_skip = int(db_settings.get("frame_skip", 0)) if db_settings else 0
+        base_skip = max(1, user_frame_skip + 1)
+
         # Calculate optimal frame stride based on input video FPS
         # Standard surveillance target: ~6-8 FPS sampling is optimal for fire/smoke tracking
         normal_stride = max(2, int(round(fps / 6.0)))
