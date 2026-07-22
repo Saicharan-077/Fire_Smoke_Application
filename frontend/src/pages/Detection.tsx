@@ -187,6 +187,21 @@ const Detection = () => {
             if (status.latest_preview) {
               setVidLivePreviewB64(`data:image/jpeg;base64,${status.latest_preview}`);
             }
+            if (status.status === 'completed' || status.progress_pct >= 100) {
+              clearInterval(pollTimer);
+              stopSiren();
+              setVidProgress(100);
+              setVidJobStatus('completed');
+              setVidResult(status);
+              const computedLatency = Math.round(performance.now() - t0);
+              setVidLatency(computedLatency);
+              saveVideoCache(status, vidTelemetry, vidTimelineEvents, computedLatency, vidLivePreviewB64, vidFile.name);
+              setVidLoading(false);
+            } else if (status.status === 'cancelled' || status.status === 'failed') {
+              clearInterval(pollTimer);
+              setVidLoading(false);
+              setVidJobStatus(status.status);
+            }
           }
         } catch { /* ignore */ }
       }, 1000);
