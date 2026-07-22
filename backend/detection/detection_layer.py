@@ -868,9 +868,12 @@ class DetectionLayer:
         t_start = time.perf_counter()
         frame_latencies = []
 
-        user_frame_skip = int(db_settings.get("frame_skip", 0)) if db_settings else 0
-        base_skip = max(1, user_frame_skip + 1)
-        
+        # Calculate optimal frame stride based on input video FPS
+        # Standard surveillance target: ~6-8 FPS sampling is optimal for fire/smoke tracking
+        normal_stride = max(2, int(round(fps / 6.0)))
+        threat_stride = max(1, int(round(fps / 12.0)))
+        static_stride = normal_stride * 3
+
         while cap.isOpened():
             if cancel_check_func and cancel_check_func():
                 logger.info(f"[VideoStream] Stream job cancelled by user at frame {frame_num}")
@@ -882,29 +885,26 @@ class DetectionLayer:
 
             frame_num += 1
             
-            # 1. Motion-based adaptive skipping (STATIC vs ACTIVE scene)
+            # 1. Fast Motion-based adaptive skipping on 320x180 thumbnail
             curr_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            curr_small = cv2.resize(curr_gray, (320, 180), interpolation=cv2.INTER_NEAREST)
             is_static = False
             has_active_threat = consecutive_threats["fire"] > 0 or consecutive_threats["smoke"] > 0
             
-            if prev_gray is not None and prev_gray.shape == curr_gray.shape:
-                diff = cv2.absdiff(curr_gray, prev_gray)
+            if prev_gray is not None and prev_gray.shape == curr_small.shape:
+                diff = cv2.absdiff(curr_small, prev_gray)
                 mad = float(np.mean(diff))
-                if mad < 1.2 and not has_active_threat:
+                if mad < 1.0 and not has_active_threat:
                     is_static = True
 
-            prev_gray = curr_gray
+            prev_gray = curr_small
 
             # Decide adaptive skip stride
-            skip_this_frame = False
-            if user_frame_skip > 0 and (frame_num % base_skip != 1):
-                skip_this_frame = True
-            elif is_static and (frame_num % 8 != 1):
-                skip_this_frame = True
-            elif not has_active_threat and (frame_num % 4 != 1):
-                skip_this_frame = True
+            current_stride = threat_stride if has_active_threat else (static_stride if is_static else normal_stride)
+            if user_frame_skip > 0:
+                current_stride = max(current_stride, base_skip)
 
-            if skip_this_frame:
+            if (frame_num % current_stride != 1):
                 skipped_frames_count += 1
                 if writer:
                     writer.write(frame)
@@ -913,8 +913,25 @@ class DetectionLayer:
             processed_count += 1
             t_frame_start = time.perf_counter()
 
+            # Pre-scale high-res input frames (e.g. 4K 3840x2160) to max 1280 width for fast CPU YOLO inference
+            infer_frame = frame
+            h_f, w_f = frame.shape[:2]
+            if max(h_f, w_f) > 1280:
+                scale_f = 1280.0 / float(max(h_f, w_f))
+                infer_frame = cv2.resize(frame, (int(w_f * scale_f), int(h_f * scale_f)), interpolation=cv2.INTER_AREA)
+
             # 2. Stage 1 YOLO + Stage 2 Verification
-            raw_dets = self._run_stage1_ai(frame, active_cfg)
+            raw_dets = self._run_stage1_ai(infer_frame, active_cfg)
+            if raw_dets and max(h_f, w_f) > 1280:
+                # Scale bounding boxes back to original full resolution frame coordinates
+                inv_scale = float(max(h_f, w_f)) / 1280.0
+                for d in raw_dets:
+                    bb = d["bbox"]
+                    bb["x1"] = int(bb["x1"] * inv_scale)
+                    bb["y1"] = int(bb["y1"] * inv_scale)
+                    bb["x2"] = int(bb["x2"] * inv_scale)
+                    bb["y2"] = int(bb["y2"] * inv_scale)
+
             if raw_dets:
                 verified_dets = self._run_stage2_verification(frame, raw_dets, active_cfg, camera_id="VIDEO-STREAM")
             else:
