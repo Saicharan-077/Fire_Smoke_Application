@@ -724,9 +724,9 @@ const Detection = () => {
                       )}
                     </div>
 
-                    {/* LIVE PREVIEW CANVAS */}
+                    {/* LIVE PREVIEW CANVAS OR COMPLETED ANNOTATED VIDEO PLAYER */}
                     {(() => {
-                      const displayTotal = vidTelemetry.total_frames || (vidResult ? vidResult.total_frames || 0 : 0);
+                      const displayTotal = vidTelemetry.total_frames || vidResult?.total_frames || vidResult?.events?.length || 100;
                       const displayCurrent = (vidProgress === 100 || vidJobStatus === 'completed' || !vidLoading)
                         ? displayTotal
                         : (vidTelemetry.current_frame || 1);
@@ -734,9 +734,25 @@ const Detection = () => {
                         ? vidTelemetry.skipped_frames
                         : (vidResult ? vidResult.skipped_frames || 0 : 0);
 
+                      const videoUrl = vidResult?.annotated_video_path ? evidenceUrl(vidResult.annotated_video_path) : null;
+
                       return (
                         <>
-                          {vidLivePreviewB64 && (
+                          {videoUrl ? (
+                            <div className="relative rounded-lg overflow-hidden border border-slate-800 bg-black aspect-video flex items-center justify-center shadow-2xl">
+                              <video
+                                ref={playerRef}
+                                src={videoUrl}
+                                controls
+                                autoPlay
+                                playsInline
+                                className="w-full h-full object-contain"
+                              />
+                              <div className="absolute top-2 left-2 bg-black/70 backdrop-blur text-white text-[10px] font-mono px-2.5 py-1 rounded border border-white/10 pointer-events-none z-10">
+                                🎬 ANNOTATED AI STREAM ({displayTotal} FRAMES)
+                              </div>
+                            </div>
+                          ) : vidLivePreviewB64 ? (
                             <div className="relative rounded-lg overflow-hidden border border-slate-800 bg-black aspect-video flex items-center justify-center">
                               <img src={vidLivePreviewB64} alt="Live Video Inference Preview" className="w-full h-full object-contain" />
                               <div className="absolute top-2 left-2 bg-black/70 backdrop-blur text-white text-[10px] font-mono px-2 py-0.5 rounded border border-white/10">
@@ -745,6 +761,12 @@ const Detection = () => {
                               <div className="absolute top-2 right-2 bg-emerald-500/20 text-emerald-300 text-[10px] font-mono px-2 py-0.5 rounded border border-emerald-500/30">
                                 {vidTelemetry.active_tracks || (vidResult?.events?.length || 1)} ByteTrack(s)
                               </div>
+                            </div>
+                          ) : (
+                            <div className="relative rounded-lg overflow-hidden border border-slate-800 bg-slate-900 aspect-video flex flex-col items-center justify-center p-6 text-center text-slate-400">
+                              <Film size={32} className="text-sky-500 mb-2 animate-bounce" />
+                              <p className="text-xs font-bold text-slate-200">AI Bounding Box Stream Processing Active</p>
+                              <p className="text-[10px] text-slate-500 mt-1">Generating frame-by-frame annotated video with ByteTrack overlays...</p>
                             </div>
                           )}
 
