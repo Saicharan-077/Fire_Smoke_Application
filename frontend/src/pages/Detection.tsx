@@ -32,7 +32,7 @@ const TABS = [
 
 const Detection = () => {
   const { toast } = useToast();
-  const { play: playAlertChime } = useAlertSound();
+  const { play: playAlertChime, startSiren, stopSiren } = useAlertSound();
   const [activeTab, setActiveTab] = useState<'image' | 'video' | 'webcam' | 'rtsp'>('image');
 
   const currentUser = useAuthStore(s => s.currentUser);
@@ -202,12 +202,17 @@ const Detection = () => {
             });
           }
 
+          if ((msg.continuous_alarm || (msg.consecutive_threat_frames && msg.consecutive_threat_frames >= 3)) && !mutedRef.current) {
+            startSiren();
+          }
+
           if (msg.early_threat && !mutedRef.current) {
             void playAlertChime();
-            toast(`🚨 EARLY THREAT TRIGGER: ${msg.early_threat.toUpperCase()} detected`, 'error');
+            toast(`🚨 SUSTAINED FIRE THREAT: ${msg.early_threat.toUpperCase()} detected across consecutive frames!`, 'error');
           }
         } else if (msg.event === 'completed' || msg.type === 'completed') {
           clearInterval(pollTimer);
+          stopSiren();
           setVidProgress(100);
           setVidJobStatus('completed');
           setVidResult(msg);
@@ -222,6 +227,7 @@ const Detection = () => {
           ws.close();
         } else if (msg.event === 'cancelled' || msg.type === 'cancelled') {
           clearInterval(pollTimer);
+          stopSiren();
           setVidJobStatus('cancelled');
           toast('Video processing cancelled by user', 'info');
           setVidLoading(false);

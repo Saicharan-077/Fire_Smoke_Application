@@ -12,7 +12,7 @@ interface NotificationsHubProps {
 
 export function NotificationsHub({ onConnectionChange }: NotificationsHubProps) {
   const navigate = useNavigate();
-  const { play } = useAlertSound();
+  const { play, startSiren } = useAlertSound();
 
   const queue = useNotificationsStore((s) => s.queue);
   const historyAdd = useNotificationsStore((s) => s.addNotification);
@@ -60,7 +60,12 @@ export function NotificationsHub({ onConnectionChange }: NotificationsHubProps) 
       historyAdd(item);
       pushPopup(item);
       markSeen(alert.id);
-      void play();
+
+      if (alert.detection_type === 'fire' || severity === 'critical') {
+        startSiren();
+      } else {
+        void play();
+      }
 
       // Native browser notification
       if (

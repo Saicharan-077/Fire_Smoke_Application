@@ -974,6 +974,8 @@ class DetectionLayer:
                 "eta_sec": round(eta_sec, 1),
                 "detections": tracked_dets,
                 "early_threat": early_threat_triggered,
+                "consecutive_threat_frames": max(consecutive_threats["fire"], consecutive_threats["smoke"]),
+                "continuous_alarm": max(consecutive_threats["fire"], consecutive_threats["smoke"]) >= 3,
                 "preview_b64": preview_b64,
                 "has_detections": len(tracked_dets) > 0,
             }
