@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useToast } from '../components/ui/Toast';
-import { uploadImage, uploadVideoAsync, getVideoJobStatus, cancelVideoJob, connectVideoStreamSocket, testCctvConnection, getSettings, evidenceUrl } from '../services/api';
+import { uploadImage, uploadVideoAsync, getVideoJobStatus, cancelVideoJob, connectVideoStreamSocket, getVideoMjpegStreamUrl, testCctvConnection, getSettings, evidenceUrl } from '../services/api';
+
 import { useAuthStore } from '../store/authStore';
 import { useNotificationsStore } from '../store/notificationsStore';
 import { useAlertSound } from '../components/SOC/AlertSound';
@@ -108,7 +109,8 @@ const Detection = () => {
   const [vidProgress, setVidProgress] = useState(0);
   const [vidJobId, setVidJobId] = useState<string | null>(null);
   const [vidJobStatus, setVidJobStatus] = useState<string>('idle');
-  const [vidLivePreviewB64, setVidLivePreviewB64] = useState<string | null>(null);
+  const [vidLivePreviewB64, setVidLivePreviewB64] = useState<string | null>(null); // Kept for WS-based small telemetry preview
+  const [vidMjpegUrl, setVidMjpegUrl] = useState<string | null>(null); // MJPEG stream URL for live playback
   const [vidTimelineEvents, setVidTimelineEvents] = useState<Array<any>>([]);
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
   const lastPopupTimeRef = useRef<number>(0);
@@ -161,6 +163,7 @@ const Detection = () => {
     setVidJobStatus('idle');
     setVidProgress(0);
     setVidLivePreviewB64(null);
+    setVidMjpegUrl(null);
     setVidTimelineEvents([]);
   };
 
@@ -172,12 +175,17 @@ const Detection = () => {
     setVidResult(null);
     setVidJobStatus('processing');
     setVidLivePreviewB64(null);
+    setVidMjpegUrl(null);
     const t0 = performance.now();
 
     try {
       const init = await uploadVideoAsync(vidFile);
       const jobId = init.job_id;
       setVidJobId(jobId);
+
+      // Immediately set MJPEG stream URL — browser starts receiving frames as they are processed
+      const mjpegUrl = getVideoMjpegStreamUrl(jobId);
+      setVidMjpegUrl(mjpegUrl);
 
       const pollTimer = setInterval(async () => {
         try {
@@ -724,7 +732,7 @@ const Detection = () => {
                       )}
                     </div>
 
-                    {/* LIVE PREVIEW CANVAS OR COMPLETED ANNOTATED VIDEO PLAYER */}
+                    {/* LIVE CCTV STREAM OR COMPLETED ANNOTATED VIDEO PLAYER */}
                     {(() => {
                       const displayTotal = vidTelemetry.total_frames || vidResult?.total_frames || vidResult?.events?.length || 100;
                       const displayCurrent = (vidProgress === 100 || vidJobStatus === 'completed' || !vidLoading)
@@ -734,15 +742,17 @@ const Detection = () => {
                         ? vidTelemetry.skipped_frames
                         : (vidResult ? vidResult.skipped_frames || 0 : 0);
 
-                      const videoUrl = vidResult?.annotated_video_path ? evidenceUrl(vidResult.annotated_video_path) : null;
+                      const completedVideoUrl = vidResult?.annotated_video_path ? evidenceUrl(vidResult.annotated_video_path) : null;
+                      const hasActiveAlarm = vidTelemetry.active_tracks > 0;
 
                       return (
                         <>
-                          {videoUrl ? (
+                          {/* COMPLETED: Show H.264 annotated video with bounding boxes */}
+                          {completedVideoUrl && !vidLoading ? (
                             <div className="relative rounded-lg overflow-hidden border border-slate-800 bg-black aspect-video flex items-center justify-center shadow-2xl">
                               <video
                                 ref={playerRef}
-                                src={videoUrl}
+                                src={completedVideoUrl}
                                 controls
                                 autoPlay
                                 playsInline
@@ -752,21 +762,41 @@ const Detection = () => {
                                 🎬 ANNOTATED AI STREAM ({displayTotal} FRAMES)
                               </div>
                             </div>
-                          ) : vidLivePreviewB64 ? (
-                            <div className="relative rounded-lg overflow-hidden border border-slate-800 bg-black aspect-video flex items-center justify-center">
-                              <img src={vidLivePreviewB64} alt="Live Video Inference Preview" className="w-full h-full object-contain" />
-                              <div className="absolute top-2 left-2 bg-black/70 backdrop-blur text-white text-[10px] font-mono px-2 py-0.5 rounded border border-white/10">
-                                FRAME #{displayCurrent} / {displayTotal}
+                          ) : vidMjpegUrl ? (
+                            /* PROCESSING: MJPEG live stream — frames arrive frame-by-frame as AI processes them */
+                            <div className="relative rounded-lg overflow-hidden border border-slate-800 bg-black aspect-video flex items-center justify-center shadow-2xl">
+                              <img
+                                src={vidMjpegUrl}
+                                alt="Live AI Detection Stream"
+                                className="w-full h-full object-contain"
+                                style={{ imageRendering: 'auto' }}
+                              />
+                              {/* LIVE BADGE */}
+                              <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-black/70 backdrop-blur text-white text-[10px] font-mono px-2.5 py-1 rounded border border-white/10 pointer-events-none z-10">
+                                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                                LIVE AI STREAM — FRAME {displayCurrent} / {displayTotal}
                               </div>
-                              <div className="absolute top-2 right-2 bg-emerald-500/20 text-emerald-300 text-[10px] font-mono px-2 py-0.5 rounded border border-emerald-500/30">
-                                {vidTelemetry.active_tracks || (vidResult?.events?.length || 1)} ByteTrack(s)
-                              </div>
+                              {/* BYTETRACK COUNT BADGE */}
+                              {vidTelemetry.active_tracks > 0 && (
+                                <div className={`absolute top-2 right-2 text-[10px] font-mono px-2.5 py-1 rounded border pointer-events-none z-10 ${hasActiveAlarm ? 'bg-red-500/30 text-red-300 border-red-500/50 animate-pulse' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'}`}>
+                                  🔥 {vidTelemetry.active_tracks} ACTIVE TRACK{vidTelemetry.active_tracks > 1 ? 'S' : ''}
+                                </div>
+                              )}
+                              {/* DETECTION BANNER — shows on fire/smoke detection */}
+                              {hasActiveAlarm && (
+                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-red-900/90 to-transparent py-3 px-4 pointer-events-none z-10">
+                                  <div className="flex items-center gap-2 text-red-300 text-[11px] font-bold">
+                                    <span className="text-red-400 text-lg">⚠</span>
+                                    FIRE / SMOKE DETECTED — AI BOUNDING BOX ACTIVE
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           ) : (
                             <div className="relative rounded-lg overflow-hidden border border-slate-800 bg-slate-900 aspect-video flex flex-col items-center justify-center p-6 text-center text-slate-400">
                               <Film size={32} className="text-sky-500 mb-2 animate-bounce" />
-                              <p className="text-xs font-bold text-slate-200">AI Bounding Box Stream Processing Active</p>
-                              <p className="text-[10px] text-slate-500 mt-1">Generating frame-by-frame annotated video with ByteTrack overlays...</p>
+                              <p className="text-xs font-bold text-slate-200">Initializing Live AI Stream...</p>
+                              <p className="text-[10px] text-slate-500 mt-1">Video is being uploaded and analysis is starting...</p>
                             </div>
                           )}
 

@@ -341,6 +341,7 @@ from datetime import datetime as _dt
 
 active_video_jobs: dict = {}
 job_subscribers: dict = {}
+mjpeg_queues: dict = {}  # job_id -> asyncio.Queue of raw JPEG bytes for MJPEG streaming
 job_semaphore = asyncio.Semaphore(2)  # Max 2 concurrent heavy video inference workers
 
 
@@ -393,6 +394,10 @@ async def _run_video_job_task(job_id: str, tmp_path: str, filename: str):
             if not job:
                 return
 
+            # Create per-job MJPEG queue (maxsize=8 to cap memory, oldest frames dropped if slow consumer)
+            mjpeg_q: asyncio.Queue = asyncio.Queue(maxsize=8)
+            mjpeg_queues[job_id] = mjpeg_q
+
             job["status"] = "processing"
             all_detections = []
             best_confidence = 0.0
@@ -444,6 +449,13 @@ async def _run_video_job_task(job_id: str, tmp_path: str, filename: str):
                 job["current_frame"] = update["frame_number"]
                 job["total_frames"] = update["total_frames"]
                 job["latest_preview"] = update["preview_b64"]
+
+                # Enqueue annotated JPEG frame for MJPEG stream (non-blocking, drop if queue full)
+                if update.get("annotated_jpeg"):
+                    try:
+                        mjpeg_q.put_nowait(update["annotated_jpeg"])
+                    except asyncio.QueueFull:
+                        pass  # Drop frame if consumer is slow — CCTV streams drop frames gracefully
 
                 dets = update["detections"]
                 if dets:
@@ -527,6 +539,13 @@ async def _run_video_job_task(job_id: str, tmp_path: str, filename: str):
                 active_video_jobs[job_id]["error"] = str(exc)
             await notify_job_subscribers(job_id, {"event": "error", "type": "error", "job_id": job_id, "error": str(exc)})
         finally:
+            # Signal MJPEG stream end with None sentinel
+            q = mjpeg_queues.get(job_id)
+            if q:
+                try:
+                    await q.put(None)
+                except Exception:
+                    pass
             db.close()
             try:
                 os.unlink(tmp_path)

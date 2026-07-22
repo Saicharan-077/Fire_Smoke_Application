@@ -7,7 +7,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from typing import AsyncGenerator
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -557,6 +558,50 @@ async def video_stream_ws(websocket: WebSocket, job_id: str):
     except WebSocketDisconnect:
         upload_routes.unregister_job_subscriber(job_id, websocket)
 
+
+
+# ── MJPEG Live Stream Endpoint ────────────────────────────────────────────────
+@app.get("/evidence/stream/{job_id}")
+async def mjpeg_video_stream(job_id: str):
+    """Streams annotated video frames as MJPEG (multipart/x-mixed-replace).
+    The browser renders this natively via <img src=...>. No base64 encoding needed.
+    """
+    from .routes import upload_routes as _ur
+
+    async def generate() -> AsyncGenerator[bytes, None]:
+        boundary = b"--frame\r\nContent-Type: image/jpeg\r\n\r\n"
+        q = _ur.mjpeg_queues.get(job_id)
+
+        # Wait up to 10s for the queue to be created (job may not have started yet)
+        import asyncio
+        for _ in range(100):
+            q = _ur.mjpeg_queues.get(job_id)
+            if q is not None:
+                break
+            await asyncio.sleep(0.1)
+
+        if q is None:
+            return
+
+        while True:
+            try:
+                frame: bytes | None = await asyncio.wait_for(q.get(), timeout=30.0)
+            except asyncio.TimeoutError:
+                break
+
+            if frame is None:  # Sentinel: stream ended
+                break
+
+            yield boundary + frame + b"\r\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Access-Control-Allow-Origin": "*",
+        },
+    )
 
 
 # ── Health check ──────────────────────────────────────────────────────────────

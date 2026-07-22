@@ -887,11 +887,15 @@ class DetectionLayer:
         user_frame_skip = int(db_settings.get("frame_skip", 0)) if db_settings else 0
         base_skip = max(1, user_frame_skip + 1)
 
+        frame_latencies: list = []
+        carried_dets: list = []  # Last known detections for box persistence on skipped frames
+
         # Decide sampling strides:
         # Idle/Normal: ~15 FPS sampling
         # Active Threat: 1:1 frame processing (stride 1) for uninterrupted tracking & alert accumulation
         normal_stride = max(1, int(round(fps / 15.0)))
         static_stride = max(2, normal_stride * 2)
+
 
         while cap.isOpened():
             if cancel_check_func and cancel_check_func():
@@ -903,13 +907,13 @@ class DetectionLayer:
                 break
 
             frame_num += 1
-            
+
             # 1. Fast Motion-based adaptive skipping on 320x180 thumbnail
             curr_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             curr_small = cv2.resize(curr_gray, (320, 180), interpolation=cv2.INTER_NEAREST)
             is_static = False
             has_active_threat = (consecutive_threats["fire"] > 0 or consecutive_threats["smoke"] > 0)
-            
+
             if prev_gray is not None and prev_gray.shape == curr_small.shape:
                 diff = cv2.absdiff(curr_small, prev_gray)
                 mad = float(np.mean(diff))
@@ -926,69 +930,80 @@ class DetectionLayer:
             if user_frame_skip > 0:
                 current_stride = max(current_stride, base_skip)
 
-            if (frame_num % current_stride != 1):
-                skipped_frames_count += 1
-                if writer:
-                    writer.write(frame)
-                continue
+            run_inference = (frame_num % current_stride == 1)
 
-            processed_count += 1
-            t_frame_start = time.perf_counter()
+            if run_inference:
+                processed_count += 1
+                t_frame_start = time.perf_counter()
 
-            # Pre-scale high-res input frames (e.g. 4K 3840x2160) to max 1280 width for fast CPU YOLO inference
-            infer_frame = frame
-            h_f, w_f = frame.shape[:2]
-            if max(h_f, w_f) > 1280:
-                scale_f = 1280.0 / float(max(h_f, w_f))
-                infer_frame = cv2.resize(frame, (int(w_f * scale_f), int(h_f * scale_f)), interpolation=cv2.INTER_AREA)
+                # Pre-scale high-res input frames (e.g. 4K 3840x2160) to max 1280 width for fast CPU YOLO inference
+                infer_frame = frame
+                h_f, w_f = frame.shape[:2]
+                if max(h_f, w_f) > 1280:
+                    scale_f = 1280.0 / float(max(h_f, w_f))
+                    infer_frame = cv2.resize(frame, (int(w_f * scale_f), int(h_f * scale_f)), interpolation=cv2.INTER_AREA)
 
-            # 2. Stage 1 YOLO + Stage 2 Verification
-            raw_dets = self._run_stage1_ai(infer_frame, active_cfg)
-            if raw_dets and max(h_f, w_f) > 1280:
-                # Scale bounding boxes back to original full resolution frame coordinates
-                inv_scale = float(max(h_f, w_f)) / 1280.0
-                for d in raw_dets:
-                    bb = d["bbox"]
-                    bb["x1"] = int(bb["x1"] * inv_scale)
-                    bb["y1"] = int(bb["y1"] * inv_scale)
-                    bb["x2"] = int(bb["x2"] * inv_scale)
-                    bb["y2"] = int(bb["y2"] * inv_scale)
+                # 2. Stage 1 YOLO + Stage 2 Verification
+                raw_dets = self._run_stage1_ai(infer_frame, active_cfg)
+                if raw_dets and max(h_f, w_f) > 1280:
+                    # Scale bounding boxes back to original full resolution frame coordinates
+                    inv_scale = float(max(h_f, w_f)) / 1280.0
+                    for d in raw_dets:
+                        bb = d["bbox"]
+                        bb["x1"] = int(bb["x1"] * inv_scale)
+                        bb["y1"] = int(bb["y1"] * inv_scale)
+                        bb["x2"] = int(bb["x2"] * inv_scale)
+                        bb["y2"] = int(bb["y2"] * inv_scale)
 
-            if raw_dets:
-                verified_dets = self._run_stage2_verification(frame, raw_dets, active_cfg, camera_id="VIDEO-STREAM")
-            else:
-                verified_dets = []
-
-            # 3. ByteTrack Multi-Object Association
-            tracked_dets = tracker.update(verified_dets) if (raw_dets or tracker.tracks) else []
-
-            # 4. Check Early Threat Alerts
-            detected_types = {d["detection_type"] for d in tracked_dets}
-            early_threat_triggered = None
-
-            for cls in ("fire", "smoke"):
-                if cls in detected_types:
-                    consecutive_threats[cls] += 1
-                    if consecutive_threats[cls] >= 3 and not early_alert_sent[cls]:
-                        early_alert_sent[cls] = True
-                        early_threat_triggered = cls
+                if raw_dets:
+                    verified_dets = self._run_stage2_verification(frame, raw_dets, active_cfg, camera_id="VIDEO-STREAM")
                 else:
-                    # Gracefully decay count over 3 frames to avoid dropping state on 1 flickering frame
-                    consecutive_threats[cls] = max(0, consecutive_threats[cls] - 1)
+                    verified_dets = []
 
-            # Annotate frame
-            annotated = self.annotate_frame(frame, tracked_dets) if tracked_dets else frame
+                # 3. ByteTrack Multi-Object Association
+                tracked_dets = tracker.update(verified_dets) if (raw_dets or tracker.tracks) else []
+
+                # 4. Check Early Threat Alerts
+                detected_types = {d["detection_type"] for d in tracked_dets}
+                early_threat_triggered = None
+
+                for cls in ("fire", "smoke"):
+                    if cls in detected_types:
+                        consecutive_threats[cls] += 1
+                        if consecutive_threats[cls] >= 3 and not early_alert_sent[cls]:
+                            early_alert_sent[cls] = True
+                            early_threat_triggered = cls
+                    else:
+                        # Gracefully decay count over 3 frames to avoid dropping state on 1 flickering frame
+                        consecutive_threats[cls] = max(0, consecutive_threats[cls] - 1)
+
+                # Update carried detections for all subsequent skipped frames
+                carried_dets = tracked_dets
+
+                t_frame_ms = (time.perf_counter() - t_frame_start) * 1000.0
+                frame_latencies.append(t_frame_ms)
+                if len(frame_latencies) > 50:
+                    frame_latencies.pop(0)
+            else:
+                # SKIPPED frame: reuse last known detections for smooth box persistence
+                skipped_frames_count += 1
+                tracked_dets = carried_dets
+                early_threat_triggered = None
+
+            # 5. Annotate EVERY frame (whether inference ran or carried over)
+            annotated = self.annotate_frame(frame, tracked_dets) if tracked_dets else frame.copy()
+
+            # 6. Encode annotated frame as raw JPEG bytes for MJPEG streaming
+            encode_params = [cv2.IMWRITE_JPEG_QUALITY, 70]
+            ok, jpeg_buf = cv2.imencode(".jpg", annotated, encode_params)
+            annotated_jpeg = jpeg_buf.tobytes() if ok else None
+
+            # 7. Write annotated frame to output video
             if writer:
                 writer.write(annotated)
 
-            t_frame_ms = (time.perf_counter() - t_frame_start) * 1000.0
-            frame_latencies.append(t_frame_ms)
-            if len(frame_latencies) > 50:
-                frame_latencies.pop(0)
-
+            # 8. Telemetry
             avg_latency = round(float(np.mean(frame_latencies)), 1) if frame_latencies else 0.0
-
-            # Performance telemetry calculations
             t_elapsed = time.perf_counter() - t_start
             proc_fps = processed_count / t_elapsed if t_elapsed > 0 else 0.0
             overall_fps = frame_num / t_elapsed if t_elapsed > 0 else 0.0
@@ -996,8 +1011,8 @@ class DetectionLayer:
             eta_sec = (remaining_frames / proc_fps) if proc_fps > 0 else 0.0
             progress_pct = round(min(100.0, (frame_num / total_frames) * 100.0), 1)
 
-            # Generate lightweight preview thumbnail base64 for live display
-            preview_b64 = _frame_to_base64(annotated, max_dim=480, quality=60)
+            # 9. Generate lightweight preview thumbnail base64 for WS telemetry panel
+            preview_b64 = _frame_to_base64(annotated, max_dim=320, quality=50)
 
             yield {
                 "event": "frame_update",
@@ -1012,12 +1027,14 @@ class DetectionLayer:
                 "skipped_frames": skipped_frames_count,
                 "active_tracks_count": len(tracker.tracks),
                 "eta_sec": round(eta_sec, 1),
-                "detections": tracked_dets,
+                "detections": tracked_dets if run_inference else [],
                 "early_threat": early_threat_triggered,
                 "consecutive_threat_frames": max(consecutive_threats["fire"], consecutive_threats["smoke"]),
                 "continuous_alarm": (consecutive_threats["fire"] >= 15 or consecutive_threats["smoke"] >= 20),
                 "preview_b64": preview_b64,
+                "annotated_jpeg": annotated_jpeg,
                 "has_detections": len(tracked_dets) > 0,
+                "run_inference": run_inference,
             }
 
         cap.release()
@@ -1028,6 +1045,7 @@ class DetectionLayer:
             f"[VideoStream] Completed job. Processed={processed_count}, Skipped={skipped_frames_count}/{total_frames} "
             f"in {time.perf_counter() - t_start:.1f}s"
         )
+
 
 
     def detect_batch(self, frames: List[np.ndarray], db_settings: dict | None = None) -> List[Tuple[np.ndarray, List[Dict[str, Any]]]]:

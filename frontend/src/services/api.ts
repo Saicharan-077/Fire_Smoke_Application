@@ -293,6 +293,11 @@ export const connectVideoStreamSocket = (jobId: string, onMessage: (data: unknow
   return ws;
 };
 
+/** Returns the MJPEG streaming URL for live frame-by-frame AI annotated playback. */
+export const getVideoMjpegStreamUrl = (jobId: string): string => {
+  return `${BASE}/evidence/stream/${encodeURIComponent(jobId)}`;
+};
+
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 export interface Incident {
