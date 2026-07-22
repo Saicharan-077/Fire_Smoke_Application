@@ -3,15 +3,16 @@ import { useAppSettingsStore } from '../../store/appSettingsStore';
 
 export function useAlertSound() {
   const { alertSoundEnabled } = useAppSettingsStore();
-  const lastPlayAtRef = useRef<number>(0);
+  const lastBeepAtRef = useRef<number>(0);
   const sirenIntervalRef = useRef<any>(null);
 
-  const playChime = useCallback(async () => {
+  // High-Volume High-Pitch Emergency Beep Tone (Plays every 2.5-3 seconds when fire is sustained)
+  const playHighBeep = useCallback(async () => {
     if (!alertSoundEnabled) return;
 
     const now = Date.now();
-    const elapsed = now - lastPlayAtRef.current;
-    if (elapsed < 1500) return;
+    const elapsed = now - lastBeepAtRef.current;
+    if (elapsed < 2500) return; // Strict 2.5s cooldown to beep every 2.5-3 seconds
 
     try {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -19,95 +20,69 @@ export function useAlertSound() {
 
       const ctx = new AudioContextClass();
       
-      const osc1 = ctx.createOscillator();
-      const osc2 = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-
-      osc1.type = 'sine';
-      osc1.frequency.setValueAtTime(523.25, ctx.currentTime);
-      osc1.frequency.exponentialRampToValueAtTime(880.00, ctx.currentTime + 0.15);
-
-      osc2.type = 'triangle';
-      osc2.frequency.setValueAtTime(659.25, ctx.currentTime);
-      osc2.frequency.exponentialRampToValueAtTime(1046.50, ctx.currentTime + 0.2);
-
-      gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-
-      osc1.connect(gainNode);
-      osc2.connect(gainNode);
-      gainNode.connect(ctx.destination);
-
-      osc1.start();
-      osc2.start();
-
-      osc1.stop(ctx.currentTime + 0.4);
-      osc2.stop(ctx.currentTime + 0.4);
-
-      lastPlayAtRef.current = now;
-    } catch (e) {
-      console.error('Failed to play alert chime:', e);
-    }
-  }, [alertSoundEnabled]);
-
-  const startContinuousSiren = useCallback(() => {
-    if (!alertSoundEnabled || sirenIntervalRef.current) return;
-
-    const playSirenPulse = () => {
-      try {
-        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        if (!AudioContextClass) return;
-
-        const ctx = new AudioContextClass();
+      // High-volume double beep (C6 1046.5Hz & E6 1318.5Hz)
+      const playPulse = (startTime: number, freq: number) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
 
-        // Pulsing High Emergency Pitch (880 Hz down to 587 Hz)
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(880.0, ctx.currentTime);
-        osc.frequency.linearRampToValueAtTime(587.33, ctx.currentTime + 0.25);
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(freq, startTime);
 
-        gain.gain.setValueAtTime(0.12, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+        gain.gain.setValueAtTime(0.35, startTime); // Full volume gain
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.18);
 
         osc.connect(gain);
         gain.connect(ctx.destination);
 
-        osc.start();
-        osc.stop(ctx.currentTime + 0.3);
-      } catch (e) {
-        console.error('Continuous siren error:', e);
-      }
-    };
+        osc.start(startTime);
+        osc.stop(startTime + 0.2);
+      };
 
-    playSirenPulse();
-    sirenIntervalRef.current = setInterval(playSirenPulse, 320);
+      // Double Beep burst spaced 120ms apart
+      playPulse(ctx.currentTime, 1046.50);
+      playPulse(ctx.currentTime + 0.14, 1318.51);
+
+      lastBeepAtRef.current = now;
+    } catch (e) {
+      console.error('Failed to play high beep sound:', e);
+    }
   }, [alertSoundEnabled]);
 
-  const stopContinuousSiren = useCallback(() => {
+  const startSustainedBeepLoop = useCallback(() => {
+    if (!alertSoundEnabled || sirenIntervalRef.current) return;
+
+    void playHighBeep();
+    sirenIntervalRef.current = setInterval(() => {
+      void playHighBeep();
+    }, 2800); // Repeat every 2.8 seconds
+  }, [alertSoundEnabled, playHighBeep]);
+
+  const stopSustainedBeepLoop = useCallback(() => {
     if (sirenIntervalRef.current) {
       clearInterval(sirenIntervalRef.current);
       sirenIntervalRef.current = null;
     }
   }, []);
 
-  const triggerContinuousThreatAlarm = useCallback((consecutiveFrames: number) => {
-    if (consecutiveFrames >= 3) {
-      startContinuousSiren();
+  const triggerSustainedFireAlarm = useCallback((consecutiveFrames: number) => {
+    // Only trigger if fire has been detected continuously for 2-3 seconds (~15-20 frames)
+    if (consecutiveFrames >= 15) {
+      startSustainedBeepLoop();
     }
-  }, [startContinuousSiren]);
+  }, [startSustainedBeepLoop]);
 
   useEffect(() => {
     return () => {
-      stopContinuousSiren();
+      stopSustainedBeepLoop();
     };
-  }, [stopContinuousSiren]);
+  }, [stopSustainedBeepLoop]);
 
   return {
-    play: playChime,
-    startSiren: startContinuousSiren,
-    stopSiren: stopContinuousSiren,
-    triggerContinuousThreatAlarm,
+    play: playHighBeep,
+    playHighBeep,
+    startSiren: startSustainedBeepLoop,
+    stopSiren: stopSustainedBeepLoop,
+    triggerSustainedFireAlarm,
   };
 }
 

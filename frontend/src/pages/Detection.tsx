@@ -202,13 +202,12 @@ const Detection = () => {
             });
           }
 
-          if ((msg.continuous_alarm || (msg.consecutive_threat_frames && msg.consecutive_threat_frames >= 3)) && !mutedRef.current) {
+          if ((msg.continuous_alarm || (msg.consecutive_threat_frames && msg.consecutive_threat_frames >= 15)) && !mutedRef.current) {
             startSiren();
           }
 
-          if (msg.early_threat && !mutedRef.current) {
-            void playAlertChime();
-            toast(`🚨 SUSTAINED FIRE THREAT: ${msg.early_threat.toUpperCase()} detected across consecutive frames!`, 'error');
+          if (msg.early_threat && (msg.consecutive_threat_frames && msg.consecutive_threat_frames >= 15) && !mutedRef.current) {
+            toast(`🚨 SUSTAINED FIRE THREAT: ${msg.early_threat.toUpperCase()} detected continuously for 2-3s!`, 'error');
           }
         } else if (msg.event === 'completed' || msg.type === 'completed') {
           clearInterval(pollTimer);

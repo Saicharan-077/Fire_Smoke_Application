@@ -975,7 +975,7 @@ class DetectionLayer:
                 "detections": tracked_dets,
                 "early_threat": early_threat_triggered,
                 "consecutive_threat_frames": max(consecutive_threats["fire"], consecutive_threats["smoke"]),
-                "continuous_alarm": max(consecutive_threats["fire"], consecutive_threats["smoke"]) >= 3,
+                "continuous_alarm": (consecutive_threats["fire"] >= 15 or consecutive_threats["smoke"] >= 20),
                 "preview_b64": preview_b64,
                 "has_detections": len(tracked_dets) > 0,
             }
