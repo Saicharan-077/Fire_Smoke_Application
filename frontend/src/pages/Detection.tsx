@@ -75,7 +75,7 @@ const Detection = () => {
         if (!mutedRef.current) void playAlertChime();
         const types = res.detections.map((d: any) => d.detection_type).join(', ');
         toast(`⚠ Detected: ${types.toUpperCase()}`, 'error');
-        addNotification({
+        const item = {
           id: `img-det-${Date.now()}`,
           alertType: res.detections[0].detection_type,
           cameraId: 'CAM-UPLOAD',
@@ -85,7 +85,9 @@ const Detection = () => {
           timestamp: new Date().toISOString(),
           severity: res.detections.some((d: any) => d.detection_type === 'fire') ? 'critical' : 'warning',
           isRead: false,
-        } as any);
+        } as any;
+        addNotification(item);
+        pushPopup(item);
       } else {
         toast('✓ No fire or smoke detected', 'success');
       }
@@ -208,6 +210,19 @@ const Detection = () => {
 
           if (msg.early_threat && (msg.consecutive_threat_frames && msg.consecutive_threat_frames >= 15) && !mutedRef.current) {
             toast(`🚨 SUSTAINED FIRE THREAT: ${msg.early_threat.toUpperCase()} detected continuously for 2-3s!`, 'error');
+            const alertItem = {
+              id: `vid-threat-${Date.now()}`,
+              alertType: msg.early_threat,
+              cameraId: 'CAM-VIDEO',
+              cameraName: 'Video Stream Analysis',
+              zone: 'Upload',
+              confidence: 0.95,
+              timestamp: new Date().toISOString(),
+              severity: msg.early_threat === 'fire' ? 'critical' : 'warning',
+              isRead: false,
+            } as any;
+            addNotification(alertItem);
+            pushPopup(alertItem);
           }
         } else if (msg.event === 'completed' || msg.type === 'completed') {
           clearInterval(pollTimer);

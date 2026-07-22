@@ -10,6 +10,7 @@ import { listCameras, getCameraMetrics, patchCameraPriority } from '../services/
 import { CameraMetricsOverlay, type CameraMetric } from '../components/Dashboard/CameraMetricsOverlay';
 import { useDashboardStore } from '../store/dashboardStore';
 import { useNotificationsStore } from '../store/notificationsStore';
+import { useAlertSound } from '../components/SOC/AlertSound';
 import {
   Video, RefreshCw, CheckCircle2, Activity, Cpu,
   Volume2, VolumeX, Maximize, Minimize,
@@ -322,42 +323,7 @@ const Dashboard = () => {
 
   const [simulationMode] = useState(!isOperatorOrAdmin);
 
-  // Audio refs
-  const audioCtx = useRef<AudioContext | null>(null);
-  const oscNode = useRef<OscillatorNode | null>(null);
-
-  const startSiren = () => {
-    if (muted) return;
-    try {
-      if (!audioCtx.current) audioCtx.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const ctx = audioCtx.current;
-      if (ctx.state === 'suspended') void ctx.resume();
-      if (oscNode.current) return;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sawtooth';
-      gain.gain.value = 0.05;
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      oscNode.current = osc;
-      let up = true;
-      const id = setInterval(() => {
-        if (!oscNode.current) { clearInterval(id); return; }
-        osc.frequency.setValueAtTime(up ? 880 : 440, ctx.currentTime);
-        osc.frequency.linearRampToValueAtTime(up ? 440 : 880, ctx.currentTime + 0.5);
-        up = !up;
-      }, 500);
-    } catch { /**/ }
-  };
-
-  const stopSiren = () => {
-    try {
-      oscNode.current?.stop();
-      oscNode.current?.disconnect();
-      oscNode.current = null;
-    } catch { /**/ }
-  };
+  const { playHighBeep, stopSiren } = useAlertSound();
 
   // Tick clock
   useEffect(() => {
@@ -541,7 +507,6 @@ const Dashboard = () => {
             } : cam));
 
             if (threat) {
-              startSiren();
               const mock = { 
                 id: `wc-${Date.now()}`, 
                 alertType: threat, 
@@ -554,9 +519,6 @@ const Dashboard = () => {
                 isRead: false 
               } as any;
               addNotification(mock);
-              pushPopup(mock);
-            } else { 
-              stopSiren(); 
             }
           }
 
@@ -604,7 +566,7 @@ const Dashboard = () => {
 
                 if (threat && threat !== camThreatRef.current) {
                   setCamThreat(threat);
-                  startSiren();
+                  void playHighBeep();
 
                   const newAlert = {
                     id: res.alert_ids[0] || `wc-${Date.now()}`,
@@ -621,7 +583,6 @@ const Dashboard = () => {
                   pushPopup(newAlert);
                 } else if (!threat && camThreatRef.current) {
                   setCamThreat(null);
-                  stopSiren();
                 }
               }
             } catch (err) {
