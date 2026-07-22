@@ -1,4 +1,15 @@
 import os
+import sys
+
+scripts_dir = os.path.abspath(os.path.join(sys.prefix, 'Scripts'))
+if os.path.exists(scripts_dir):
+    os.environ['PATH'] = scripts_dir + os.path.pathsep + os.environ.get('PATH', '')
+    if hasattr(os, 'add_dll_directory'):
+        try:
+            os.add_dll_directory(scripts_dir)
+        except Exception:
+            pass
+
 import cv2
 import numpy as np
 import torch
@@ -856,8 +867,15 @@ class DetectionLayer:
 
         writer = None
         if output_video_path:
-            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-            writer = cv2.VideoWriter(output_video_path, fourcc, fps, (w, h))
+            try:
+                fourcc = cv2.VideoWriter_fourcc(*"avc1")
+                writer = cv2.VideoWriter(output_video_path, fourcc, fps, (w, h))
+                if not writer.isOpened():
+                    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+                    writer = cv2.VideoWriter(output_video_path, fourcc, fps, (w, h))
+            except Exception:
+                fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+                writer = cv2.VideoWriter(output_video_path, fourcc, fps, (w, h))
 
         frame_num = 0
         processed_count = 0
@@ -866,7 +884,8 @@ class DetectionLayer:
         early_alert_sent = {"fire": False, "smoke": False}
         prev_gray = None
         t_start = time.perf_counter()
-        frame_latencies = []
+        user_frame_skip = int(db_settings.get("frame_skip", 0)) if db_settings else 0
+        base_skip = max(1, user_frame_skip + 1)
 
         # Decide sampling strides:
         # Idle/Normal: ~15 FPS sampling
