@@ -64,21 +64,35 @@ class AlertOut(BaseModel):
     file_name: Optional[str]
     evidence_path: Optional[str]
     frame_number: Optional[int]
+    acknowledged_by: Optional[str] = None
+    acknowledged_at: Optional[datetime] = None
     resolved_by: Optional[str] = None
+    # Escalation fields (Issue 5)
+    escalated: Optional[bool] = False
+    escalated_at: Optional[datetime] = None
+    escalated_by: Optional[str] = None
+    escalation_target: Optional[str] = None
     timestamp: datetime
 
     class Config:
         from_attributes = True
 
 
+class EscalateRequest(BaseModel):
+    target: str  # free-text: person, team, system, phone number, etc.
+
+
 class AlertStatusUpdate(BaseModel):
     status: str  # active | resolved
+    reason: Optional[str] = None          # Human-entered resolution reason
+    acknowledged: Optional[bool] = False  # Operator confirmation flag
+    pin: Optional[str] = None             # Resolution PIN (Issue 4); falls back to account password if not set
 
     @field_validator('status')
     @classmethod
     def validate_status(cls, v: str) -> str:
-        if v not in ('active', 'resolved'):
-            raise ValueError("status must be 'active' or 'resolved'")
+        if v not in ('active', 'resolved', 'acknowledged'):
+            raise ValueError("status must be 'active', 'resolved', or 'acknowledged'")
         return v
 
 
@@ -110,11 +124,15 @@ class DashboardStats(BaseModel):
     active_alerts: int
     fire_alerts: int
     smoke_alerts: int
+    # Active-only breakdown (operators need these, not all-time totals)
+    active_fire_alerts: int = 0
+    active_smoke_alerts: int = 0
     connected_cameras: int
     online_cameras: int = 0
     total_cameras: int = 0
     model_ready: bool = False
     model_accuracy: float = 0.0
+    model_name: str = "Custom YOLO Model"
     system_health: str = "unknown"
     recent_alerts: List[AlertOut]
 
@@ -267,6 +285,7 @@ class IncidentUpdate(BaseModel):
     status: Optional[str] = None
     assigned_user: Optional[str] = None
     notes: Optional[str] = None
+    resolve_reason: Optional[str] = None  # Auditable resolution reason (Issue #10)
 
 
 class IncidentOut(BaseModel):

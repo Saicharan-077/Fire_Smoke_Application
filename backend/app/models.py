@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, DateTime, Float, Text, Index, ForeignKey
+from sqlalchemy import Column, String, Integer, DateTime, Float, Text, Index, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from .database import Base
 
@@ -41,7 +41,14 @@ class Alert(Base):
     file_name      = Column(String,   nullable=True)
     evidence_path  = Column(String,   nullable=True)
     frame_number   = Column(Integer,  nullable=True)
+    acknowledged_by = Column(String,  nullable=True)
+    acknowledged_at = Column(DateTime, nullable=True)
     resolved_by    = Column(String,   nullable=True)
+    # Escalation fields (Issue 5)
+    escalated      = Column(Boolean,  default=False)
+    escalated_at   = Column(DateTime, nullable=True)
+    escalated_by   = Column(String,   nullable=True)
+    escalation_target = Column(Text,  nullable=True)     # free-text: person/team/system
     timestamp      = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
@@ -54,6 +61,7 @@ class Alert(Base):
         Index("ix_alert_type", "detection_type"),
         Index("ix_alert_status", "status"),
         Index("ix_alert_camera", "camera_id"),
+        Index("ix_alert_escalated", "escalated"),
     )
 
 
@@ -98,6 +106,7 @@ class User(Base):
     last_login          = Column(DateTime, nullable=True)
     session_token       = Column(String, nullable=True)
     session_expires_at  = Column(DateTime, nullable=True)
+    resolution_pin_hash = Column(String, nullable=True)   # bcrypt hash of optional resolution PIN (Issue 4)
     created_at          = Column(DateTime, default=datetime.utcnow)
 
 

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useToast } from '../components/ui/Toast';
 import { uploadImage, uploadVideoAsync, getVideoJobStatus, cancelVideoJob, connectVideoStreamSocket, getVideoMjpegStreamUrl, testCctvConnection, getSettings, evidenceUrl } from '../services/api';
+import { RtspStreamPlayer } from '../components/RtspStreamPlayer';
 
 import { useAuthStore } from '../store/authStore';
 import { useNotificationsStore } from '../store/notificationsStore';
@@ -506,13 +507,23 @@ const Detection = () => {
   const [rtspLoading, setRtspLoading] = useState(false);
   const [rtspLatency, setRtspLatency] = useState<number | null>(null);
 
+  const activeRtspUrlRef = useRef<string | null>(null);
+
   const connectRtsp = async () => {
+    if (rtspConn) {
+      setRtspConn(false);
+      setRtspLatency(null);
+      activeRtspUrlRef.current = null;
+      return;
+    }
+
     setRtspLoading(true);
     const t0 = performance.now();
     try {
       const res = await testCctvConnection(rtspUrl);
       setRtspConn(true);
       setRtspLatency(Math.round(performance.now() - t0));
+      activeRtspUrlRef.current = rtspUrl;
       toast(res.message || 'RTSP Relaying connected successfully', 'success');
     } catch (e: any) {
       toast(e.message || 'RTSP Connection handshake failed', 'error');
@@ -1026,29 +1037,24 @@ const Detection = () => {
                     />
                     <button
                       onClick={connectRtsp}
-                      disabled={rtspLoading || !rtspUrl}
-                      className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl disabled:opacity-50 transition-all duration-200 cursor-pointer shrink-0 flex items-center gap-1.5 shadow-xs hover:-translate-y-0.5 active:translate-y-0"
+                      disabled={rtspLoading || (!rtspUrl && !rtspConn)}
+                      className={`px-4 py-2 ${rtspConn ? 'bg-red-600 hover:bg-red-700' : 'bg-sky-600 hover:bg-sky-700'} text-white text-xs font-bold rounded-xl disabled:opacity-50 transition-all duration-200 cursor-pointer shrink-0 flex items-center gap-1.5 shadow-xs hover:-translate-y-0.5 active:translate-y-0`}
                     >
-                      {rtspLoading ? <RefreshCw size={12} className="animate-spin" /> : <Wifi size={12} />}
-                      {rtspLoading ? 'Connecting...' : 'Connect'}
+                      {rtspLoading ? <RefreshCw size={12} className="animate-spin" /> : (rtspConn ? <XCircle size={12} /> : <Wifi size={12} />)}
+                      {rtspLoading ? 'Connecting...' : (rtspConn ? 'Disconnect' : 'Connect')}
                     </button>
                   </div>
                 </div>
 
-                {rtspConn ? (
-                  <div className="p-4 bg-[var(--safe-bg)] border border-[var(--safe-border)] rounded-xl space-y-3 flex items-center justify-between text-xs animate-fade-up">
-                    <div className="flex items-center gap-2">
-                      <Wifi className="text-[var(--safe)] shrink-0" size={16} />
-                      <div>
-                        <p className="font-bold text-[var(--safe-text)]">RTSP Connection Verified</p>
-                        <p className="text-[10px] text-[var(--text-3)] font-semibold mt-0.5">Stream is reachable and decoding metadata formats</p>
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <span className="font-mono font-bold text-[var(--safe-text)]">{rtspLatency} ms</span>
-                      <p className="text-[9px] text-[var(--text-3)] uppercase tracking-widest font-mono mt-0.5">Latency</p>
-                    </div>
-                  </div>
+                {rtspConn && activeRtspUrlRef.current ? (
+                  <RtspStreamPlayer 
+                    rtspUrl={activeRtspUrlRef.current} 
+                    onThreatDetected={(threat) => {
+                      if (threat.type === 'fire') setFireAudio(true);
+                      if (threat.type === 'smoke') setSmokeAudio(true);
+                      fetchUnreadAlerts();
+                    }}
+                  />
                 ) : (
                   <div className="p-4 bg-[var(--surface-2)] border border-[var(--border)] rounded-xl flex items-center gap-3 text-xs text-[var(--text-3)]">
                     <WifiOff size={16} className="text-[var(--text-3)] shrink-0" />
