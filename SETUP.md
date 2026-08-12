@@ -188,6 +188,10 @@ npm run preview   # serves the built output locally for verification
 
 ## 7. Docker Setup (Alternative)
 
+> [!WARNING]
+> **Experimental / Untested**
+> This `docker-compose.yml` configuration is provided as a starting point but has not been fully verified for production use in this refactored architecture. Use at your own risk.
+
 From the project root:
 
 ```bash
