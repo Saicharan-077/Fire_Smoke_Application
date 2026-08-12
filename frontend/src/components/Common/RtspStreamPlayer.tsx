@@ -163,3 +163,5 @@ export const RtspStreamPlayer = ({ rtspUrl, onThreatDetected, onTelemetryUpdate,
     </div>
   );
 };
+
+export default RtspStreamPlayer;

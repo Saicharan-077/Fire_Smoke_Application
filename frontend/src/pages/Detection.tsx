@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useToast } from '../components/ui/Toast';
 import { uploadImage, uploadVideoAsync, getVideoJobStatus, cancelVideoJob, connectVideoStreamSocket, getVideoMjpegStreamUrl, testCctvConnection, getSettings, evidenceUrl } from '../services/api';
-import { RtspStreamPlayer } from '../components/RtspStreamPlayer';
+import { RtspStreamPlayer } from '../components/Common/RtspStreamPlayer';
 
 import { useAuthStore } from '../store/authStore';
 import { useNotificationsStore } from '../store/notificationsStore';
@@ -1044,15 +1044,18 @@ const Detection = () => {
                       {rtspLoading ? 'Connecting...' : (rtspConn ? 'Disconnect' : 'Connect')}
                     </button>
                   </div>
+                  {rtspConn && rtspLatency !== null && (
+                    <div className="text-[10px] text-sky-400 font-semibold flex items-center gap-1 mt-1">
+                      <Activity size={10} /> Handshake Latency: {rtspLatency}ms
+                    </div>
+                  )}
                 </div>
 
                 {rtspConn && activeRtspUrlRef.current ? (
                   <RtspStreamPlayer 
                     rtspUrl={activeRtspUrlRef.current} 
-                    onThreatDetected={(threat) => {
-                      if (threat.type === 'fire') setFireAudio(true);
-                      if (threat.type === 'smoke') setSmokeAudio(true);
-                      fetchUnreadAlerts();
+                    onThreatDetected={(threat: string | null) => {
+                      if (threat && !mutedRef.current) void playAlertChime();
                     }}
                   />
                 ) : (

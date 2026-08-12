@@ -154,7 +154,7 @@ const Analytics = () => {
             <p className="text-[13px] font-bold text-[var(--text)] uppercase tracking-wider">Detection Trends — 7 days</p>
           </div>
           <div className="p-4 h-64 bg-[var(--surface)]">
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={220} minWidth={0} minHeight={100}>
               <AreaChart data={trends} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="fireG" x1="0" y1="0" x2="0" y2="1">
@@ -184,7 +184,7 @@ const Analytics = () => {
           </div>
           <div className="p-4 bg-[var(--surface)]">
             <div className="h-44">
-              <ResponsiveContainer width="100%" height={140}>
+              <ResponsiveContainer width="100%" height={140} minWidth={0} minHeight={100}>
                 <ReChartsPieChart>
                   <Pie data={distribution} innerRadius={52} outerRadius={70} paddingAngle={3} dataKey="value">
                     {distribution.map((e, i) => <Cell key={i} fill={e.color} />)}
