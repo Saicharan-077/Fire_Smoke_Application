@@ -268,6 +268,7 @@ async def rtsp_stream(
         await asyncio.sleep(0.15)
 
     async def generate():
+        main_loop = asyncio.get_running_loop()
         """
         Decoupled three-component RTSP streaming architecture
         -------------------------------------------------------
@@ -409,6 +410,7 @@ async def rtsp_stream(
                                     camera_id=validated_url,
                                     location="RTSP Stream",
                                     file_name=evidence_path or validated_url,
+                                    evidence_path=evidence_path,
                                 )
                                 create_event(
                                     db,
@@ -418,7 +420,27 @@ async def rtsp_stream(
                                     camera_id=validated_url,
                                     location="RTSP Stream",
                                     file_name=evidence_path or validated_url,
+                                    evidence_path=evidence_path,
                                 )
+
+                                # Issue 1 Fix: Broadcast live alert notification to WebSocket
+                                from ..websocket.connection_manager import manager
+                                from datetime import datetime
+                                iso_ts = alert.timestamp.isoformat() + "Z" if alert.timestamp and not alert.timestamp.isoformat().endswith("Z") else (alert.timestamp.isoformat() if alert.timestamp else datetime.utcnow().isoformat() + "Z")
+                                if main_loop and not main_loop.is_closed():
+                                    asyncio.run_coroutine_threadsafe(
+                                        manager.broadcast({
+                                            "event": "new_alert",
+                                            "alert_id": alert.id,
+                                            "detection_type": alert.detection_type,
+                                            "confidence": alert.confidence,
+                                            "camera_id": alert.camera_id,
+                                            "location": alert.location,
+                                            "evidence_path": alert.evidence_path,
+                                            "timestamp": iso_ts
+                                        }),
+                                        main_loop
+                                    )
                             except Exception as db_err:
                                 logger.error("[RTSP] DB alert write failed: %s", db_err)
 

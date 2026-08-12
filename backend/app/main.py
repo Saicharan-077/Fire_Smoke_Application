@@ -64,6 +64,11 @@ def run_schema_migrations():
                 conn.execute(text("ALTER TABLE users ADD COLUMN google_linked VARCHAR DEFAULT 'false'"))
                 conn.commit()
             logger.info("[DB] Added google_linked column to users")
+        if "resolution_pin_hash" not in user_cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE users ADD COLUMN resolution_pin_hash VARCHAR"))
+                conn.commit()
+            logger.info("[DB] Added resolution_pin_hash column to users")
     if "cameras" in inspector.get_table_names():
         cam_cols = {c["name"] for c in inspector.get_columns("cameras")}
         if "assigned_operator_id" not in cam_cols:
@@ -83,6 +88,36 @@ def run_schema_migrations():
                 conn.execute(text("ALTER TABLE alerts ADD COLUMN resolved_by VARCHAR"))
                 conn.commit()
             logger.info("[DB] Added resolved_by column to alerts")
+        if "acknowledged_by" not in alert_cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE alerts ADD COLUMN acknowledged_by VARCHAR"))
+                conn.commit()
+            logger.info("[DB] Added acknowledged_by column to alerts")
+        if "acknowledged_at" not in alert_cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE alerts ADD COLUMN acknowledged_at DATETIME"))
+                conn.commit()
+            logger.info("[DB] Added acknowledged_at column to alerts")
+        if "escalated" not in alert_cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE alerts ADD COLUMN escalated BOOLEAN DEFAULT 0"))
+                conn.commit()
+            logger.info("[DB] Added escalated column to alerts")
+        if "escalated_at" not in alert_cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE alerts ADD COLUMN escalated_at DATETIME"))
+                conn.commit()
+            logger.info("[DB] Added escalated_at column to alerts")
+        if "escalated_by" not in alert_cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE alerts ADD COLUMN escalated_by VARCHAR"))
+                conn.commit()
+            logger.info("[DB] Added escalated_by column to alerts")
+        if "escalation_target" not in alert_cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE alerts ADD COLUMN escalation_target TEXT"))
+                conn.commit()
+            logger.info("[DB] Added escalation_target column to alerts")
 
 
 run_schema_migrations()

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { RefreshCw, Wifi, WifiOff, Activity, Cpu, Zap } from 'lucide-react';
-import { testCctvConnection, getRtspStreamUrl, connectRtspTelemetry } from '../../services/api';
+import { testCctvConnection, getRtspStreamUrl, connectRtspTelemetry, disconnectRtspStream } from '../../services/api';
 import { useToast } from '../ui/Toast';
 
 interface RtspStreamPlayerProps {
@@ -70,6 +70,7 @@ export const RtspStreamPlayer = ({ rtspUrl, onThreatDetected, onTelemetryUpdate,
     return () => {
       mounted = false;
       if (sse) sse.close();
+      void disconnectRtspStream(rtspUrl).catch(() => {});
     };
   }, [rtspUrl]);
 

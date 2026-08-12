@@ -22,6 +22,7 @@ backend/**/__pycache__
 # SQLite database
 backend/fireguard.db
 backend/sentinelos.db
+backend/*.db
 
 # Auto-generated model containers & runtime evidence
 backend/models/yolo26s_auto.pt

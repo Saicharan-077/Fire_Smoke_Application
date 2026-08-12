@@ -73,7 +73,7 @@ async def _broadcast(
                 "file_name": alert.file_name,
                 "evidence_path": alert.evidence_path,
                 "frame_number": alert.frame_number,
-                "timestamp": alert.timestamp.isoformat() if alert.timestamp else None,
+                "timestamp": (alert.timestamp.isoformat() + "Z") if alert.timestamp and not alert.timestamp.isoformat().endswith("Z") else (alert.timestamp.isoformat() if alert.timestamp else None),
             }
         await _ws_manager.broadcast({
             "event":        "new_alert",

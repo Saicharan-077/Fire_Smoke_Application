@@ -413,10 +413,14 @@ const Dashboard = () => {
     if (!storeAlerts.length) return;
     setStats((p: any) => ({ ...p, recent_alerts: storeAlerts }));
 
-    // Map WebSocket alerts to camera priorities dynamically
+    // Map WebSocket alerts to camera priorities dynamically (Issue 3 Fix: only fresh live alerts drive visual threat overlays)
     setCamerasState(prev => prev.map(cam => {
-      // Look for active alerts matching this camera ID
-      const activeAlert = storeAlerts.find(a => a.camera_id === cam.id && a.status === 'active');
+      const activeAlert = storeAlerts.find(a => {
+        if (a.camera_id !== cam.id || a.status !== 'active') return false;
+        const alertTime = new Date(a.timestamp).getTime();
+        const now = Date.now();
+        return !isNaN(alertTime) && (now - alertTime) < 60000;
+      });
       if (activeAlert) {
         return {
           ...cam,

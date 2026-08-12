@@ -63,6 +63,65 @@ class CameraStreamProcessor:
         self.suspicious_until: float = 0.0
         self.recovery_until: float = 0.0
 
+        # Persistent stream reader slot (Priority 0 requirement)
+        self._frame_lock = threading.Lock()
+        self._latest_frame: Optional[np.ndarray] = None
+        self._reader_thread: Optional[threading.Thread] = None
+        self._stop_event = threading.Event()
+
+    def start_reader(self):
+        if self._reader_thread is not None and self._reader_thread.is_alive():
+            return
+        self._stop_event.clear()
+        self._reader_thread = threading.Thread(target=self._reader_loop, name=f"reader-{self.camera_id}", daemon=True)
+        self._reader_thread.start()
+
+    def stop_reader(self):
+        self._stop_event.set()
+        if self._reader_thread and self._reader_thread.is_alive():
+            self._reader_thread.join(timeout=1.5)
+        with self._frame_lock:
+            self._latest_frame = None
+
+    def _reader_loop(self):
+        import cv2, time
+        cap = None
+        consecutive_errs = 0
+        while not self._stop_event.is_set():
+            if not self.stream_url:
+                time.sleep(1.0)
+                continue
+
+            if cap is None or not cap.isOpened():
+                cap = cv2.VideoCapture(self.stream_url)
+                if not cap.isOpened():
+                    time.sleep(2.0)
+                    continue
+
+            ret, frame = cap.read()
+            if not ret:
+                consecutive_errs += 1
+                if consecutive_errs > 10 and cap:
+                    cap.release()
+                    cap = None
+                    consecutive_errs = 0
+                time.sleep(0.1)
+                continue
+
+            consecutive_errs = 0
+            with self._frame_lock:
+                self._latest_frame = frame  # Single-slot buffer: newest frame overwrites stale frame
+            time.sleep(0.01)
+
+        if cap and cap.isOpened():
+            cap.release()
+
+    def get_latest_frame(self) -> Optional[np.ndarray]:
+        with self._frame_lock:
+            if self._latest_frame is None:
+                return None
+            return self._latest_frame.copy()
+
     def update_priority(self, new_priority: str):
         if new_priority.upper() in PRIORITY_BASE_FPS:
             self.priority = new_priority.upper()
@@ -179,6 +238,8 @@ class CameraScheduler:
 
     async def stop(self):
         self.is_running = False
+        for proc in list(self.processors.values()):
+            proc.stop_reader()
         for t in self._tasks:
             t.cancel()
         self._tasks.clear()
@@ -229,20 +290,12 @@ class CameraScheduler:
 
         proc.last_frame_time = now
 
-        # Read latest frame asynchronously in ThreadPool (Queue Size = 1)
-        def capture_latest_frame() -> Optional[np.ndarray]:
-            cap = cv2.VideoCapture(proc.stream_url)
-            if not cap.isOpened():
-                cap.release()
-                return None
-            ret, frame = cap.read()
-            cap.release()
-            return frame if ret else None
-
-        frame = await loop.run_in_executor(self.executor, capture_latest_frame)
+        # Ensure persistent reader thread is running (Priority 0 requirement)
+        proc.start_reader()
+        frame = proc.get_latest_frame()
 
         if frame is None:
-            proc.set_state(CameraState.IDLE, "Stream connection failed")
+            proc.set_state(CameraState.IDLE, "Stream connection waiting for frame")
             return
 
         # 1. Pixel Change & Motion Analysis
@@ -351,7 +404,7 @@ class CameraScheduler:
                     "camera_id": alert.camera_id,
                     "location": alert.location,
                     "evidence_path": alert.evidence_path,
-                    "timestamp": alert.timestamp.isoformat()
+                    "timestamp": alert.timestamp.isoformat() + "Z" if alert.timestamp and not alert.timestamp.isoformat().endswith("Z") else (alert.timestamp.isoformat() if alert.timestamp else datetime.utcnow().isoformat() + "Z")
                 })
                 logger.info(f"[Scheduler Alert] CONFIRMED {alert.detection_type} on camera {proc.name} (conf={alert.confidence:.2f})")
             except Exception as e:

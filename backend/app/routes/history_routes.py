@@ -122,7 +122,7 @@ def get_history(
                 "file_name": a.file_name,
                 "evidence_path": a.evidence_path,
                 "frame_number": a.frame_number,
-                "timestamp": a.timestamp.isoformat(),
+                "timestamp": (a.timestamp.isoformat() + "Z") if a.timestamp and not a.timestamp.isoformat().endswith("Z") else (a.timestamp.isoformat() if a.timestamp else ""),
             }
             for a in items
         ],
@@ -306,7 +306,7 @@ def export_history_json(
             "file_name": a.file_name,
             "evidence_path": a.evidence_path,
             "frame_number": a.frame_number,
-            "timestamp": a.timestamp.isoformat(),
+            "timestamp": (a.timestamp.isoformat() + "Z") if a.timestamp and not a.timestamp.isoformat().endswith("Z") else (a.timestamp.isoformat() if a.timestamp else ""),
         }
         for a in alerts
     ]

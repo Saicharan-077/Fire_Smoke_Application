@@ -440,6 +440,33 @@ export const testCctvConnection = (streamUrl: string) =>
     body: JSON.stringify({ stream_url: streamUrl }),
   });
 
+export const getRtspStreamUrl = (url: string) => {
+  const token = localStorage.getItem('sentinel_session_token') || sessionStorage.getItem('sentinel_session_token') || '';
+  return `${BASE}/api/v1/detect/rtsp/stream?url=${encodeURIComponent(url)}&token=${encodeURIComponent(token)}`;
+};
+
+export const connectRtspTelemetry = (url: string, onData: (data: any) => void, onError?: () => void) => {
+  const token = localStorage.getItem('sentinel_session_token') || sessionStorage.getItem('sentinel_session_token') || '';
+  const sse = new EventSource(`${BASE}/api/v1/detect/rtsp/telemetry?url=${encodeURIComponent(url)}&token=${encodeURIComponent(token)}`);
+  sse.onmessage = (evt) => {
+    try {
+      const parsed = JSON.parse(evt.data);
+      onData(parsed);
+    } catch { /**/ }
+  };
+  sse.onerror = () => {
+    if (onError) onError();
+  };
+  return sse;
+};
+
+export const disconnectRtspStream = (url: string) => {
+  const token = localStorage.getItem('sentinel_session_token') || sessionStorage.getItem('sentinel_session_token') || '';
+  return api<{ status: string; url: string; was_active: boolean }>(`/api/v1/detect/rtsp/stream?url=${encodeURIComponent(url)}&token=${encodeURIComponent(token)}`, {
+    method: 'DELETE',
+  });
+};
+
 // ── Admin ─────────────────────────────────────────────────────────────────────
 export interface AdminUser {
   id: string;

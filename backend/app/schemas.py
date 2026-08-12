@@ -76,6 +76,9 @@ class AlertOut(BaseModel):
 
     class Config:
         from_attributes = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat() + "Z" if not v.isoformat().endswith("Z") else v.isoformat()
+        }
 
 
 class EscalateRequest(BaseModel):
