@@ -1,39 +1,63 @@
 # SentinelOS — Setup Guide
 
-Step-by-step instructions to run SentinelOS locally or in production.
+Complete step-by-step instructions to run SentinelOS locally from a cold fork.
 
 ---
 
 ## Prerequisites
 
-| Requirement | Version |
-|-------------|---------|
-| Python | 3.10 or higher |
-| Node.js | 18 or higher |
-| npm | 9+ |
-| Git | Latest |
-| (Optional) Docker | 24+ |
-| (Optional) PostgreSQL | 14+ |
+| Requirement | Version | Notes |
+|-------------|---------|-------|
+| Python | 3.10+ | |
+| Node.js | 18+ | |
+| npm | 9+ | |
+| Git | Latest | |
+| Docker | 24+ | Optional — for containerised setup |
+| PostgreSQL | 14+ | Optional — SQLite used by default |
 
 ---
 
 ## 1. Clone the Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/Saicharan-077/Fire_Smoke_Application.git
 cd Fire_Smoke_Application
 ```
 
 ---
 
-## 2. Backend Installation
+## 2. YOLO Model Weights
 
-### Create Virtual Environment
+The trained model file (`best.pt`, ~85 MB) is included directly in the repository
+root. Copy it into the backend models directory:
+
+```bash
+# From the repo root
+cp best.pt backend/models/best.pt
+```
+
+> **Windows:**
+> ```powershell
+> Copy-Item best.pt backend\models\best.pt
+> ```
+
+The model path is configurable via `YOLO_MODEL_PATH` in `.env` if you place it
+elsewhere.
+
+---
+
+## 3. Backend Setup
+
+### 3a. Create a Virtual Environment
 
 ```bash
 cd backend
 python -m venv .venv
+```
 
+**Activate it:**
+
+```bash
 # Windows
 .venv\Scripts\activate
 
@@ -41,86 +65,130 @@ python -m venv .venv
 source .venv/bin/activate
 ```
 
-### Install Dependencies
+### 3b. Install Python Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### Place YOLO Model Weights
-
-Copy your trained `best.pt` weights to:
-
-```
-backend/models/best.pt
-```
-
-See `backend/models/README.md` for model requirements.
-
-### Environment Variables
-
-Copy the example env file:
+### 3c. Configure Environment Variables
 
 ```bash
+# In the backend/ directory
 cp .env.example .env
 ```
 
-Key variables:
+Now open `backend/.env` and set the following. **Do not skip this step — the
+defaults in `.env.example` are placeholders only.**
+
+#### Optional (but important for first run)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SEED_DATABASE` | `true` | Seed demo users, cameras, alerts on startup |
-| `CORS_ORIGINS` | `http://localhost:5173` | Allowed frontend origins |
-| `SESSION_DURATION_MINUTES` | `1440` | Session token lifetime |
-| `POSTGRES_URL` | _(empty)_ | PostgreSQL connection string (optional) |
-| `ALLOW_PUBLIC_REGISTRATION` | `true` | Allow self-registration (creates viewer accounts) |
+| `ADMIN_INITIAL_PASSWORD` | _(auto-generated)_ | Password for the initial `admin@sentinelos.ai` account. If left empty, a secure random password is generated and printed **once** to the server log on first startup — read the log and change it immediately. |
+| `POSTGRES_URL` | _(empty — uses SQLite)_ | PostgreSQL connection string. Leave empty to use the built-in SQLite database. |
+| `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated list of allowed frontend origins. |
+| `ENV` | `development` | Set to `production` to enable stricter security headers. |
+| `SEED_DATABASE` | `true` | Seeds demo cameras and sample alert data on first startup. |
+| `SEED_RESET_PASSWORDS` | `false` | Set to `true` to force-reset the admin password to `ADMIN_INITIAL_PASSWORD` on next startup. |
+| `SESSION_DURATION_MINUTES` | `1440` | Session token lifetime (default: 24 hours). |
+| `ALLOW_PUBLIC_REGISTRATION` | `true` | Allow unauthenticated users to self-register as viewers. Set to `false` in production. |
+| `YOLO_MODEL_PATH` | `models/best.pt` | Path to the YOLO weights file, relative to `backend/`. |
 
-### Database Initialization
+> **No external API keys or third-party service credentials are required.**
+> The application runs entirely locally.
 
-Tables are created automatically on first startup via SQLAlchemy. Schema migrations for new columns run automatically.
+### 3d. Database Initialisation
 
-To reset with fresh seed data, delete `backend/sentinelos.db` and restart with `SEED_DATABASE=true`.
+No manual migration step is needed. On first startup, SQLAlchemy automatically
+creates all tables and the seeder populates demo data.
 
-### Run Backend
+To start fresh (wipe all data):
+```bash
+# Delete the database file and restart the server
+rm backend/sentinelos.db   # macOS / Linux
+del backend\sentinelos.db  # Windows
+```
+
+### 3e. Run the Backend (Development)
 
 ```bash
+# From backend/ with .venv activated
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-API docs: http://localhost:8000/docs
+`--reload` is correct for development — the server auto-restarts on Python file
+changes. **Do not use `--reload` in production.**
+
+**On first startup, check the logs.** If you did not set `ADMIN_INITIAL_PASSWORD`,
+look for a block like this and save the password:
+
+```
+============================================================
+  ADMIN INITIAL PASSWORD (one-time, change immediately):
+  Email   : admin@sentinelos.ai
+  Password: <generated-password>
+============================================================
+```
+
+API docs will be available at: http://localhost:8000/docs
 
 ---
 
-## 3. Frontend Installation
+## 4. Frontend Setup
 
 ```bash
-cd frontend
+cd frontend     # from repo root
 npm install
-cp src/config/.env.example .env
 ```
 
-Set `VITE_API_BASE_URL=http://localhost:8000` in `.env`.
+No `.env` file is required for the frontend in the default local configuration —
+the API base URL defaults to `http://localhost:8000`.
 
-### Run Frontend (Development)
+### Run the Frontend (Development)
 
 ```bash
 npm run dev
 ```
 
-Open http://localhost:5173
+Open: http://localhost:5173
 
 ### Production Build
 
 ```bash
 npm run build
-npm run preview
+npm run preview   # serves the built output locally for verification
 ```
 
 ---
 
-## 4. Docker Setup
+## 5. First Login & Mandatory Security Steps
 
-From project root:
+> [!CAUTION]
+> **Do this before sharing access with anyone.**
+
+1. Open http://localhost:5173/login
+2. Log in with `admin@sentinelos.ai` and the password from Step 3e
+3. **Immediately change the admin password:**
+   - Go to **Settings → Account** (or Profile)
+   - Set a strong, unique password that you haven't used elsewhere
+4. If `ALLOW_PUBLIC_REGISTRATION=true`, consider setting it to `false` once your
+   team accounts are created, to prevent unauthorised signups.
+
+---
+
+## 6. Verify the Installation
+
+1. `GET http://localhost:8000/api/v1/health` → should return `{"status": "ok"}`
+2. Log in at http://localhost:5173/login
+3. Go to **Detection** → upload a test image → confirm bounding boxes render
+4. Go to **Dashboard** → confirm KPI widgets populate
+
+---
+
+## 7. Docker Setup (Alternative)
+
+From the project root:
 
 ```bash
 docker-compose up --build
@@ -131,22 +199,17 @@ docker-compose up --build
 
 ---
 
-## 5. Verify Installation
+## 8. Production Deployment
 
-1. Visit http://localhost:8000/api/v1/health — should return `"status": "ok"`
-2. Login at http://localhost:5173/login with demo credentials (see DEMO.md)
-3. Upload a test image on the Detection page
-4. Check Dashboard KPIs update
+See [DEPLOYMENT.md](DEPLOYMENT.md) for nginx, SSL, and full environment hardening.
 
----
+**Minimum production checklist:**
 
-## 6. Production Deployment
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for nginx, SSL, and environment configuration.
-
-Recommended production changes:
-- Set `POSTGRES_URL` for PostgreSQL
-- Set `SEED_DATABASE=false`
-- Set `ALLOW_PUBLIC_REGISTRATION=false`
-- Configure `CORS_ORIGINS` to your domain
-- Use HTTPS reverse proxy (nginx)
+- [ ] `SECRET_KEY` set to a unique random value (not the example)
+- [ ] `ADMIN_INITIAL_PASSWORD` set (or password changed after first login)
+- [ ] `ENV=production`
+- [ ] `SEED_DATABASE=false` (after initial setup)
+- [ ] `ALLOW_PUBLIC_REGISTRATION=false`
+- [ ] `POSTGRES_URL` set (SQLite is not suitable for concurrent production load)
+- [ ] `CORS_ORIGINS` set to your actual domain
+- [ ] HTTPS via reverse proxy (nginx recommended)
