@@ -40,3 +40,15 @@ backend/evidence/*
 *.njsproj
 *.sln
 *.sw?
+
+# Environment files (secrets - never commit)
+.env
+backend/.env
+**/.env
+
+# Scratch / debug artifacts
+scratch/
+*.patch
+
+# OS
+Thumbs.db
