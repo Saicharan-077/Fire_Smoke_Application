@@ -1,0 +1,486 @@
+<title>SentinelOS Pipeline Status</title>
+<style>
+/* ---------- tokens: complete light palette on bare :root ---------- */
+:root {
+  --ground:      #F4F7F8;
+  --surface:     #FFFFFF;
+  --surface-2:   #EDF2F4;
+  --line:        #D6E0E4;
+  --line-soft:   #E4EBEE;
+  --ink:         #16202B;
+  --ink-2:       #46586A;
+  --ink-3:       #6E8394;
+  --accent:      #21697A;
+  --accent-soft: #E2EFF2;
+  --ok:          #3C6E47;
+  --ok-soft:     #E4EFE6;
+  --warn:        #9C5A06;
+  --warn-soft:   #F6EBDC;
+  --stop:        #A03328;
+  --stop-soft:   #F7E5E2;
+  --focus:       #21697A;
+
+  --f-body: ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --f-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  --sp-1: .25rem; --sp-2: .5rem;  --sp-3: .75rem; --sp-4: 1rem;
+  --sp-5: 1.5rem; --sp-6: 2rem;   --sp-7: 3rem;   --sp-8: 4.5rem;
+  --measure: 68ch;
+  --radius: 3px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:      #0E141A;
+    --surface:     #151E26;
+    --surface-2:   #1B262F;
+    --line:        #2A3945;
+    --line-soft:   #223039;
+    --ink:         #DEE7EC;
+    --ink-2:       #A2B3BF;
+    --ink-3:       #748895;
+    --accent:      #6FB3C0;
+    --accent-soft: #17323A;
+    --ok:          #7FB58C;
+    --ok-soft:     #1A2A20;
+    --warn:        #D69A4C;
+    --warn-soft:   #2C2317;
+    --stop:        #DE8579;
+    --stop-soft:   #2E1B18;
+    --focus:       #6FB3C0;
+  }
+}
+:root[data-theme="dark"] {
+  --ground:      #0E141A;
+  --surface:     #151E26;
+  --surface-2:   #1B262F;
+  --line:        #2A3945;
+  --line-soft:   #223039;
+  --ink:         #DEE7EC;
+  --ink-2:       #A2B3BF;
+  --ink-3:       #748895;
+  --accent:      #6FB3C0;
+  --accent-soft: #17323A;
+  --ok:          #7FB58C;
+  --ok-soft:     #1A2A20;
+  --warn:        #D69A4C;
+  --warn-soft:   #2C2317;
+  --stop:        #DE8579;
+  --stop-soft:   #2E1B18;
+  --focus:       #6FB3C0;
+}
+
+/* ---------- base ---------- */
+* { box-sizing: border-box; }
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 16px;
+  line-height: 1.6;
+  margin: 0;
+  padding: var(--sp-6) var(--sp-5) var(--sp-8);
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 62rem; margin: 0 auto; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+h1, h2, h3 { text-wrap: balance; margin: 0; line-height: 1.2; }
+h1 { font-size: clamp(1.9rem, 4vw, 2.6rem); font-weight: 640; letter-spacing: -.022em; }
+h2 { font-size: 1.32rem; font-weight: 620; letter-spacing: -.014em; }
+h3 { font-size: 1.02rem; font-weight: 620; letter-spacing: -.008em; }
+p  { margin: 0; max-width: var(--measure); color: var(--ink-2); }
+strong { color: var(--ink); font-weight: 620; }
+a { color: var(--accent); }
+
+.eyebrow {
+  font-family: var(--f-mono);
+  font-size: .69rem;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* ---------- masthead ---------- */
+.mast {
+  display: flex; flex-direction: column; gap: var(--sp-3);
+  padding-bottom: var(--sp-5);
+  border-bottom: 2px solid var(--ink);
+}
+.mast-meta {
+  display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4);
+  font-family: var(--f-mono); font-size: .74rem; color: var(--ink-3);
+}
+
+/* ---------- metric strip ---------- */
+.metrics {
+  display: grid; gap: 1px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  background: var(--line);
+  border: 1px solid var(--line);
+  margin: var(--sp-6) 0 var(--sp-7);
+}
+.metric { background: var(--surface); padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-1); }
+.metric-v {
+  font-family: var(--f-mono); font-size: 1.6rem; font-weight: 600;
+  letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1.1;
+}
+.metric-k { font-size: .77rem; color: var(--ink-3); }
+.m-ok  .metric-v { color: var(--ok); }
+.m-acc .metric-v { color: var(--accent); }
+
+/* ---------- sections ---------- */
+section { margin-top: var(--sp-8); }
+.sec-head {
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  padding-bottom: var(--sp-3); margin-bottom: var(--sp-5);
+  border-bottom: 1px solid var(--line);
+}
+.stack { display: flex; flex-direction: column; gap: var(--sp-5); }
+.stack-s { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+/* ---------- phase rail (real sequence: phases run in order) ---------- */
+.phases { display: flex; flex-direction: column; gap: 0; }
+.phase {
+  display: grid; grid-template-columns: 3.1rem 1fr; gap: var(--sp-4);
+  padding: var(--sp-4) 0; border-bottom: 1px solid var(--line-soft);
+}
+.phase:first-child { border-top: 1px solid var(--line-soft); }
+.phase-n {
+  font-family: var(--f-mono); font-size: .8rem; font-weight: 600;
+  color: var(--accent); padding-top: .15rem;
+}
+.phase-b { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+/* ---------- chips ---------- */
+.chip {
+  display: inline-flex; align-items: center; gap: .35rem;
+  font-family: var(--f-mono); font-size: .67rem; letter-spacing: .07em;
+  text-transform: uppercase; padding: .18rem .5rem;
+  border-radius: var(--radius); white-space: nowrap; font-weight: 500;
+}
+.c-ok    { background: var(--ok-soft);     color: var(--ok); }
+.c-warn  { background: var(--warn-soft);   color: var(--warn); }
+.c-stop  { background: var(--stop-soft);   color: var(--stop); }
+.c-idle  { background: var(--surface-2);   color: var(--ink-3); }
+.c-acc   { background: var(--accent-soft); color: var(--accent); }
+
+/* ---------- tables ---------- */
+.tw { overflow-x: auto; border: 1px solid var(--line); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: .87rem; min-width: 34rem; }
+th, td { text-align: left; padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+thead th {
+  font-family: var(--f-mono); font-size: .68rem; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--ink-3); font-weight: 500;
+  background: var(--surface-2); border-bottom: 1px solid var(--line);
+  position: sticky; top: 0;
+}
+tbody tr:last-child td { border-bottom: 0; }
+td { color: var(--ink-2); }
+td strong { color: var(--ink); }
+.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink); }
+.id  { font-family: var(--f-mono); font-size: .78rem; color: var(--accent); white-space: nowrap; }
+code {
+  font-family: var(--f-mono); font-size: .82em;
+  background: var(--surface-2); padding: .09em .34em; border-radius: var(--radius);
+  color: var(--ink); word-break: break-word;
+}
+
+/* ---------- callout ---------- */
+.note {
+  border-left: 2px solid var(--accent); background: var(--surface);
+  padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-2);
+}
+.note.stop { border-left-color: var(--stop); }
+.note.warn { border-left-color: var(--warn); }
+
+/* ---------- corrections ---------- */
+.fixes { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.fix { background: var(--surface); padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-2); }
+
+/* ---------- code block ---------- */
+pre {
+  margin: 0; overflow-x: auto; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line); padding: var(--sp-4);
+  font-family: var(--f-mono); font-size: .8rem; line-height: 1.65;
+}
+pre .c { color: var(--ink-3); }
+
+@media (max-width: 640px) {
+  body { padding: var(--sp-5) var(--sp-4) var(--sp-7); }
+  .phase { grid-template-columns: 1fr; gap: var(--sp-2); }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <div class="eyebrow">Detection Pipeline &middot; Build Report</div>
+    <h1>SentinelOS Pipeline Status</h1>
+    <div class="mast-meta">
+      <span>2026-08-17</span>
+      <span>Gate &middot; Model &middot; Tracking &middot; Context Engine</span>
+      <span>Classifier built separately</span>
+    </div>
+  </header>
+
+  <div class="metrics">
+    <div class="metric m-ok">
+      <div class="metric-v">88/88</div>
+      <div class="metric-k">Live checks passing, 7 suites</div>
+    </div>
+    <div class="metric">
+      <div class="metric-v">5,171</div>
+      <div class="metric-k">Lines of pipeline code</div>
+    </div>
+    <div class="metric">
+      <div class="metric-v">1,942</div>
+      <div class="metric-k">Lines of test code</div>
+    </div>
+    <div class="metric m-ok">
+      <div class="metric-v">0</div>
+      <div class="metric-k">Dashboard files modified</div>
+    </div>
+    <div class="metric m-acc">
+      <div class="metric-v">v1.0.0</div>
+      <div class="metric-k">Contract, locked</div>
+    </div>
+  </div>
+
+  <!-- ============ IMPLEMENTATION STRATEGY ============ -->
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">The approach</div>
+      <h2>Implementation strategy</h2>
+      <p>Separate service built alongside the running app, with a committed deletion step. The phases below are a real sequence — each depends on the one before it.</p>
+    </div>
+
+    <div class="stack">
+      <div class="phases">
+        <div class="phase">
+          <div class="phase-n">P1</div>
+          <div class="phase-b">
+            <h3>Build the pipeline standalone <span class="chip c-ok">Done</span></h3>
+            <p>New service at <code>sentinel-pipeline/</code>: own process on port 8100, own SQLite database, own evidence store, one versioned <code>/v1</code> API. The existing app keeps running, untouched. Chosen over in-place extraction because the old code has no seam — detection logic is interleaved with auth, DB writes, and WebSocket broadcast inside route handlers.</p>
+          </div>
+        </div>
+        <div class="phase">
+          <div class="phase-n">P2</div>
+          <div class="phase-b">
+            <h3>Dashboard consumes the API <span class="chip c-idle">Deferred</span></h3>
+            <p>Detection, Live Monitoring and Alerts pages repoint at <code>/v1</code>. Alert lifecycle — PIN resolution, escalation, operator notes — stays entirely dashboard-side, keyed by the alert IDs the pipeline issues. Proposal only; not executed, by instruction.</p>
+          </div>
+        </div>
+        <div class="phase">
+          <div class="phase-n">P3</div>
+          <div class="phase-b">
+            <h3>Delete the superseded paths <span class="chip c-idle">Deferred</span></h3>
+            <p>The eight motion filters and the embedded RTSP pipeline get removed, not merely bypassed. <strong>Cutover is not complete until this runs</strong> — otherwise the duplicate-implementation pattern this rebuild exists to end simply persists in a new form.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="note">
+        <h3>Principles held throughout</h3>
+        <p><strong>Carry over, don't rewrite.</strong> The model loader, the Tier-1 HSV/texture rules, and the ByteTracker were moved and extended rather than reimplemented — the originals are superseded, not duplicated.</p>
+        <p><strong>One decision point per concern.</strong> Exactly one place decides to skip a frame (the Gate), one place runs the model, one place creates alerts. Each is enforced structurally, not by convention.</p>
+        <p><strong>The pipeline owns its data.</strong> No reads or writes against the dashboard's tables. Config is resolved once at import, never from a database on a hot path.</p>
+        <p><strong>Classifier as an in-process plugin.</strong> Numpy arrays pass by reference with no serialisation. The stub and the real classifier are drop-in interchangeable.</p>
+        <p><strong>Nothing is &ldquo;done&rdquo; on code review.</strong> Every completion claim below has a live test with real output behind it.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ VERIFIED ============ -->
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Completed</div>
+      <h2>Built and verified</h2>
+      <p>Each row was confirmed by running it, not by reading it.</p>
+    </div>
+
+    <div class="stack">
+      <div class="tw">
+        <table>
+          <thead><tr><th>Component</th><th>Evidence from live test</th><th>Checks</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Gate</strong> — MOG2/KNN, hysteresis, forced override, adaptive threshold</td><td>Steady fire reaches the Model via override; <span class="num">0.74&nbsp;ms</span>/frame, flat from 1&rarr;16 cameras</td><td class="num">9/9</td></tr>
+            <tr><td><strong>Illumination normalisation</strong></td><td>A/B proves only the global component is removed; drift storm cut 69&nbsp;&rarr;&nbsp;1 frames</td><td class="num">6/6</td></tr>
+            <tr><td><strong>Forced-override tiers</strong></td><td>All four tiers derive, fire at cadence, retune live; operator override wins</td><td class="num">6/6</td></tr>
+            <tr><td><strong>Model</strong> — single YOLO service, recall floor 0.20</td><td>123/124 real fire images detected; <strong>63% of detections below conf 0.5</strong>; 7.8&nbsp;ms p50</td><td class="num">—</td></tr>
+            <tr><td><strong>Shared tracking</strong> — ByteTracker + crop history</td><td>One <code>track_id</code> across 40 frames; 17/17 candidates reach the Classifier</td><td class="num">—</td></tr>
+            <tr><td><strong>Canonical motion window</strong> (G4)</td><td>Real Farneback recovered a 24&nbsp;px displacement as <strong>24.1&nbsp;px</strong></td><td class="num">12/12</td></tr>
+            <tr><td><strong>Duration-bounded history</strong> (G6)</td><td>2.0&nbsp;s window holds 9 / 31 / 60 / 121 samples at 4 / 15 / 30 / 60&nbsp;fps</td><td class="num">↑</td></tr>
+            <tr><td><strong>Recall-first escalation</strong> (G7)</td><td>Insufficient evidence escalates instead of dropping; audit fields on the alert</td><td class="num">13/13</td></tr>
+            <tr><td><strong>Context Engine</strong> — zones, containment, severity, calibration</td><td>Adjacent cameras merge to one incident; non-overlapping stay separate</td><td class="num">26/26</td></tr>
+            <tr><td><strong>Evidence guarantee</strong></td><td>Three refusal paths proven; 95 evidence files, <strong>0 alerts missing evidence</strong></td><td class="num">↑</td></tr>
+            <tr><td><strong>Public API</strong> <code>/v1</code></td><td>Exercised over HTTP; telemetry 404s rather than inventing values</td><td class="num">16/16</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>What the investigation found first</h3>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Finding</th><th>Evidence</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Eight</strong> separate motion-filter implementations — docs predicted five</td><td>3 frontend loops, 3 in <code>DetectionLayer</code>, 1 in <code>CameraScheduler</code>, 1 post-model ROI filter, plus a dead orphan</td></tr>
+            <tr><td>A post-model filter would have defeated the Gate</td><td><code>detection_layer.py:542</code> discards steady-fire detections <em>after</em> the model runs</td></tr>
+            <tr><td>Multi-camera scheduler has <strong>never run</strong></td><td><code>threading</code> never imported; <code>NameError</code> reproduced in isolation</td></tr>
+            <tr><td>Dashboard camera tiles are fabricated</td><td><code>setMetricsMap</code> is never called; tiles render hardcoded <code>14.2 / 0.4</code></td></tr>
+            <tr><td><code>sparks</code> is silently discarded, not remapped</td><td>Substring match drops one of the model's three classes</td></tr>
+            <tr><td>Model is YOLO26s, not YOLOv8</td><td>Read from the checkpoint; &ldquo;YOLOv8&rdquo; hardcoded in 9 UI locations</td></tr>
+            <tr><td>Model invocation genuinely is one singleton</td><td>Confirmed — all five call sites converge on one <code>DetectionLayer</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CORRECTIONS ============ -->
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Corrected mid-build</div>
+      <h2>Errors found in my own work</h2>
+      <p>Recorded because the corrections matter more than the claims did.</p>
+    </div>
+    <div class="fixes">
+      <div class="fix">
+        <h3>Tracker silently dropped candidates</h3>
+        <p>Textbook ByteTrack opens new tracks only from high-confidence detections. Against a 0.20 recall floor that discarded every 0.20&ndash;0.35 candidate not already tracked — reinstating a recall filter upstream of the Classifier, the exact anti-pattern this rebuild removes. Now 17/17 reach it.</p>
+      </div>
+      <div class="fix">
+        <h3>Benchmarked the test harness, not the Gate</h3>
+        <p>9.9&nbsp;ms of the measured 10.9&nbsp;ms was numpy noise generation inside the timing loop. True Gate cost is <span class="num">0.74&nbsp;ms</span>.</p>
+      </div>
+      <div class="fix">
+        <h3>Illumination assertion was wrong in direction</h3>
+        <p>I expected possible suppression of fire; at &ge;10% frame coverage normalisation <em>amplifies</em>. The assertion was replaced with the detection-relevant invariant: no fire crosses from above threshold to below.</p>
+      </div>
+      <div class="fix">
+        <h3>Overstated the forced-override tier coverage</h3>
+        <p>The original 9/9 used a single hardcoded override throughout; only the mapping function covered all four tiers. Closed with a dedicated 6/6 suite.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TODO ============ -->
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Outstanding</div>
+      <h2>To do</h2>
+    </div>
+
+    <div class="stack">
+
+      <div class="stack-s">
+        <h3>Blocked on you <span class="chip c-stop">Needs a decision</span></h3>
+        <div class="tw">
+          <table>
+            <thead><tr><th>ID</th><th>Item</th><th>Why blocked</th><th>Impact</th></tr></thead>
+            <tbody>
+              <tr><td class="id">T1</td><td><strong>Option D sign-off</strong> — native brightness tap for flicker</td><td>Awaiting joint review with the Classifier teammate</td><td>Flicker stays log-only. Nothing else blocked.</td></tr>
+              <tr><td class="id">T2</td><td><strong><code>yolo val</code> per-class metrics</strong> for <code>best.pt</code></td><td>Needs the training dataset, not on this machine</td><td>Decides whether a Model retrain is needed at all. One command.</td></tr>
+              <tr><td class="id">T3</td><td><strong>Deployment GPU vs CPU</strong></td><td>Target environment unconfirmed</td><td>~16&times; throughput difference. Affects sizing, not correctness.</td></tr>
+              <tr><td class="id">T4</td><td><strong><code>sparks</code> handling</strong> (G8)</td><td>Operational decision</td><td>Passes through as <code>class_raw="sparks"</code>; no Tier-1 phase covers it</td></tr>
+              <tr><td class="id">T5</td><td>Confidence threshold the 0.793 recall was measured at</td><td>One lookup</td><td>Makes the recall figure interpretable</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="stack-s">
+        <h3>Deferred by instruction <span class="chip c-idle">Holding</span></h3>
+        <div class="tw">
+          <table>
+            <thead><tr><th>ID</th><th>Item</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td class="id">T6</td><td><strong>Multi-camera scheduler</strong></td><td>Priority queue: active alert &gt; zone risk &gt; gate signal &gt; round-robin. The Gate already emits the required metadata.</td></tr>
+              <tr><td class="id">T7</td><td><strong>Dashboard integration</strong> (P2)</td><td>Repoint Detection / Live Monitoring / Alerts at <code>/v1</code>. Higher risk to what currently works.</td></tr>
+              <tr><td class="id">T8</td><td><strong>Delete superseded paths</strong> (P3)</td><td>The eight motion filters and the embedded RTSP pipeline.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="stack-s">
+        <h3>Not started — pipeline side <span class="chip c-warn">Open</span></h3>
+        <div class="tw">
+          <table>
+            <thead><tr><th>ID</th><th>Item</th><th>Priority</th></tr></thead>
+            <tbody>
+              <tr><td class="id">T14</td><td><strong>API authentication</strong> — <code>/v1</code> is currently unauthenticated</td><td><span class="chip c-stop">Before any deploy</span></td></tr>
+              <tr><td class="id">T10</td><td><strong>Calibration persistence across restart</strong> — table exists, observations are in-memory</td><td><span class="chip c-warn">Medium</span></td></tr>
+              <tr><td class="id">T11</td><td><strong>Zone persistence</strong> — <code>ZoneRecord</code> exists but <code>ZoneRegistry</code> is in-memory</td><td><span class="chip c-warn">Medium</span></td></tr>
+              <tr><td class="id">T9</td><td>Video-job cancellation and concurrency limits</td><td><span class="chip c-warn">Medium</span></td></tr>
+              <tr><td class="id">T12</td><td>Camera drift detection (ORB/SIFT)</td><td><span class="chip c-idle">Low</span></td></tr>
+              <tr><td class="id">T13</td><td>Benchmarking suite — p50/p95/p99 under multi-camera load</td><td><span class="chip c-idle">Low</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="stack-s">
+        <h3>Known issues in the existing app <span class="chip c-idle">Documented, not fixed</span></h3>
+        <p>Left alone by instruction. All are superseded by the pipeline at cutover.</p>
+        <div class="tw">
+          <table>
+            <thead><tr><th>Issue</th><th>Location</th></tr></thead>
+            <tbody>
+              <tr><td>Scheduler <code>NameError</code> — has never processed a frame</td><td><code>camera_scheduler.py:67</code></td></tr>
+              <tr><td>Dashboard tiles show hardcoded fake metrics</td><td><code>Dashboard.tsx:842</code></td></tr>
+              <tr><td><code>smoke_min_confidence</code> loaded but never applied</td><td><code>detection_layer.py:300</code></td></tr>
+              <tr><td>&ldquo;High Recall&rdquo; preset <em>raises</em> the confidence floor (0.20&rarr;0.30)</td><td><code>config.py:85</code></td></tr>
+              <tr><td><code>sparks</code> detections silently discarded</td><td><code>detection_layer.py:584</code></td></tr>
+              <tr><td>&ldquo;YOLOv8&rdquo; hardcoded in 9 UI locations</td><td>Frontend + <code>detect_routes.py:156</code></td></tr>
+              <tr><td>RTSP alert can still write <code>evidence_path=None</code></td><td><code>detect_routes.py:399</code></td></tr>
+              <tr><td><code>monitor_cameras_loop</code> is dead code</td><td><code>camera_monitor.py:17</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ NEXT ============ -->
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Recommendation</div>
+      <h2>Suggested next step</h2>
+    </div>
+    <div class="stack">
+      <div class="note">
+        <p><strong>T1 and T2 unblock the most.</strong> T1 lets the Classifier team finalise Phase 4; T2 decides whether any model retraining is needed at all, and costs one command.</p>
+      </div>
+      <div class="note warn">
+        <p><strong>On the pipeline side, persistence (T10 + T11) is the most valuable unblocked work.</strong> Zones and calibration currently live in memory, so a restart loses an approved zone — which matters the moment this runs anywhere real.</p>
+      </div>
+      <div class="note stop">
+        <p><strong>T14 should be settled before T7, not after.</strong> The API is unauthenticated; that is fine on localhost and not fine once the Dashboard talks to it across a network.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ VERIFY ============ -->
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">Reproduce</div>
+      <h2>Verify any of this yourself</h2>
+    </div>
+    <div class="stack-s">
+<pre><span class="c"># all six local suites</span>
+cd sentinel-pipeline
+for t in gate_validation forced_override_tiers illumination_vs_fire \
+         recall_first_contract g4_g6_closure pipeline_core; do
+  ../.venv-pipeline/bin/python tests/test_$t.py
+done</pre>
+<pre><span class="c"># start the pipeline, then exercise the public API over HTTP</span>
+../.venv-pipeline/bin/python -m uvicorn sentinel_pipeline.api.app:app --port 8100
+../.venv-pipeline/bin/python tests/test_api_integration.py http://127.0.0.1:8100</pre>
+    </div>
+  </section>
+
+</div>

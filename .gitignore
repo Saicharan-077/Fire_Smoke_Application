@@ -1,0 +1,24 @@
+# Virtualenvs and toolchains
+.venv-pipeline/
+.venv-dashboard/
+.node-bin/
+**/node_modules/
+__pycache__/
+*.py[cod]
+
+# Model weights and archives (large binaries, tracked out-of-band)
+*.zip
+*.pt
+!sentinel-pipeline/tests/fixtures/**
+
+# Runtime state
+sentinel-pipeline/data/
+**/evidence/*.jpg
+**/*.db
+**/*.db-wal
+**/*.db-shm
+*.log
+
+# Build output
+**/dist/
+**/.vite/
