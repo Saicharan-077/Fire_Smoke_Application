@@ -236,27 +236,28 @@ const AlertsReports = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex bg-slate-50 dark:bg-slate-900 border border-[var(--border)] p-1 rounded-2xl gap-1 overflow-x-auto custom-scrollbar">
+      <div className="flex items-center bg-[var(--color-surface-2)] border border-[var(--color-border)] p-1 rounded-xl gap-1 overflow-x-auto custom-scrollbar w-fit">
         {[
-          { id: 'alerts', label: 'Live Warning Flags', icon: <AlertOctagon size={14} /> },
-          { id: 'incidents', label: 'Incident Ticket Log', icon: <FileText size={14} /> },
-          { id: 'reports', label: 'Reports & Exports', icon: <Download size={14} /> }
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`px-5 py-3 rounded-xl text-xs font-bold transition-all duration-200 shrink-0 cursor-pointer ${
-              activeTab === tab.id 
-                ? 'bg-white dark:bg-slate-800 text-sky-700 dark:text-sky-400 border border-slate-200/50 dark:border-slate-700 shadow-sm' 
-                : 'text-[var(--text-2)] hover:text-[var(--text)] hover:bg-white/40 border border-transparent'
-            }`}
-          >
-            <div className="flex items-center gap-2">
+          { id: 'alerts', label: 'Live Warning Flags', icon: <AlertOctagon size={13} /> },
+          { id: 'incidents', label: 'Incident Ticket Log', icon: <FileText size={13} /> },
+          { id: 'reports', label: 'Reports & Exports', icon: <Download size={13} /> }
+        ].map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                isActive 
+                  ? 'bg-[var(--color-accent)] text-white shadow-sm' 
+                  : 'text-[var(--color-fg-secondary)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)]'
+              }`}
+            >
               {tab.icon}
               {tab.label}
-            </div>
-          </button>
-        ))}
+            </button>
+          );
+        })}
       </div>
 
       {/* TABS CONTENT */}

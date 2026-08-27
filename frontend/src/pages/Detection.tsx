@@ -540,7 +540,7 @@ const Detection = () => {
       </motion.div>
 
       {/* Tabs */}
-      <motion.div variants={fadeUp} className="flex items-center gap-1 bg-slate-50 dark:bg-slate-900 border border-[var(--border)] rounded-xl p-1 w-fit">
+      <motion.div variants={fadeUp} className="flex items-center gap-1 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-xl p-1 w-fit">
         {TABS.map(tab => {
           const Icon = tab.icon;
           const active = activeTab === tab.id;
@@ -548,13 +548,13 @@ const Detection = () => {
             <button
               key={tab.id}
               onClick={() => { stopWebcam(); setActiveTab(tab.id as any); }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-bold transition-all duration-200 cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer ${
                 active 
-                  ? 'bg-white dark:bg-slate-800 text-sky-700 dark:text-sky-400 border border-slate-200/50 dark:border-slate-700 shadow-sm' 
-                  : 'text-[var(--text-2)] hover:text-[var(--text)] hover:bg-white/40'
+                  ? 'bg-[var(--color-accent)] text-white shadow-sm' 
+                  : 'text-[var(--color-fg-secondary)] hover:text-[var(--color-fg)] hover:bg-[var(--color-surface)]'
               }`}
             >
-              <Icon size={14} className={active ? 'text-sky-600 dark:text-sky-400' : 'text-[var(--text-3)]'} />
+              <Icon size={13} className={active ? 'text-white' : 'text-[var(--color-muted)]'} />
               {tab.label}
             </button>
           );
