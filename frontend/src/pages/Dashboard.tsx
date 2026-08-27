@@ -16,7 +16,7 @@ import {
   Volume2, VolumeX, Maximize, Minimize,
   Grid2x2, Map,
   ShieldAlert, Camera, AlertCircle,
-  ShieldCheck
+  ShieldCheck, Radio
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -47,17 +47,21 @@ const ChartTooltip = ({ active, payload, label }: any) => {
   );
 };
 
-// StatCard Component for Premium KPIs
+// StatCard Component with Massive Typography & Hierarchy
 const StatCard = ({ label, value, icon: Icon, color, sub, ok }: any) => (
-  <motion.div variants={fadeUp} className="glass rounded-2xl p-5 flex items-start gap-4 card-hover border border-[var(--color-border)] text-[var(--color-fg)]">
-    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${color}`}>
-      <Icon size={18} />
+  <motion.div variants={fadeUp} className="glass-panel p-6 flex flex-col justify-between card-hover border border-[var(--color-border)] text-[var(--color-fg)] relative overflow-hidden group">
+    <div className="flex items-center justify-between gap-2 mb-3">
+      <p className="text-[11px] font-extrabold text-[var(--color-muted)] uppercase tracking-wider">{label}</p>
+      <div className={`w-9 h-9 rounded-2xl flex items-center justify-center shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110 ${color}`}>
+        <Icon size={16} />
+      </div>
     </div>
-    <div className="flex-1 min-w-0">
-      <p className="text-[10px] font-extrabold text-[var(--color-muted)] uppercase tracking-wider">{label}</p>
-      <p className="text-[22px] font-black text-[var(--color-fg)] leading-none mt-2 tracking-tight">{value}</p>
+    <div>
+      <p className="text-3xl sm:text-4xl font-black text-[var(--color-fg)] tracking-tight leading-none">
+        {value}
+      </p>
       {sub && (
-        <p className={`text-[11px] mt-2 font-semibold flex items-center gap-1.5 ${ok === false ? 'text-red-500 font-bold' : 'text-[var(--color-fg-secondary)]'}`}>
+        <p className={`text-[12px] mt-2.5 font-bold flex items-center gap-1.5 ${ok === false ? 'text-red-400' : 'text-[var(--color-fg-secondary)]'}`}>
           {sub}
         </p>
       )}
@@ -687,46 +691,97 @@ const Dashboard = () => {
   return (
     <motion.div className="space-y-6" variants={stagger} initial="hidden" animate="show">
 
-      {/* Header section */}
-      <motion.div variants={fadeUp} className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-[var(--color-fg)] tracking-tight flex items-center gap-3">
-            Security Operations Center <span className="text-xs bg-red-500/10 text-red-500 px-3 py-1 rounded-full border border-red-500/30 font-bold uppercase tracking-wider animate-pulse shadow-sm">LTM-LIVE</span>
-          </h1>
-          <p className="text-xs sm:text-sm text-[var(--color-muted)] mt-1 font-medium">Commercial multi-channel AI surveillance matrix & incident response platform</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center glass-light border border-[var(--color-border)] rounded-2xl p-1.5 gap-1.5 shadow-sm">
+      {/* Hero Header Section */}
+      <motion.div variants={fadeUp} className="space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2.5 mb-2">
+              <span className="tech-badge">
+                <Radio size={12} className="animate-pulse text-indigo-400" />
+                Live Surveillance Matrix
+              </span>
+              <span className="text-xs text-[var(--color-muted)] font-medium">Node: SOC-ALPHA-01</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[var(--color-fg)] tracking-tight">
+              Security Operations <span className="gradient-text">Command Center</span>
+            </h1>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="floating-pill">
+              <span className="text-[var(--color-muted)]">Mode:</span>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-[var(--color-accent)] text-white shadow-glow' : 'text-[var(--color-fg-secondary)] hover:text-[var(--color-fg)]'}`}
+              >
+                <Grid2x2 size={12} className="inline mr-1" /> Channels
+              </button>
+              <button
+                onClick={() => setViewMode('map')}
+                className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${viewMode === 'map' ? 'bg-[var(--color-accent)] text-white shadow-glow' : 'text-[var(--color-fg-secondary)] hover:text-[var(--color-fg)]'}`}
+              >
+                <Map size={12} className="inline mr-1" /> Facility Map
+              </button>
+            </div>
+            
             <button
-              onClick={() => setViewMode('grid')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${viewMode === 'grid' ? 'glass bg-[var(--color-accent)] text-white shadow-glow' : 'text-[var(--color-fg-secondary)] hover:text-[var(--color-fg)]'}`}
+              onClick={load}
+              className="floating-pill text-[var(--color-fg-secondary)] hover:text-[var(--color-accent)] hover:border-[var(--color-accent)]/40 cursor-pointer"
             >
-              <Grid2x2 size={14} /> Channels Grid
-            </button>
-            <button
-              onClick={() => setViewMode('map')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${viewMode === 'map' ? 'glass bg-[var(--color-accent)] text-white shadow-glow' : 'text-[var(--color-fg-secondary)] hover:text-[var(--color-fg)]'}`}
-            >
-              <Map size={14} /> Facility Map
+              <RefreshCw size={12} /> Sync Dashboard
             </button>
           </div>
-          
-          <button
-            onClick={load}
-            className="flex items-center gap-1.5 px-4 py-2 glass-light border border-[var(--color-border)] rounded-2xl text-xs font-bold text-[var(--color-fg-secondary)] hover:text-[var(--color-accent)] hover:border-[var(--color-accent)]/40 transition-all shadow-sm cursor-pointer"
-          >
-            <RefreshCw size={14} /> Refresh
-          </button>
+        </div>
+
+        {/* Floating System Health Bar */}
+        <div className="flex flex-wrap items-center gap-2.5 pt-1">
+          <div className="floating-pill border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+            <span>Telemetry: Optimal</span>
+          </div>
+          <div className="floating-pill">
+            <span className="text-[var(--color-muted)]">Inference Acceleration:</span>
+            <span className="text-[var(--color-fg)] font-black">CUDA / FP16 Real-Time</span>
+          </div>
+          <div className="floating-pill">
+            <span className="text-[var(--color-muted)]">Active Cameras:</span>
+            <span className="text-[var(--color-fg)] font-black">{totalCamsCount} Channels</span>
+          </div>
         </div>
       </motion.div>
 
-      {/* Statistics Strip */}
-      <motion.div variants={stagger} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <StatCard label="Total CCTV Channels" value={totalCamsCount} icon={Camera} color="bg-[var(--surface-2)] text-[var(--text-2)] border border-[var(--border)]" sub={`${onlineCamsCount} active`} />
-        <StatCard label="System Health" value={activeAlertsCount > 0 ? "WARNING" : "NOMINAL"} icon={CheckCircle2} color={activeAlertsCount > 0 ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : "bg-green-500/10 text-green-500 border border-green-500/20"} sub="AI model verified" ok={activeAlertsCount === 0} />
-        <StatCard label="Active Alerts" value={activeAlertsCount} icon={ShieldAlert} color={activeAlertsCount > 0 ? "bg-red-500/10 text-red-500 border border-red-500/20" : "bg-[var(--surface-2)] text-[var(--text-2)] border border-[var(--border)]"} sub={`${activeFiresCount} Fire, ${activeSmokesCount} Smoke`} />
-        <StatCard label="Average Speed" value={`${avgInferenceLatency} ms`} icon={Activity} color="bg-blue-500/10 text-blue-500 border border-blue-500/20" sub="End-to-End Latency" />
-        <StatCard label="AI Engine Status" value="YOLOv26s Model" icon={Cpu} color="bg-purple-500/10 text-purple-500 border border-purple-500/20" sub="Exported model active" />
+      {/* Massive 4 KPI Cards Grid */}
+      <motion.div variants={stagger} className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard 
+          label="Total Surveillance Nodes" 
+          value={totalCamsCount} 
+          icon={Camera} 
+          color="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20" 
+          sub={`${onlineCamsCount} Active Ingest Relays`} 
+        />
+        <StatCard 
+          label="Operational Readiness" 
+          value={activeAlertsCount > 0 ? "WARNING" : "100% NOMINAL"} 
+          icon={CheckCircle2} 
+          color={activeAlertsCount > 0 ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"} 
+          sub="YOLOv8 Weights Verified" 
+          ok={activeAlertsCount === 0} 
+        />
+        <StatCard 
+          label="Active Threat Flag" 
+          value={activeAlertsCount} 
+          icon={ShieldAlert} 
+          color={activeAlertsCount > 0 ? "bg-red-500/10 text-red-400 border border-red-500/20 animate-pulse" : "bg-gray-500/10 text-gray-400 border border-gray-500/20"} 
+          sub={`${activeFiresCount} Fire, ${activeSmokesCount} Smoke`} 
+          ok={activeAlertsCount === 0}
+        />
+        <StatCard 
+          label="Pipeline Latency" 
+          value={`${avgInferenceLatency} ms`} 
+          icon={Activity} 
+          color="bg-blue-500/10 text-blue-400 border border-blue-500/20" 
+          sub="End-to-End Processing" 
+        />
       </motion.div>
 
       {/* Main Grid View */}
