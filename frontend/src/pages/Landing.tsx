@@ -123,45 +123,50 @@ const Landing = () => {
       <div className="absolute top-[40%] right-[-100px] w-[400px] h-[400px] bg-gradient-radial from-[var(--smoke-bg)] to-transparent opacity-20 blur-3xl pointer-events-none" />
 
       {/* Sticky Header */}
-      <header className="sticky top-0 z-50 bg-[var(--bg)]/75 backdrop-blur-md border-b border-[var(--border)]">
+      <header className="sticky top-0 z-50 bg-[var(--color-bg)]/80 backdrop-blur-xl border-b border-[var(--color-border)]">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-8">
-            <div className="flex items-center gap-2 font-bold cursor-pointer select-none group" onClick={() => navigate('/')}>
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
-                <Shield size={16} className="text-white fill-white" />
+            <div className="flex items-center gap-3 font-bold cursor-pointer select-none group" onClick={() => navigate('/')}>
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-500 flex items-center justify-center shrink-0 shadow-glow group-hover:scale-105 transition-transform">
+                <span className="text-[13px] font-black text-white tracking-wider">SC</span>
               </div>
-              <span className="text-base font-bold tracking-tight text-[var(--text)]">SentinelOS</span>
+              <div className="flex flex-col">
+                <span className="text-sm font-black tracking-tight text-[var(--color-fg)]">Sai Charan</span>
+                <span className="text-[10px] font-bold text-[var(--color-muted)] leading-none uppercase tracking-wider">
+                  <span className="gradient-text font-extrabold">FireGuard</span> AI Platform
+                </span>
+              </div>
             </div>
  
-            <nav className="hidden md:flex items-center gap-6 text-[13px] font-semibold text-[var(--text-2)]">
-              <a href="#features" className="hover:text-[var(--text)] transition-colors">Features</a>
-              <a href="#solutions" className="hover:text-[var(--text)] transition-colors">Solutions</a>
-              <a href="#tech" className="hover:text-[var(--text)] transition-colors">Technology</a>
-              <a href="#faq" className="hover:text-[var(--text)] transition-colors">FAQ</a>
+            <nav className="hidden md:flex items-center gap-6 text-[13px] font-semibold text-[var(--color-muted)]">
+              <a href="#features" className="hover:text-[var(--color-fg)] transition-colors">Features</a>
+              <a href="#solutions" className="hover:text-[var(--color-fg)] transition-colors">Architecture</a>
+              <a href="#tech" className="hover:text-[var(--color-fg)] transition-colors">YOLOv8 CV</a>
+              <a href="#faq" className="hover:text-[var(--color-fg)] transition-colors">Documentation</a>
             </nav>
           </div>
  
-          <div className="flex items-center gap-4 text-[13px] font-semibold">
+          <div className="flex items-center gap-3 text-[13px] font-semibold">
             {isAuthenticated ? (
               <button 
                 onClick={() => navigate('/dashboard')}
-                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white transition-all cursor-pointer flex items-center gap-1.5 shadow-xs font-bold active:scale-[0.98]"
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white transition-all cursor-pointer flex items-center gap-2 shadow-glow font-bold active:scale-[0.98]"
               >
-                Enter Command Center <ArrowRight size={13} />
+                Enter Command Center <ArrowRight size={14} />
               </button>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <button 
                   onClick={() => navigate('/login')}
-                  className="px-4 py-2 text-[var(--text-2)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] rounded-xl transition-all cursor-pointer font-bold"
+                  className="px-4 py-2 text-[var(--color-fg-secondary)] hover:text-[var(--color-fg)] hover:bg-[var(--glass-light-bg)] rounded-xl transition-all cursor-pointer font-bold"
                 >
                   Sign In
                 </button>
                 <button 
                   onClick={() => navigate('/register')}
-                  className="px-4.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white transition-all shadow-xs cursor-pointer font-bold active:scale-[0.98]"
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white transition-all shadow-glow cursor-pointer font-bold active:scale-[0.98]"
                 >
-                  Get Started
+                  Let's Connect
                 </button>
               </div>
             )}
@@ -170,7 +175,7 @@ const Landing = () => {
       </header>
  
       {/* Main Content Container */}
-      <main className="max-w-6xl mx-auto px-6 pt-16 sm:pt-24 pb-32 relative z-10 space-y-32">
+      <main className="max-w-6xl mx-auto px-6 pt-16 sm:pt-24 pb-32 relative z-10 space-y-28">
         
         {/* Hero Section */}
         <motion.section 
@@ -178,35 +183,35 @@ const Landing = () => {
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
           variants={staggerContainer}
-          className="text-center max-w-4xl mx-auto space-y-8 flex flex-col items-center"
+          className="text-center max-w-4xl mx-auto space-y-6 flex flex-col items-center"
         >
           
           {/* Release Tag */}
-          <motion.div variants={fadeInUp} className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--surface-2)] border border-[var(--border)] text-xs text-[var(--text-2)] font-semibold shadow-xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Autonomous Facility Surveillance Matrix v2.0</span>
+          <motion.div variants={fadeInUp} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass border border-[var(--color-border)] text-xs text-[var(--color-fg-secondary)] font-bold shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+            <span>Available for Real-time Fire & Smoke Intelligence</span>
           </motion.div>
  
-          <motion.h1 variants={fadeInUp} className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.08] text-[var(--text)] max-w-3xl">
-            Where Computer Vision and Industrial Campus Safety <span className="bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent">Unify together.</span>
+          <motion.h1 variants={fadeInUp} className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.08] text-[var(--color-fg)] max-w-3xl">
+            FireGuard <span className="gradient-text">AI Security</span> Operations Center
           </motion.h1>
  
-          <motion.p variants={fadeInUp} className="text-base sm:text-lg text-[var(--text-2)] max-w-xl mx-auto font-normal leading-relaxed">
-            Continuous AI-powered surveillance pipeline designed to scan campus networks, factory floors, and legacy CCTV cameras for real-time fire and smoke anomalies.
+          <motion.p variants={fadeInUp} className="text-base sm:text-lg text-[var(--color-muted)] max-w-2xl mx-auto font-medium leading-relaxed">
+            Building production-grade AI systems and premium web applications. Continuous computer vision surveillance designed to scan CCTV networks for real-time fire and smoke anomalies.
           </motion.p>
  
-          <motion.div variants={fadeInUp} className="pt-2 flex flex-col sm:flex-row justify-center gap-4 font-bold text-sm w-full sm:w-auto">
+          <motion.div variants={fadeInUp} className="pt-4 flex flex-col sm:flex-row justify-center gap-4 font-bold text-sm w-full sm:w-auto">
             <button 
-              onClick={() => navigate('/register')}
-              className="px-6 py-3.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98]"
+              onClick={() => navigate('/detection')}
+              className="px-7 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 text-white transition-all shadow-glow hover:shadow-glow-lg cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98]"
             >
-              Get Started Free <ArrowRight size={15} />
+              <Video size={16} /> Test Live CV Detection
             </button>
             <button 
-              onClick={() => navigate('/login')}
-              className="px-6 py-3.5 rounded-xl bg-[var(--surface-2)] hover:bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] transition-all cursor-pointer flex items-center justify-center gap-2"
+              onClick={() => navigate('/dashboard')}
+              className="px-7 py-3.5 rounded-2xl glass-light hover:bg-[var(--glass-bg)] border border-[var(--color-border)] text-[var(--color-fg)] transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm"
             >
-              Access SOC Dashboard
+              <Shield size={16} /> Access SOC Dashboard
             </button>
           </motion.div>
         </motion.section>

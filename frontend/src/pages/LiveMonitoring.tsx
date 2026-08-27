@@ -1,8 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Card, CardContent } from '../components/Common/Card';
-import { Button } from '../components/Common/Button';
-import { Badge } from '../components/Common/Badge';
 import { useToast } from '../components/ui/Toast';
 import { getAlerts, testCctvConnection, getSettings, uploadImage } from '../services/api';
 import { listCameras } from '../services/cameraService';
@@ -418,43 +415,43 @@ const LiveMonitoring = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto text-[var(--text)] font-sans select-none">
+    <div className="space-y-6 max-w-7xl mx-auto text-[var(--color-fg)] font-sans select-none">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold tracking-tight uppercase">Live Monitoring Screen</h2>
-          <p className="text-xs text-[var(--text-2)] mt-1 font-semibold leading-relaxed">Real-time surveillance feeds matrix with autonomous visual threat validation layers.</p>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[var(--color-fg)]">Live Monitoring Matrix</h1>
+          <p className="text-xs sm:text-sm text-[var(--color-muted)] mt-1 font-medium leading-relaxed">Real-time surveillance feeds matrix with autonomous visual threat validation layers.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {viewMode === 'grid' && (
-            <div className="bg-[var(--surface-2)] border border-[var(--border)] p-1 rounded-xl flex gap-1 mr-2">
+            <div className="glass-light border border-[var(--color-border)] p-1.5 rounded-2xl flex gap-1.5 shadow-sm">
               {[1, 2, 4].map(sz => (
                 <button 
                   key={sz}
                   onClick={() => setGridSize(sz as any)}
-                  className={`px-3 py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${gridSize === sz ? 'bg-[var(--surface)] text-[var(--primary)] border border-[var(--border)] shadow-xs' : 'text-[var(--text-3)] hover:text-[var(--text)]'}`}
+                  className={`px-3 py-1 text-xs font-bold rounded-xl transition-all cursor-pointer ${gridSize === sz ? 'glass bg-[var(--color-accent)] text-white shadow-glow' : 'text-[var(--color-fg-secondary)] hover:text-[var(--color-fg)]'}`}
                 >
                   {sz === 1 ? '1x1' : sz === 2 ? '2x2' : '4x4'}
                 </button>
               ))}
             </div>
           )}
-          <div className="bg-[var(--surface-2)] border border-[var(--border)] p-1 rounded-xl flex gap-1">
+          <div className="glass-light border border-[var(--color-border)] p-1.5 rounded-2xl flex gap-1.5 shadow-sm">
             <button 
               onClick={() => setViewMode('grid')}
-              className={`px-3 py-1.5 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-[var(--surface)] text-[var(--primary)] border border-[var(--border)] shadow-xs' : 'text-[var(--text-3)] hover:text-[var(--text)]'}`}
+              className={`px-3 py-1 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer ${viewMode === 'grid' ? 'glass bg-[var(--color-accent)] text-white shadow-glow' : 'text-[var(--color-fg-secondary)] hover:text-[var(--color-fg)]'}`}
             >
-              <Grid size={13} /> Matrix Grid
+              <Grid size={14} /> Matrix Grid
             </button>
             <button 
               onClick={() => setViewMode('map')}
-              className={`px-3 py-1.5 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${viewMode === 'map' ? 'bg-[var(--surface)] text-[var(--primary)] border border-[var(--border)] shadow-xs' : 'text-[var(--text-3)] hover:text-[var(--text)]'}`}
+              className={`px-3 py-1 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer ${viewMode === 'map' ? 'glass bg-[var(--color-accent)] text-white shadow-glow' : 'text-[var(--color-fg-secondary)] hover:text-[var(--color-fg)]'}`}
             >
-              <MapIcon size={13} /> Facility Map
+              <MapIcon size={14} /> Facility Map
             </button>
           </div>
-          <Button variant="outline" size="sm" onClick={loadRecentAlerts} className="flex items-center gap-1.5 bg-[var(--surface)] border border-[var(--border)] text-xs">
-            <RefreshCw size={12} /> Sync Logs
-          </Button>
+          <button onClick={loadRecentAlerts} className="flex items-center gap-1.5 px-4 py-2 glass-light border border-[var(--color-border)] text-[var(--color-fg-secondary)] hover:text-[var(--color-accent)] hover:border-[var(--color-accent)]/40 text-xs font-bold rounded-2xl shadow-sm cursor-pointer">
+            <RefreshCw size={13} /> Sync Logs
+          </button>
         </div>
       </div>
 
@@ -463,95 +460,97 @@ const LiveMonitoring = () => {
         {/* Main Matrix Content */}
         <div className="lg:col-span-3 space-y-6">
           {viewMode === 'grid' ? (
-            <div className={`grid gap-5 ${gridSize === 1 ? 'grid-cols-1' : gridSize === 2 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-2 md:grid-cols-4'}`}>
+            <div className={`grid gap-6 ${gridSize === 1 ? 'grid-cols-1' : gridSize === 2 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-2 md:grid-cols-4'}`}>
               
               {/* 1. Webcam Stream */}
-              <Card className="overflow-hidden bg-[var(--surface)] border border-[var(--border)] shadow-xs">
-                <CardContent className="p-4 space-y-4 flex flex-col justify-between h-full">
+              <div className="glass rounded-2xl border border-[var(--color-border)] shadow-sm overflow-hidden p-5 flex flex-col justify-between h-full">
+                <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <h3 className="font-bold text-xs uppercase tracking-wider flex items-center gap-2">
-                      <Camera size={14} className="text-[var(--fire)]" /> Local Terminal Webcam
+                    <h3 className="font-extrabold text-xs text-[var(--color-fg)] uppercase tracking-wider flex items-center gap-2">
+                      <Camera size={16} className="text-red-500" /> Local Terminal Webcam
                     </h3>
-                    <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border ${webcamActive ? 'bg-[var(--safe-bg)] text-[var(--safe-text)] border-[var(--safe-border)]' : 'bg-[var(--fire-bg)] text-[var(--fire-text)] border-[var(--fire-border)]'}`}>{webcamActive ? 'Active' : 'Stopped'}</span>
+                    <span className={`px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${webcamActive ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' : 'bg-red-500/10 text-red-500 border-red-500/30'}`}>{webcamActive ? 'Active' : 'Stopped'}</span>
                   </div>
 
                   {webcamActive ? (
-                    <div ref={webcamContainerRef} className="relative rounded-xl overflow-hidden border border-[var(--border)] bg-black aspect-video flex justify-center group shadow-inner">
+                    <div ref={webcamContainerRef} className="relative rounded-2xl overflow-hidden border border-[var(--color-border)] bg-black aspect-video flex justify-center group shadow-inner">
                       <video ref={webcamVideoRef} className="hidden" width={640} height={480} autoPlay playsInline muted />
                       <canvas ref={webcamCanvasRef} width={640} height={480} className="w-full h-full object-contain" />
                       
                       {/* Active Threat HUD Overlay */}
                       {webcamThreat && (
-                        <div className="absolute top-0 left-0 right-0 p-3 bg-gradient-to-b from-[var(--fire)]/90 to-transparent">
-                          <p className="text-white text-[10px] font-black uppercase tracking-widest animate-pulse">⚠️ ALARM: Active {webcamThreat.toUpperCase()} anomaly verified</p>
+                        <div className="absolute top-0 left-0 right-0 p-3 bg-gradient-to-b from-red-500/90 to-transparent">
+                          <p className="text-white text-xs font-bold uppercase tracking-wider animate-pulse">⚠️ ALARM: Active {webcamThreat.toUpperCase()} anomaly verified</p>
                         </div>
                       )}
 
-                      <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-black/75 text-white text-[9px] font-mono px-2 py-1 rounded-md">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[var(--safe)] animate-pulse" />
+                      <div className="absolute top-2 left-2 flex items-center gap-2 glass text-white text-[10px] font-semibold px-2.5 py-1 rounded-lg">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                         HUD · {currentTime}
                       </div>
 
-                      <div className="absolute bottom-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <div className="absolute bottom-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                         <button 
                           onClick={() => toggleFullscreen(webcamContainerRef)} 
-                          className="p-2 bg-black/60 hover:bg-black/90 rounded-xl text-white border border-white/5 transition-all"
+                          className="p-2 glass rounded-xl text-white hover:scale-105 transition-transform cursor-pointer"
                         >
-                          {isFullscreenWebcam ? <Minimize size={13} /> : <Maximize size={13} />}
+                          {isFullscreenWebcam ? <Minimize size={14} /> : <Maximize size={14} />}
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <div className="aspect-video rounded-xl bg-slate-50/30 dark:bg-slate-900/30 border border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center p-6 transition-all duration-300">
-                      <div className="w-12 h-12 rounded-full bg-sky-50 dark:bg-sky-950/30 flex items-center justify-center text-sky-600 dark:text-sky-400 mb-3 shadow-xs">
-                        <Camera size={20} />
+                    <div className="aspect-video rounded-2xl glass-light border border-dashed border-[var(--color-border)] flex flex-col items-center justify-center text-center p-6 transition-all duration-300">
+                      <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-[var(--color-accent)] flex items-center justify-center mb-3 shadow-xs">
+                        <Camera size={22} />
                       </div>
-                      <h4 className="text-xs font-bold text-[var(--text)] uppercase tracking-wider">Webcam stream disarmed</h4>
-                      <p className="text-[10.5px] text-[var(--text-2)] max-w-xs mt-1 mb-4 leading-relaxed">Arm the local video scanning sensor to initiate real-time visual anomaly processing.</p>
-                      <Button variant="primary" size="sm" onClick={startWebcam}>Arm local scanner</Button>
+                      <h4 className="text-xs font-bold text-[var(--color-fg)] uppercase tracking-wider">Webcam stream disarmed</h4>
+                      <p className="text-xs text-[var(--color-muted)] max-w-xs mt-1 mb-4 font-medium leading-relaxed">Arm the local video scanning sensor to initiate real-time visual anomaly processing.</p>
+                      <button onClick={startWebcam} className="px-5 py-2.5 bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-accent-2)] text-white text-xs font-bold rounded-xl hover:scale-105 transition-all shadow-glow cursor-pointer">
+                        Arm local scanner
+                      </button>
                     </div>
                   )}
+                </div>
 
-                  {webcamActive && (
-                    <div className="flex justify-between items-center text-xs">
-                      <div className="flex gap-2">
-                        <Button variant="destructive" size="sm" onClick={stopWebcam} className="text-xs">Disarm scanner</Button>
-                        <button 
-                          onClick={() => {
-                            setSimulationMode(!simulationMode);
-                            setDetections([]);
-                            setWebcamThreat(null);
-                            stopSiren();
-                          }} 
-                          className={`px-3 py-1.5 border text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
-                            simulationMode 
-                              ? 'bg-[var(--smoke-bg)] text-[var(--smoke-text)] border-[var(--smoke-border)] hover:bg-[var(--smoke-text)] hover:text-white' 
-                              : 'bg-[var(--primary-light)] text-[var(--primary)] border-[var(--primary-ring)] hover:bg-[var(--primary)] hover:text-white'
-                          }`}
-                        >
-                          {simulationMode ? 'Simulation: Active' : 'AI Inference: Live'}
-                        </button>
-                      </div>
-                      <div className="flex gap-4 font-bold text-[var(--text-3)] text-[10px] uppercase tracking-wider">
-                        <span>Ingest FPS: <span className="text-[var(--text)] font-mono">{webcamFps}</span></span>
-                        <button onClick={() => setWebcamMuted(!webcamMuted)} className="text-[var(--fire)] hover:text-[var(--fire-text)] cursor-pointer">
-                          {webcamMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
-                        </button>
-                      </div>
+                {webcamActive && (
+                  <div className="flex justify-between items-center text-xs mt-4 pt-3 border-t border-[var(--color-border)]">
+                    <div className="flex gap-2">
+                      <button onClick={stopWebcam} className="px-3 py-1.5 bg-red-500/10 text-red-500 border border-red-500/30 text-xs font-bold rounded-xl hover:bg-red-500 hover:text-white transition-all cursor-pointer">Disarm scanner</button>
+                      <button 
+                        onClick={() => {
+                          setSimulationMode(!simulationMode);
+                          setDetections([]);
+                          setWebcamThreat(null);
+                          stopSiren();
+                        }} 
+                        className={`px-3 py-1.5 border text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                          simulationMode 
+                            ? 'bg-amber-500/10 text-amber-500 border-amber-500/30' 
+                            : 'bg-indigo-500/10 text-[var(--color-accent)] border-indigo-500/30'
+                        }`}
+                      >
+                        {simulationMode ? 'Simulation: Active' : 'AI Inference: Live'}
+                      </button>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+                    <div className="flex gap-4 font-bold text-[var(--color-muted)] text-[11px]">
+                      <span>Ingest FPS: <span className="text-[var(--color-fg)] font-extrabold">{webcamFps}</span></span>
+                      <button onClick={() => setWebcamMuted(!webcamMuted)} className="text-red-500 hover:text-red-600 cursor-pointer">
+                        {webcamMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* 2. RTSP Camera Feed */}
-              <Card className="overflow-hidden bg-[var(--surface)] border border-[var(--border)] shadow-xs">
-                <CardContent className="p-4 space-y-4 flex flex-col justify-between h-full">
+              <div className="glass rounded-2xl border border-[var(--color-border)] shadow-sm overflow-hidden p-5 flex flex-col justify-between h-full">
+                <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <h3 className="font-bold text-xs uppercase tracking-wider flex items-center gap-2">
-                      <MonitorPlay size={14} className="text-[var(--fire)]" /> Ingress CCTV RTSP Feed
+                    <h3 className="font-extrabold text-xs text-[var(--color-fg)] uppercase tracking-wider flex items-center gap-2">
+                      <MonitorPlay size={16} className="text-indigo-500" /> Ingress CCTV RTSP Feed
                     </h3>
                     <select 
-                      className="bg-[var(--surface-2)] border border-[var(--border)] rounded-lg px-2.5 py-1.5 text-[10px] text-[var(--text)] font-bold outline-none cursor-pointer"
+                      className="glass-light border border-[var(--color-border)] rounded-xl px-3 py-1.5 text-xs text-[var(--color-fg)] font-bold outline-none cursor-pointer bg-[var(--color-surface)]"
                       value={selectedRtspCam?.id || ''}
                       onChange={(e) => {
                         const match = cameras.find(c => c.id === e.target.value);
@@ -562,55 +561,57 @@ const LiveMonitoring = () => {
                       }}
                     >
                       {cameras.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
+                        <option key={c.id} value={c.id} className="bg-[var(--color-surface)] text-[var(--color-fg)] font-semibold">{c.name}</option>
                       ))}
                     </select>
                   </div>
 
                   {rtspConnected ? (
-                    <div ref={rtspContainerRef} className="relative rounded-xl overflow-hidden border border-[var(--border)] bg-black aspect-video flex items-center justify-center group shadow-inner">
+                    <div ref={rtspContainerRef} className="relative rounded-2xl overflow-hidden border border-[var(--color-border)] bg-black aspect-video flex items-center justify-center group shadow-inner">
                       <img src="/evidence/test_red.jpg" alt="RTSP Feed" className="w-full h-full object-cover opacity-60" />
                       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none"></div>
                       
                       {/* Notification Bar Overlay */}
-                      <div className={`absolute top-0 left-0 right-0 p-3.5 flex justify-between items-start transition-opacity duration-300 ${recentAlerts.some(a => a.camera_id === selectedRtspCam?.id && a.status === 'active') ? 'bg-gradient-to-b from-[#eb5757]/80 to-transparent opacity-100' : 'bg-gradient-to-b from-black/80 to-transparent opacity-0 group-hover:opacity-100'}`}>
+                      <div className={`absolute top-0 left-0 right-0 p-3.5 flex justify-between items-start transition-opacity duration-300 ${recentAlerts.some(a => a.camera_id === selectedRtspCam?.id && a.status === 'active') ? 'bg-gradient-to-b from-red-500/90 to-transparent opacity-100' : 'bg-gradient-to-b from-black/80 to-transparent opacity-0 group-hover:opacity-100'}`}>
                         <div className="flex flex-col">
-                          <span className={`font-bold text-[10px] uppercase tracking-wider flex items-center gap-2 ${recentAlerts.some(a => a.camera_id === selectedRtspCam?.id && a.status === 'active') ? 'text-red-400 font-black animate-pulse' : 'text-white'}`}>
+                          <span className={`font-extrabold text-[11px] uppercase tracking-wider flex items-center gap-2 ${recentAlerts.some(a => a.camera_id === selectedRtspCam?.id && a.status === 'active') ? 'text-white animate-pulse' : 'text-white'}`}>
                             <span className={`w-2 h-2 rounded-full ${recentAlerts.some(a => a.camera_id === selectedRtspCam?.id && a.status === 'active') ? 'bg-red-500' : 'bg-emerald-500'}`}></span>
                             {recentAlerts.some(a => a.camera_id === selectedRtspCam?.id && a.status === 'active') ? 'WARNING: THREAT DETECTED!' : `LIVE: ${selectedRtspCam?.name}`}
                           </span>
-                          <span className="text-[9px] text-zinc-400 font-mono mt-1 font-bold">{currentTime}</span>
+                          <span className="text-[10px] text-white/80 font-bold mt-0.5">{currentTime}</span>
                         </div>
                         <button 
                           onClick={() => toggleFullscreen(rtspContainerRef)} 
-                          className="p-2 bg-black/60 hover:bg-black/90 rounded-xl text-white border border-white/5 transition-all"
+                          className="p-2 glass rounded-xl text-white hover:scale-105 transition-transform cursor-pointer"
                         >
-                          {isFullscreenRtsp ? <Minimize size={13} /> : <Maximize size={13} />}
+                          {isFullscreenRtsp ? <Minimize size={14} /> : <Maximize size={14} />}
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <div className="aspect-video rounded-xl bg-slate-50/30 dark:bg-slate-900/30 border border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center text-center p-6 transition-all duration-300">
-                      <div className="w-12 h-12 rounded-full bg-sky-50 dark:bg-sky-950/30 flex items-center justify-center text-sky-600 dark:text-sky-400 mb-3 shadow-xs">
-                        <MonitorPlay size={20} />
+                    <div className="aspect-video rounded-2xl glass-light border border-dashed border-[var(--color-border)] flex flex-col items-center justify-center text-center p-6 transition-all duration-300">
+                      <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-[var(--color-accent)] flex items-center justify-center mb-3 shadow-xs">
+                        <MonitorPlay size={22} />
                       </div>
-                      <h4 className="text-xs font-bold text-[var(--text)] uppercase tracking-wider">RTSP stream disconnected</h4>
-                      <p className="text-[10.5px] text-[var(--text-2)] max-w-xs mt-1 mb-4 leading-relaxed">Establish connection to the remote network stream decoders to analyze incoming surveillance frames.</p>
-                      <Button variant="primary" size="sm" onClick={connectRtsp} isLoading={rtspLoading}>Connect Ingest</Button>
+                      <h4 className="text-xs font-bold text-[var(--color-fg)] uppercase tracking-wider">RTSP stream disconnected</h4>
+                      <p className="text-xs text-[var(--color-muted)] max-w-xs mt-1 mb-4 font-medium leading-relaxed">Establish connection to the remote network stream decoders to analyze incoming surveillance frames.</p>
+                      <button onClick={connectRtsp} disabled={rtspLoading} className="px-5 py-2.5 bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-accent-2)] text-white text-xs font-bold rounded-xl hover:scale-105 transition-all shadow-glow cursor-pointer disabled:opacity-50">
+                        {rtspLoading ? 'Connecting...' : 'Connect Ingest'}
+                      </button>
                     </div>
                   )}
+                </div>
 
-                  {rtspConnected && (
-                    <div className="flex justify-between items-center text-xs">
-                      <Button variant="destructive" size="sm" onClick={disconnectRtsp} className="text-xs">Disconnect Ingest</Button>
-                      <div className="flex gap-4 font-bold text-[var(--text-3)] text-[10px] uppercase tracking-wider">
-                        <span>Decoder FPS: <span className="text-[var(--text)] font-mono">{rtspFps}</span></span>
-                        <span>Telemetry Latency: <span className="text-[var(--text)] font-mono">{rtspLatency} ms</span></span>
-                      </div>
+                {rtspConnected && (
+                  <div className="flex justify-between items-center text-xs mt-4 pt-3 border-t border-[var(--color-border)]">
+                    <button onClick={disconnectRtsp} className="px-3 py-1.5 bg-red-500/10 text-red-500 border border-red-500/30 text-xs font-bold rounded-xl hover:bg-red-500 hover:text-white transition-all cursor-pointer">Disconnect Ingest</button>
+                    <div className="flex gap-4 font-bold text-[var(--color-muted)] text-[11px]">
+                      <span>Decoder FPS: <span className="text-[var(--color-fg)] font-extrabold">{rtspFps}</span></span>
+                      <span>Telemetry Latency: <span className="text-[var(--color-fg)] font-extrabold">{rtspLatency} ms</span></span>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <FacilityMap 
@@ -637,78 +638,72 @@ const LiveMonitoring = () => {
           )}
 
           {/* Current Detections Banner */}
-          <Card className="bg-[var(--surface)] border border-[var(--border)] shadow-xs">
-            <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <Activity className="text-[var(--fire)] animate-pulse w-5 h-5" />
-                <div>
-                  <h4 className="font-bold text-xs text-[var(--text)] uppercase tracking-wider">Live Detection Ingestion Pipeline</h4>
-                  <p className="text-[10px] text-[var(--text-2)] mt-0.5 font-semibold">Global YOLOv8 core engine is scanning surveillance memory buffers in real-time.</p>
-                </div>
+          <div className="glass rounded-2xl border border-[var(--color-border)] shadow-sm p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Activity className="text-red-500 animate-pulse w-5 h-5 shrink-0" />
+              <div>
+                <h4 className="font-extrabold text-xs text-[var(--color-fg)] uppercase tracking-wider">Live Detection Ingestion Pipeline</h4>
+                <p className="text-xs text-[var(--color-muted)] mt-0.5 font-medium">Global YOLOv8 core engine is scanning surveillance memory buffers in real-time.</p>
               </div>
-              <div className="flex gap-4 text-xs font-bold text-[var(--text-2)] uppercase tracking-wider">
-                <span>Active Threat: <span className={webcamThreat ? 'text-[var(--fire)] font-bold animate-pulse' : 'text-[var(--safe)] font-bold'}>{webcamThreat ? webcamThreat.toUpperCase() : 'NONE'}</span></span>
-                <span>Confidence: <span className="text-[var(--text)] font-mono">{webcamThreat ? (webcamThreat === 'fire' ? '95%' : '87%') : 'N/A'}</span></span>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div className="flex gap-4 text-xs font-bold text-[var(--color-muted)] uppercase tracking-wider shrink-0">
+              <span>Active Threat: <span className={webcamThreat ? 'text-red-500 font-extrabold animate-pulse' : 'text-emerald-500 font-extrabold'}>{webcamThreat ? webcamThreat.toUpperCase() : 'NONE'}</span></span>
+              <span>Confidence: <span className="text-[var(--color-fg)] font-extrabold">{webcamThreat ? (webcamThreat === 'fire' ? '95%' : '87%') : 'N/A'}</span></span>
+            </div>
+          </div>
         </div>
 
         {/* Sidebar: Recent Alerts & System Status */}
         <div className="space-y-6">
-          <Card className="bg-[var(--surface)] border border-[var(--border)] shadow-xs">
-            <CardContent className="p-5 space-y-4">
-              <h3 className="font-bold text-xs text-[var(--text-2)] uppercase tracking-widest">Surveillance Node Telemetry</h3>
-              <div className="space-y-2.5 text-xs font-semibold text-[var(--text-2)]">
-                <div className="flex justify-between border-b border-[var(--border)] pb-2">
-                  <span>AI Inference:</span>
-                  <span className="text-[var(--safe)] font-bold">Active</span>
-                </div>
-                <div className="flex justify-between border-b border-[var(--border)] pb-2">
-                  <span>DB Connection:</span>
-                  <span className="text-[var(--safe)] font-mono text-[10px]">SQLite OK</span>
-                </div>
-                <div className="flex justify-between border-b border-[var(--border)] pb-2">
-                  <span>Webcam Scanner:</span>
-                  <span className={webcamActive ? 'text-[var(--safe)]' : 'text-[var(--text-3)]'}>{webcamActive ? 'ONLINE' : 'OFFLINE'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>RTSP Ingress:</span>
-                  <span className={rtspConnected ? 'text-[var(--safe)]' : 'text-[var(--text-3)]'}>{rtspConnected ? 'ONLINE' : 'OFFLINE'}</span>
-                </div>
+          <div className="glass rounded-2xl border border-[var(--color-border)] shadow-sm p-5 space-y-4">
+            <h3 className="font-extrabold text-xs text-[var(--color-fg)] uppercase tracking-wider">Surveillance Node Telemetry</h3>
+            <div className="space-y-3 text-xs font-semibold text-[var(--color-fg-secondary)]">
+              <div className="flex justify-between border-b border-[var(--color-border)] pb-2.5">
+                <span>AI Inference:</span>
+                <span className="text-emerald-500 font-bold">Active</span>
               </div>
-            </CardContent>
-          </Card>
+              <div className="flex justify-between border-b border-[var(--color-border)] pb-2.5">
+                <span>DB Connection:</span>
+                <span className="text-emerald-500 font-bold">SQLite OK</span>
+              </div>
+              <div className="flex justify-between border-b border-[var(--color-border)] pb-2.5">
+                <span>Webcam Scanner:</span>
+                <span className={webcamActive ? 'text-emerald-500 font-bold' : 'text-[var(--color-muted)] font-medium'}>{webcamActive ? 'ONLINE' : 'OFFLINE'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>RTSP Ingress:</span>
+                <span className={rtspConnected ? 'text-emerald-500 font-bold' : 'text-[var(--color-muted)] font-medium'}>{rtspConnected ? 'ONLINE' : 'OFFLINE'}</span>
+              </div>
+            </div>
+          </div>
 
-          <Card className="bg-[var(--surface)] border border-[var(--border)] shadow-xs">
-            <CardContent className="p-5 space-y-3.5">
-              <h3 className="font-bold text-xs text-[var(--text-2)] uppercase tracking-widest">Recent SOC Warnings</h3>
-              
-              {isLoadingAlerts ? (
-                <div className="py-10 text-center text-xs text-[var(--text-3)] font-semibold">Syncing alerts...</div>
-              ) : recentAlerts.length === 0 ? (
-                <div className="py-10 text-center text-xs text-[var(--text-3)] flex flex-col items-center justify-center gap-2">
-                  <ShieldCheck className="text-[var(--safe)] animate-radar" size={28} />
-                  <span className="font-semibold text-zinc-450 uppercase tracking-wider text-[10px]">No Active Warnings</span>
-                </div>
-              ) : (
-                <div className="space-y-2.5 max-h-[300px] overflow-y-auto custom-scrollbar">
-                  {recentAlerts.map((alert) => (
-                    <div key={alert.id} className="p-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)]/20 hover:border-[var(--fire)]/20 transition-all flex items-center justify-between gap-3 cursor-pointer">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <Badge type={alert.detection_type}>{alert.detection_type}</Badge>
-                          <span className="text-[9px] font-mono font-bold text-[var(--text-3)]">{(alert.confidence * 100).toFixed(0)}%</span>
-                        </div>
-                        <span className="text-[9px] font-mono text-[var(--text-3)] block mt-1.5">{new Date(alert.timestamp).toLocaleTimeString()}</span>
+          <div className="glass rounded-2xl border border-[var(--color-border)] shadow-sm p-5 space-y-4">
+            <h3 className="font-extrabold text-xs text-[var(--color-fg)] uppercase tracking-wider">Recent SOC Warnings</h3>
+            
+            {isLoadingAlerts ? (
+              <div className="py-10 text-center text-xs text-[var(--color-muted)] font-semibold">Syncing alerts...</div>
+            ) : recentAlerts.length === 0 ? (
+              <div className="py-10 text-center text-xs text-[var(--color-muted)] flex flex-col items-center justify-center gap-2">
+                <ShieldCheck className="text-emerald-500 animate-pulse" size={28} />
+                <span className="font-bold uppercase tracking-wider text-xs">No Active Warnings</span>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar">
+                {recentAlerts.map((alert) => (
+                  <div key={alert.id} className="p-3 rounded-xl border border-[var(--color-border)] glass-light hover:border-[var(--color-accent)]/30 transition-all flex items-center justify-between gap-3 cursor-pointer">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${alert.detection_type === 'fire' ? 'bg-red-500/10 text-red-500 border-red-500/30' : 'bg-amber-500/10 text-amber-500 border-amber-500/30'}`}>{alert.detection_type}</span>
+                        <span className="text-[10px] font-bold text-[var(--color-fg-secondary)]">{(alert.confidence * 100).toFixed(0)}%</span>
                       </div>
-                      <span className={`text-[9px] font-black uppercase ${alert.status === 'active' ? 'text-[var(--fire)] animate-pulse' : 'text-[var(--safe)]'}`}>{alert.status}</span>
+                      <span className="text-[10px] font-medium text-[var(--color-muted)] block mt-1.5">{new Date(alert.timestamp).toLocaleTimeString()}</span>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    <span className={`text-[10px] font-extrabold uppercase ${alert.status === 'active' ? 'text-red-500 animate-pulse' : 'text-emerald-500'}`}>{alert.status}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
       </div>

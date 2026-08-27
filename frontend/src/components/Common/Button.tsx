@@ -7,7 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'ghost' | 'danger' | 'outline' | 'destructive';
+  variant?: 'primary' | 'ghost' | 'danger' | 'outline' | 'destructive' | 'secondary';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
 }
@@ -20,19 +20,20 @@ export const Button: React.FC<ButtonProps> = ({
   className, 
   ...props 
 }) => {
-  const baseClasses = "inline-flex items-center justify-center font-medium rounded-xl transition-all duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed";
+  const baseClasses = "inline-flex items-center justify-center font-semibold rounded-xl transition-all duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer select-none";
   
   const variants = {
-    primary: "bg-sky-600 text-white hover:bg-sky-700 shadow-sm hover:shadow-md hover:shadow-sky-500/15 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
-    ghost: "bg-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-sky-50 dark:hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
-    danger: "bg-red-500/10 text-red-600 hover:bg-red-600 hover:text-white hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
-    destructive: "bg-red-600 text-white hover:bg-red-700 shadow-sm hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
-    outline: "border border-gray-300 dark:border-gray-700 bg-transparent text-gray-700 dark:text-gray-300 hover:bg-sky-50/50 dark:hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]"
+    primary: "bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-accent-2)] text-white shadow-glow hover:shadow-glow-lg hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
+    secondary: "glass-light border border-[var(--color-border)] text-[var(--color-fg)] hover:border-[var(--color-accent)]/50 hover:text-[var(--color-accent)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
+    ghost: "bg-transparent text-[var(--color-fg-secondary)] hover:text-[var(--color-fg)] hover:bg-[var(--glass-light-bg)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
+    danger: "bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
+    destructive: "bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-md hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
+    outline: "border border-[var(--color-accent)] text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]"
   };
 
   const sizes = {
     sm: "px-3 py-1.5 text-xs",
-    md: "px-4 py-2 text-sm",
+    md: "px-4.5 py-2 text-sm",
     lg: "px-6 py-3 text-base"
   };
 
@@ -52,3 +53,4 @@ export const Button: React.FC<ButtonProps> = ({
     </button>
   );
 };
+

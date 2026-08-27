@@ -8,6 +8,7 @@ import Login from './pages/Login';
 import Landing from './pages/Landing';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
+import AuroraBackground from './components/ui/AuroraBackground';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Detection = lazy(() => import('./pages/Detection'));
@@ -49,6 +50,7 @@ const RedirectIfAuth = ({ children }: { children: React.ReactNode }) => {
 function App() {
   return (
     <Router>
+      <AuroraBackground />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<RedirectIfAuth><Landing /></RedirectIfAuth>} />

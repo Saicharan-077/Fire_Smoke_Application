@@ -21,20 +21,20 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose} />
-      <div className={cn("relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-2xl animate-slide-up overflow-hidden border border-gray-200 dark:border-gray-800", className)}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{title}</h2>
-          <button onClick={onClose} className="p-2 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
-            <X size={20} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 select-none">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-md animate-fade-in" onClick={onClose} />
+      <div className={cn("relative w-full max-w-lg glass-heavy border border-[var(--color-border)] rounded-2xl shadow-premium animate-slide-up overflow-hidden text-[var(--color-fg)] font-sans", className)}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)] bg-[var(--glass-light-bg)]">
+          <h2 className="text-xl font-bold text-[var(--color-fg)]">{title}</h2>
+          <button onClick={onClose} className="p-2 rounded-xl text-[var(--color-muted)] hover:text-[var(--color-fg)] hover:bg-[var(--glass-light-bg)] transition-colors cursor-pointer">
+            <X size={18} />
           </button>
         </div>
         <div className="p-6">
           {children}
         </div>
         {footer && (
-          <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-slate-900/50 flex justify-end gap-3">
+          <div className="px-6 py-4 border-t border-[var(--color-border)] bg-[var(--glass-light-bg)] flex justify-end gap-3">
             {footer}
           </div>
         )}
@@ -42,3 +42,5 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
     </div>
   );
 };
+
+export default Modal;

@@ -49,15 +49,15 @@ const ChartTooltip = ({ active, payload, label }: any) => {
 
 // StatCard Component for Premium KPIs
 const StatCard = ({ label, value, icon: Icon, color, sub, ok }: any) => (
-  <motion.div variants={fadeUp} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 flex items-start gap-4 shadow-sm hover:border-[var(--border-strong)] transition-colors text-[var(--text)]">
-    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
-      <Icon size={16} />
+  <motion.div variants={fadeUp} className="glass rounded-2xl p-5 flex items-start gap-4 card-hover border border-[var(--color-border)] text-[var(--color-fg)]">
+    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-sm ${color}`}>
+      <Icon size={18} />
     </div>
     <div className="flex-1 min-w-0">
-      <p className="text-[10px] font-bold text-[var(--text-3)] uppercase tracking-wider">{label}</p>
-      <p className="text-[24px] font-bold text-[var(--text)] leading-none mt-1.5 tracking-tight font-mono">{value}</p>
+      <p className="text-[10px] font-extrabold text-[var(--color-muted)] uppercase tracking-wider">{label}</p>
+      <p className="text-[22px] font-black text-[var(--color-fg)] leading-none mt-2 tracking-tight">{value}</p>
       {sub && (
-        <p className={`text-[10px] mt-1.5 font-medium flex items-center gap-1 ${ok === false ? 'text-[var(--fire-text)]' : 'text-[var(--text-2)]'}`}>
+        <p className={`text-[11px] mt-2 font-semibold flex items-center gap-1.5 ${ok === false ? 'text-red-500 font-bold' : 'text-[var(--color-fg-secondary)]'}`}>
           {sub}
         </p>
       )}
@@ -690,32 +690,32 @@ const Dashboard = () => {
       {/* Header section */}
       <motion.div variants={fadeUp} className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-[22px] font-bold text-[var(--text)] tracking-tight flex items-center gap-2">
-            Security Operations Center <span className="text-[11px] bg-red-500/10 text-red-400 px-2 py-0.5 rounded border border-red-500/20 font-bold uppercase tracking-wider animate-pulse">LTM-Live</span>
+          <h1 className="text-2xl sm:text-3xl font-black text-[var(--color-fg)] tracking-tight flex items-center gap-3">
+            Security Operations Center <span className="text-xs bg-red-500/10 text-red-500 px-3 py-1 rounded-full border border-red-500/30 font-bold uppercase tracking-wider animate-pulse shadow-sm">LTM-LIVE</span>
           </h1>
-          <p className="text-[12px] text-[var(--text-2)] mt-0.5">Commercial multi-channel AI surveillance matrix & incident response platform</p>
+          <p className="text-xs sm:text-sm text-[var(--color-muted)] mt-1 font-medium">Commercial multi-channel AI surveillance matrix & incident response platform</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center bg-[var(--surface)] border border-[var(--border)] rounded-lg p-1 gap-1">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center glass-light border border-[var(--color-border)] rounded-2xl p-1.5 gap-1.5 shadow-sm">
             <button
               onClick={() => setViewMode('grid')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${viewMode === 'grid' ? 'bg-[var(--surface-hover)] text-[var(--text)] border border-[var(--border-strong)] shadow-xs' : 'text-[var(--text-2)] hover:text-[var(--text)]'}`}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${viewMode === 'grid' ? 'glass bg-[var(--color-accent)] text-white shadow-glow' : 'text-[var(--color-fg-secondary)] hover:text-[var(--color-fg)]'}`}
             >
-              <Grid2x2 size={12} className="mr-1" /> Channels Grid
+              <Grid2x2 size={14} /> Channels Grid
             </button>
             <button
               onClick={() => setViewMode('map')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${viewMode === 'map' ? 'bg-[var(--surface-hover)] text-[var(--text)] border border-[var(--border-strong)] shadow-xs' : 'text-[var(--text-2)] hover:text-[var(--text)]'}`}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${viewMode === 'map' ? 'glass bg-[var(--color-accent)] text-white shadow-glow' : 'text-[var(--color-fg-secondary)] hover:text-[var(--color-fg)]'}`}
             >
-              <Map size={12} className="mr-1" /> Facility Map
+              <Map size={14} /> Facility Map
             </button>
           </div>
           
           <button
             onClick={load}
-            className="flex items-center gap-1 px-3 py-2 bg-[var(--surface)] border border-[var(--border)] rounded-lg text-[11px] font-bold text-[var(--text-2)] hover:text-[var(--text)] hover:border-[var(--border-strong)] transition-all"
+            className="flex items-center gap-1.5 px-4 py-2 glass-light border border-[var(--color-border)] rounded-2xl text-xs font-bold text-[var(--color-fg-secondary)] hover:text-[var(--color-accent)] hover:border-[var(--color-accent)]/40 transition-all shadow-sm cursor-pointer"
           >
-            <RefreshCw size={12} className="mr-1" /> Refresh
+            <RefreshCw size={14} /> Refresh
           </button>
         </div>
       </motion.div>
@@ -751,25 +751,25 @@ const Dashboard = () => {
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.95 }}
-                      className={`bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden shadow-md flex flex-col justify-between transition-all duration-300 ${
-                        isRed ? 'md:col-span-2 border-red-500 shadow-red-500/5 ring-1 ring-red-500/30' : 
-                        isYellow ? 'border-amber-500/60 ring-1 ring-amber-500/20' : 
-                        'border-[#232326] hover:border-[#2d2d30]'
+                      className={`glass rounded-2xl overflow-hidden shadow-sm flex flex-col justify-between transition-all duration-300 ${
+                        isRed ? 'md:col-span-2 border-red-500/80 shadow-[0_0_30px_rgba(239,68,68,0.2)] ring-1 ring-red-500/40' : 
+                        isYellow ? 'border-amber-500/70 ring-1 ring-amber-500/30' : 
+                        'border-[var(--color-border)] hover:border-[var(--color-accent)]/30'
                       }`}
                     >
                       {/* Header info */}
-                      <div className={`flex items-center justify-between px-4 py-2.5 border-b border-[#232326] ${isRed ? 'bg-red-500/5' : isYellow ? 'bg-amber-500/5' : 'bg-[#18181b]'}`}>
+                      <div className={`flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)] ${isRed ? 'bg-red-500/10' : isYellow ? 'bg-amber-500/10' : 'bg-[var(--glass-light-bg)]'}`}>
                         <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${
-                            camera.status === 'online' ? (camera.threat ? 'bg-red-500 animate-pulse' : 'bg-green-500') : 'bg-zinc-600'
+                          <span className={`w-2.5 h-2.5 rounded-full ${
+                            camera.status === 'online' ? (camera.threat ? 'bg-red-500 animate-ping' : 'bg-emerald-500') : 'bg-gray-400'
                           }`} />
-                          <span className="text-[12px] font-bold text-[var(--text)]">{camera.name}</span>
+                          <span className="text-[13px] font-bold text-[var(--color-fg)]">{camera.name}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${
-                            isRed ? 'bg-red-500/10 text-red-400 border-red-500/20 animate-pulse' : 
-                            isYellow ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 
-                            'bg-[var(--surface-2)] text-[var(--text-2)] border border-[var(--border)]'
+                          <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                            isRed ? 'bg-red-500/10 text-red-500 border-red-500/30 animate-pulse' : 
+                            isYellow ? 'bg-amber-500/10 text-amber-500 border-amber-500/30' : 
+                            'bg-[var(--glass-light-bg)] text-[var(--color-fg-secondary)] border border-[var(--color-border)]'
                           }`}>
                             {camera.status === 'online' ? (camera.threat ? `${camera.threat.toUpperCase()} ALERT` : 'SECURE') : 'OFFLINE'}
                           </span>
@@ -780,35 +780,35 @@ const Dashboard = () => {
                       <div className={`p-4 flex-1 flex ${isEnlarged ? 'flex-col lg:flex-row gap-6' : 'flex-col'} justify-center min-h-[240px]`}>
                         
                         {/* Stream Frame Block */}
-                        <div className={`relative rounded-lg overflow-hidden bg-black aspect-video flex-1 border border-[var(--border)] group ${isRed ? 'border-red-500/20' : ''}`}>
+                        <div className={`relative rounded-xl overflow-hidden bg-black aspect-video flex-1 border border-[var(--color-border)] group ${isRed ? 'border-red-500/40' : ''}`}>
                           {camera.id === 'CAM-01' ? (
                             camActive ? (
                               <div ref={webcamRef} id="webcam-fullscreen" className="w-full h-full">
                                 <canvas ref={canvasRef} width={640} height={480} className="w-full h-full object-cover" />
                                 {camThreat && (
-                                  <div className="absolute top-0 inset-x-0 bg-gradient-to-b from-red-500/80 to-transparent px-3 py-2">
-                                    <p className="text-white text-[10px] font-bold uppercase tracking-wider animate-pulse">⚠ ACTIVE THREAT: {camThreat} detected</p>
+                                  <div className="absolute top-0 inset-x-0 bg-gradient-to-b from-red-500/90 to-transparent px-4 py-2.5">
+                                    <p className="text-white text-[11px] font-bold uppercase tracking-wider animate-pulse">⚠ ACTIVE THREAT: {camThreat} detected</p>
                                   </div>
                                 )}
                                 <div className="absolute bottom-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <button onClick={() => setMuted(!muted)} className="p-1.5 bg-black/60 rounded-lg text-white">
-                                    {muted ? <VolumeX size={12} /> : <Volume2 size={12} />}
+                                  <button onClick={() => setMuted(!muted)} className="p-1.5 glass rounded-lg text-white hover:scale-105 transition-transform cursor-pointer">
+                                    {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
                                   </button>
-                                  <button onClick={() => toggleFullscreen(webcamRef.current)} className="p-1.5 bg-black/60 rounded-lg text-white">
-                                    {fullscreenEl === 'webcam-fullscreen' ? <Minimize size={12} /> : <Maximize size={12} />}
+                                  <button onClick={() => toggleFullscreen(webcamRef.current)} className="p-1.5 glass rounded-lg text-white hover:scale-105 transition-transform cursor-pointer">
+                                    {fullscreenEl === 'webcam-fullscreen' ? <Minimize size={14} /> : <Maximize size={14} />}
                                   </button>
                                 </div>
-                                <div className="absolute top-2 right-2 bg-black/60 text-white text-[9px] font-mono px-2 py-1 rounded-md">
+                                <div className="absolute top-2 right-2 glass text-white text-[10px] font-semibold px-2.5 py-1 rounded-lg">
                                   {camFps} FPS · {currentTime}
                                 </div>
                               </div>
                             ) : (
-                              <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-[var(--surface-2)] p-6">
-                                <Video size={24} className="text-zinc-600 animate-pulse" />
-                                <p className="text-[12px] text-[var(--text-2)] font-semibold">Webcam Feed Paused</p>
+                              <div className="w-full h-full flex flex-col items-center justify-center gap-3 bg-[var(--color-surface-2)] p-6">
+                                <Video size={28} className="text-[var(--color-muted)] animate-pulse" />
+                                <p className="text-[13px] text-[var(--color-fg-secondary)] font-bold">Webcam Feed Paused</p>
                                 <button
                                   onClick={startWebcam}
-                                  className="px-4 py-2 bg-sky-600 text-white text-[11px] font-bold rounded-xl hover:bg-sky-700 transition-all duration-200 shadow-xs cursor-pointer active:scale-[0.98]"
+                                  className="px-4 py-2 bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-accent-2)] text-white text-xs font-bold rounded-xl hover:scale-105 transition-all shadow-glow cursor-pointer active:scale-[0.98]"
                                 >
                                   Activate Webcam
                                 </button>
@@ -858,44 +858,44 @@ const Dashboard = () => {
 
                         {/* Enlarged Details Sidebar (Shows only if RED threat is active on this card) */}
                         {isEnlarged && (
-                          <div className="w-full lg:w-72 shrink-0 flex flex-col justify-between border-t lg:border-t-0 lg:border-l border-[var(--border)] pt-4 lg:pt-0 lg:pl-6">
+                          <div className="w-full lg:w-72 shrink-0 flex flex-col justify-between border-t lg:border-t-0 lg:border-l border-[var(--color-border)] pt-4 lg:pt-0 lg:pl-6">
                             <div className="space-y-4">
                               <div>
-                                <h5 className="text-[10px] font-bold text-red-400 uppercase tracking-widest flex items-center gap-1.5">
-                                  <AlertCircle size={12} className="animate-pulse" /> Verified Alert Incident
+                                <h5 className="text-[10px] font-bold text-red-500 uppercase tracking-widest flex items-center gap-1.5">
+                                  <AlertCircle size={14} className="animate-pulse" /> Verified Alert Incident
                                 </h5>
-                                <p className="text-[18px] font-bold text-[var(--text)] mt-1 capitalize">{camera.threat} Warning</p>
-                                <p className="text-[11px] text-[var(--text-2)] mt-1">
+                                <p className="text-[18px] font-black text-[var(--color-fg)] mt-1 capitalize">{camera.threat} Warning</p>
+                                <p className="text-[11px] text-[var(--color-muted)] mt-1 font-medium">
                                   Triggered at {camera.location} ({camera.zone}) via AI monitoring.
                                 </p>
                               </div>
 
-                              <div className="bg-[var(--surface-2)] border border-[var(--border-strong)] rounded-lg p-3 space-y-2.5">
+                              <div className="glass-light border border-[var(--color-border)] rounded-xl p-3.5 space-y-2.5">
                                 <div className="flex justify-between text-[11px]">
-                                  <span className="text-[var(--text-2)] font-medium">Confidence Match</span>
-                                  <span className="text-[var(--text)] font-bold font-mono">{(camera.confidence * 100).toFixed(1)}%</span>
+                                  <span className="text-[var(--color-muted)] font-medium">Confidence Match</span>
+                                  <span className="text-[var(--color-fg)] font-bold">{(camera.confidence * 100).toFixed(1)}%</span>
                                 </div>
                                 <div className="flex justify-between text-[11px]">
-                                  <span className="text-[var(--text-2)] font-medium">Stage 2 Saturation</span>
-                                  <span className="text-green-400 font-bold font-mono">OK</span>
+                                  <span className="text-[var(--color-muted)] font-medium">Stage 2 Saturation</span>
+                                  <span className="text-emerald-500 font-bold">OK</span>
                                 </div>
                                 <div className="flex justify-between text-[11px]">
-                                  <span className="text-[var(--text-2)] font-medium">Stage 2 Brightness</span>
-                                  <span className="text-green-400 font-bold font-mono">OK</span>
+                                  <span className="text-[var(--color-muted)] font-medium">Stage 2 Brightness</span>
+                                  <span className="text-emerald-500 font-bold">OK</span>
                                 </div>
                               </div>
                             </div>
 
-                            <div className="flex gap-2 mt-4 lg:mt-0">
+                            <div className="flex gap-2.5 mt-4 lg:mt-0">
                               <button
                                 onClick={() => handleAcknowledgeCamera(camera.id)}
-                                className="flex-1 py-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[11px] font-bold rounded-xl hover:bg-amber-600 hover:text-white transition-all cursor-pointer"
+                                className="flex-1 py-2.5 bg-amber-500/10 text-amber-500 border border-amber-500/30 text-xs font-bold rounded-xl hover:bg-amber-500 hover:text-white transition-all cursor-pointer"
                               >
                                 Acknowledge
                               </button>
                               <button
                                 onClick={() => handleResolveCamera(camera.id)}
-                                className="flex-1 py-2 bg-emerald-600 text-white text-[11px] font-bold rounded-xl hover:bg-emerald-700 transition-all shadow-xs cursor-pointer"
+                                className="flex-1 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white text-xs font-bold rounded-xl hover:scale-105 transition-all shadow-sm cursor-pointer"
                               >
                                 Resolve
                               </button>
@@ -905,9 +905,9 @@ const Dashboard = () => {
                       </div>
 
                       {/* Footer bar */}
-                      <div className="px-4 py-2 bg-[var(--surface-2)]/40 border-t border-[var(--border)] flex justify-between items-center text-[10px] text-[var(--text-3)]">
-                        <span>Connection Status: <strong className={camera.status === 'online' ? 'text-green-400' : 'text-zinc-400'}>{camera.status.toUpperCase()}</strong></span>
-                        <span>Signal Health: <strong className="text-[var(--text)] font-mono">{camera.connectionHealth}%</strong></span>
+                      <div className="px-4 py-2.5 bg-[var(--glass-light-bg)] border-t border-[var(--color-border)] flex justify-between items-center text-[10px] text-[var(--color-muted)]">
+                        <span>Connection Status: <strong className={`font-bold ${camera.status === 'online' ? 'text-emerald-500' : 'text-gray-400'}`}>{camera.status.toUpperCase()}</strong></span>
+                        <span>Signal Health: <strong className="text-[var(--color-fg)] font-bold">{camera.connectionHealth}%</strong></span>
                       </div>
                     </motion.div>
                   );
@@ -935,39 +935,39 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-[var(--border)]">
         
         {/* AI Engine Status Card */}
-        <motion.div variants={fadeUp} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xs overflow-hidden">
-          <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--surface-2)]/30 flex items-center justify-between">
-            <span className="text-[11px] font-bold text-[var(--text)] uppercase tracking-wider flex items-center gap-1.5">
-              <Cpu size={12} className="text-sky-500" /> AI Core Status
+        <motion.div variants={fadeUp} className="glass rounded-2xl border border-[var(--color-border)] shadow-sm overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-[var(--color-border)] bg-[var(--glass-light-bg)] flex items-center justify-between">
+            <span className="text-[11px] font-extrabold text-[var(--color-fg)] uppercase tracking-wider flex items-center gap-2">
+              <Cpu size={14} className="text-[var(--color-accent)]" /> AI Core Status
             </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-ping" />
-              <span className="text-[9px] text-green-500 font-bold uppercase font-mono">ACTIVE</span>
+            <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 text-[10px] font-bold">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>ACTIVE</span>
             </span>
           </div>
           <div className="p-5 space-y-4">
             <div className="grid grid-cols-2 gap-4 text-[11px]">
               <div>
-                <span className="text-[var(--text-3)] block uppercase text-[9px] tracking-wider">Model Name</span>
-                <span className="text-[var(--text)] font-semibold font-mono">YOLOv8s Fire-Smoke</span>
+                <span className="text-[var(--color-muted)] block uppercase text-[10px] font-bold tracking-wider">Model Name</span>
+                <span className="text-[var(--color-fg)] font-bold text-[13px]">YOLOv8s Fire-Smoke</span>
               </div>
               <div>
-                <span className="text-[var(--text-3)] block uppercase text-[9px] tracking-wider">Engine Hardware</span>
-                <span className="text-sky-600 font-semibold font-mono">CPU Core</span>
+                <span className="text-[var(--color-muted)] block uppercase text-[10px] font-bold tracking-wider">Engine Hardware</span>
+                <span className="text-[var(--color-accent)] font-bold text-[13px]">CPU Core</span>
               </div>
               <div>
-                <span className="text-[var(--text-3)] block uppercase text-[9px] tracking-wider">Avg Inference</span>
-                <span className="text-[var(--text)] font-semibold font-mono">{avgInferenceLatency} ms</span>
+                <span className="text-[var(--color-muted)] block uppercase text-[10px] font-bold tracking-wider">Avg Inference</span>
+                <span className="text-[var(--color-fg)] font-bold text-[13px]">{avgInferenceLatency} ms</span>
               </div>
               <div>
-                <span className="text-[var(--text-3)] block uppercase text-[9px] tracking-wider">Uptime SLA</span>
-                <span className="text-[var(--text)] font-semibold font-mono">99.98%</span>
+                <span className="text-[var(--color-muted)] block uppercase text-[10px] font-bold tracking-wider">Uptime SLA</span>
+                <span className="text-[var(--color-fg)] font-bold text-[13px]">99.98%</span>
               </div>
             </div>
             
-            <div className="pt-3 border-t border-[var(--border)] flex justify-between items-center text-[10px]">
-              <span className="text-[var(--text-3)]">Last Detection Event:</span>
-              <span className="text-[var(--text-2)] font-mono font-semibold">
+            <div className="pt-3 border-t border-[var(--color-border)] flex justify-between items-center text-[11px]">
+              <span className="text-[var(--color-muted)] font-medium">Last Detection Event:</span>
+              <span className="text-[var(--color-fg-secondary)] font-bold">
                 {stats.recent_alerts && stats.recent_alerts.length > 0 
                   ? `${stats.recent_alerts[0].camera_id || 'CAM-01'} (${new Date(stats.recent_alerts[0].timestamp).toLocaleTimeString()})`
                   : 'None'}
@@ -977,30 +977,30 @@ const Dashboard = () => {
         </motion.div>
 
         {/* Incidents Tickets Widget */}
-        <motion.div variants={fadeUp} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xs overflow-hidden">
-          <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--surface-2)]/30">
-            <span className="text-[11px] font-bold text-[var(--text)] uppercase tracking-wider flex items-center gap-1.5">
-              <ShieldCheck size={12} className="text-sky-500" /> Active Incidents
+        <motion.div variants={fadeUp} className="glass rounded-2xl border border-[var(--color-border)] shadow-sm overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-[var(--color-border)] bg-[var(--glass-light-bg)]">
+            <span className="text-[11px] font-extrabold text-[var(--color-fg)] uppercase tracking-wider flex items-center gap-2">
+              <ShieldCheck size={14} className="text-[var(--color-accent)]" /> Active Incidents
             </span>
           </div>
-          <div className="divide-y divide-[var(--border)] max-h-40 overflow-y-auto custom-scrollbar">
+          <div className="divide-y divide-[var(--color-border)] max-h-44 overflow-y-auto custom-scrollbar">
             {incidents.length === 0 ? (
-              <div className="py-8 text-center text-[11px] text-[var(--text-3)]">No incidents flagged.</div>
+              <div className="py-10 text-center text-[12px] font-medium text-[var(--color-muted)]">No incidents flagged.</div>
             ) : (
               incidents.slice(0, 3).map((inc: any) => (
                 <div
                   key={inc.id}
                   onClick={() => navigate('/alerts-reports')}
-                  className="flex items-center justify-between px-4 py-3 hover:bg-[var(--surface-hover)] cursor-pointer transition-colors bg-[var(--surface)]"
+                  className="flex items-center justify-between px-5 py-3 hover:bg-[var(--glass-light-bg)] cursor-pointer transition-colors"
                 >
                   <div className="flex-1 min-w-0 mr-2">
-                    <p className="text-[11px] font-bold text-[var(--text)] truncate">{inc.title}</p>
-                    <p className="text-[9px] text-[var(--text-2)] mt-0.5 truncate">{inc.description || 'No notes'}</p>
+                    <p className="text-[12px] font-bold text-[var(--color-fg)] truncate">{inc.title}</p>
+                    <p className="text-[10px] text-[var(--color-muted)] mt-0.5 truncate">{inc.description || 'No notes'}</p>
                   </div>
-                  <span className={`shrink-0 text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase ${
-                    inc.severity === 'critical' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
-                    inc.severity === 'high' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
-                    'bg-[var(--surface-2)] text-[var(--text-2)] border border-[var(--border)]'
+                  <span className={`shrink-0 text-[9px] font-extrabold px-2 py-0.5 rounded-full border uppercase ${
+                    inc.severity === 'critical' ? 'bg-red-500/10 text-red-500 border-red-500/30' :
+                    inc.severity === 'high' ? 'bg-amber-500/10 text-amber-500 border-amber-500/30' :
+                    'bg-[var(--glass-light-bg)] text-[var(--color-fg-secondary)] border border-[var(--color-border)]'
                   }`}>
                     {inc.severity}
                   </span>
@@ -1011,31 +1011,31 @@ const Dashboard = () => {
         </motion.div>
 
         {/* Analytics Timeline Chart Widget */}
-        <motion.div variants={fadeUp} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xs overflow-hidden">
-          <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--surface-2)]/30">
-            <span className="text-[11px] font-bold text-[var(--text)] uppercase tracking-wider flex items-center gap-1.5">
-              <Activity size={12} className="text-sky-500" /> Threat Timeline
+        <motion.div variants={fadeUp} className="glass rounded-2xl border border-[var(--color-border)] shadow-sm overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-[var(--color-border)] bg-[var(--glass-light-bg)]">
+            <span className="text-[11px] font-extrabold text-[var(--color-fg)] uppercase tracking-wider flex items-center gap-2">
+              <Activity size={14} className="text-[var(--color-accent)]" /> Threat Timeline
             </span>
           </div>
-          <div className="p-3 bg-[var(--surface)] h-[130px]">
+          <div className="p-4 h-[135px]">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={100}>
               <AreaChart data={timeline} margin={{ top: 2, right: 2, left: -28, bottom: 0 }}>
                 <defs>
                   <linearGradient id="gFire" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#e11d48" stopOpacity={0.2} />
+                    <stop offset="5%"  stopColor="#e11d48" stopOpacity={0.25} />
                     <stop offset="95%" stopColor="#e11d48" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="gSmoke" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#d97706" stopOpacity={0.15} />
+                    <stop offset="5%"  stopColor="#d97706" stopOpacity={0.2} />
                     <stop offset="95%" stopColor="#d97706" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                <XAxis dataKey="time" tick={{ fontSize: 8, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 8, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                <XAxis dataKey="time" tick={{ fontSize: 9, fill: 'var(--color-muted)' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 9, fill: 'var(--color-muted)' }} axisLine={false} tickLine={false} />
                 <Tooltip content={<ChartTooltip />} />
-                <Area type="monotone" dataKey="fire"  stroke="#e11d48" strokeWidth={1.5} fill="url(#gFire)"  name="Fire" />
-                <Area type="monotone" dataKey="smoke" stroke="#d97706" strokeWidth={1.5} fill="url(#gSmoke)" name="Smoke" />
+                <Area type="monotone" dataKey="fire"  stroke="#e11d48" strokeWidth={2} fill="url(#gFire)"  name="Fire" />
+                <Area type="monotone" dataKey="smoke" stroke="#d97706" strokeWidth={2} fill="url(#gSmoke)" name="Smoke" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
