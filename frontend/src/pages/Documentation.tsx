@@ -43,7 +43,7 @@ const Documentation = () => {
       <header className="border-b border-white/5 bg-[#0a0a0f]/80 backdrop-blur-md sticky top-0 z-50 px-6 py-4 flex items-center justify-between max-w-7xl mx-auto w-full">
         <div className="flex items-center gap-2.5 text-red-500 font-bold text-xl tracking-tight select-none">
           <Shield className="w-6 h-6 fill-current animate-pulse" />
-          <span>SentinelOS</span>
+          <span>FireGuard AI</span>
         </div>
         <button 
           onClick={() => navigate('/')}
@@ -67,7 +67,7 @@ const Documentation = () => {
               System Documentation
             </h1>
             <p className="text-gray-400 text-lg max-w-3xl">
-              Understand the layout, setup credentials, APIs, and model pipeline configurations of the SentinelOS Platform.
+              Understand the layout, setup credentials, APIs, and model pipeline configurations of the FireGuard AI Platform.
             </p>
           </motion.div>
 
@@ -203,7 +203,7 @@ npm run dev`}
 
       {/* Footer */}
       <footer className="max-w-7xl mx-auto px-6 py-8 border-t border-white/5 mt-16 text-center text-xs text-gray-600">
-        &copy; {new Date().getFullYear()} SentinelOS. All rights reserved.
+        &copy; {new Date().getFullYear()} FireGuard AI. All rights reserved.
       </footer>
     </div>
   );

@@ -100,7 +100,7 @@ const Register = () => {
           </div>
           <div>
             <h2 className="text-base font-bold tracking-tight text-[var(--text)]">System Registration</h2>
-            <p className="text-[11px] text-[var(--text-3)] mt-1 font-semibold">Create operator credentials for SentinelOS</p>
+            <p className="text-[11px] text-[var(--text-3)] mt-1 font-semibold">Create operator credentials for FireGuard AI</p>
           </div>
         </div>
 

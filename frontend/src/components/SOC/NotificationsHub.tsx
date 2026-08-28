@@ -73,7 +73,7 @@ export function NotificationsHub({ onConnectionChange }: NotificationsHubProps) 
         }
         if (window.Notification.permission === 'granted') {
           try {
-            new window.Notification(`SentinelOS: ${alert.detection_type.toUpperCase()} Alert`, {
+            new window.Notification(`FireGuard AI: ${alert.detection_type.toUpperCase()} Alert`, {
               body: `${alert.detection_type.toUpperCase()} detected at ${cameraName} — Conf: ${(alert.confidence * 100).toFixed(0)}%`,
               icon: '/favicon.ico',
             });

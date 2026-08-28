@@ -131,7 +131,7 @@ const Profile = () => {
  
       <div>
         <h2 className="text-xl font-bold tracking-tight uppercase px-2 text-[var(--text)]">Account Profile</h2>
-        <p className="text-xs text-[var(--text-2)] mt-1 px-2 font-semibold leading-relaxed">Manage credentials, review active roles, and audit security log histories inside SentinelOS.</p>
+        <p className="text-xs text-[var(--text-2)] mt-1 px-2 font-semibold leading-relaxed">Manage credentials, review active roles, and audit security log histories inside FireGuard AI.</p>
       </div>
  
       {/* Platform & Detection Statistics */}

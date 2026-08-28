@@ -402,7 +402,7 @@ const SettingsPage = () => {
                 <div className="py-4 space-y-2">
                   <p className="text-[13px] font-bold text-[var(--text)] uppercase tracking-wider">System Information</p>
                   {[
-                    { label: 'Platform', value: 'SentinelOS SOC v2.0' },
+                    { label: 'Platform', value: 'FireGuard AI SOC v2.0' },
                     { label: 'ML Vision Engine', value: 'YOLOv26s Fire & Smoke Model' },
                     { label: 'Backend Database', value: 'FastAPI + SQLAlchemy + SQLite' },
                     { label: 'Frontend Framework', value: 'React 19 + Vite 8 + TS' },

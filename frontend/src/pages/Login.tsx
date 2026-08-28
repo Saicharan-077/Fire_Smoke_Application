@@ -109,7 +109,7 @@ const Login = () => {
           </div>
           <div>
             <h2 className="text-base font-bold tracking-tight text-[var(--text)]">System Login</h2>
-            <p className="text-[11px] text-[var(--text-3)] mt-1 font-semibold">Access the SentinelOS Control Center</p>
+            <p className="text-[11px] text-[var(--text-3)] mt-1 font-semibold">Access the FireGuard AI Control Center</p>
           </div>
         </div>
 

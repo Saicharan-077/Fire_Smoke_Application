@@ -93,8 +93,8 @@ const Landing = () => {
 
   const faqs = [
     {
-      q: "How does SentinelOS hook into legacy camera systems?",
-      a: "SentinelOS uses standard IP network protocol layers. Any camera supporting RTSP (Real-Time Streaming Protocol) or HTTP streaming can be registered in the Settings panel and monitored continuously."
+      q: "How does FireGuard AI hook into legacy camera systems?",
+      a: "FireGuard AI uses standard IP network protocol layers. Any camera supporting RTSP (Real-Time Streaming Protocol) or HTTP streaming can be registered in the Settings panel and monitored continuously."
     },
     {
       q: "Can the YOLOv8 model run locally on standard hardware?",
@@ -106,7 +106,7 @@ const Landing = () => {
     },
     {
       q: "How does the sound siren alert trigger?",
-      a: "On active threat flags, SentinelOS uses native Web Audio synthesis to generate electronic chime sirens. This guarantees immediate audible warnings without needing external asset files."
+      a: "On active threat flags, FireGuard AI uses native Web Audio synthesis to generate electronic chime sirens. This guarantees immediate audible warnings without needing external asset files."
     }
   ];
 
@@ -229,7 +229,7 @@ const Landing = () => {
               Live Command Center Video Tour
             </h2>
             <p className="text-xs sm:text-sm text-[var(--text-2)] font-semibold max-w-xl mx-auto leading-relaxed">
-              Watch SentinelOS process incoming frame buffers, flag active thermal risks with 99.4% precision, and manage visual incident triage.
+              Watch FireGuard AI process incoming frame buffers, flag active thermal risks with 99.4% precision, and manage visual incident triage.
             </p>
           </div>
 
@@ -237,7 +237,7 @@ const Landing = () => {
             <div className="rounded-xl overflow-hidden border border-[var(--border)] bg-black aspect-video relative flex items-center justify-center shadow-inner">
               <img 
                 src="/demo_recording.webp" 
-                alt="SentinelOS Live Platform Walkthrough" 
+                alt="FireGuard AI Live Platform Walkthrough" 
                 className="w-full h-full object-cover group-hover:scale-[1.008] transition-transform duration-700" 
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
@@ -419,7 +419,7 @@ const Landing = () => {
           <div className="text-center max-w-xl mx-auto space-y-3">
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text)]">Enterprise Ingestion & Detection</h2>
             <p className="text-xs sm:text-sm text-[var(--text-2)] font-semibold leading-relaxed">
-              SentinelOS layers directly over existing security environments with zero hardware lock-in.
+              FireGuard AI layers directly over existing security environments with zero hardware lock-in.
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -580,7 +580,7 @@ const Landing = () => {
               <div className="w-6 h-6 rounded-lg bg-sky-600 flex items-center justify-center shrink-0">
                 <Shield size={12} className="text-white fill-white" />
               </div>
-              <span className="text-sm font-semibold tracking-tight text-[var(--text)]">SentinelOS</span>
+              <span className="text-sm font-semibold tracking-tight text-[var(--text)]">FireGuard AI</span>
             </div>
             <p className="text-[10px] text-[var(--text-3)] font-semibold leading-relaxed">
               Sub-second anomaly tracking powered by lightweight computer vision layers.
@@ -611,7 +611,7 @@ const Landing = () => {
           </div>
         </div>
         <div className="max-w-7xl mx-auto px-6 border-t border-[var(--border)] pt-6 flex flex-col sm:flex-row items-center justify-between text-[10px] text-[var(--text-3)] font-semibold">
-          <span>&copy; {new Date().getFullYear()} SentinelOS, Inc. All rights reserved.</span>
+          <span>&copy; {new Date().getFullYear()} FireGuard AI, Inc. All rights reserved.</span>
           <div className="flex gap-4 mt-2 sm:mt-0">
             <span className="hover:text-[var(--text-2)] cursor-pointer">Privacy Policy</span>
             <span className="hover:text-[var(--text-2)] cursor-pointer">Terms of Service</span>
