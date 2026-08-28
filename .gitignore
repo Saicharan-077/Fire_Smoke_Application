@@ -1,30 +1,75 @@
-# Virtualenvs and toolchains
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Node / Dependencies
+**/node_modules/
+node_modules
+dist
+dist-ssr
+**/dist/
+**/.vite/
+*.local
+
+# Python / Virtualenvs
+.venv/
+.venv*/
 .venv-pipeline/
 .venv-dashboard/
 .node-bin/
-**/node_modules/
+backend/.venv
+backend/venv*
+backend/__pycache__
+backend/**/__pycache__
 __pycache__/
 *.py[cod]
+*.pyc
 
-# Model weights and archives (large binaries, tracked out-of-band)
-*.zip
-*.pt
-!sentinel-pipeline/tests/fixtures/**
-
-# Runtime state
-sentinel-pipeline/data/
-**/evidence/*.jpg
-**/facility_maps/*
-!**/facility_maps/.gitkeep
+# SQLite & Databases
 **/*.db
 **/*.db-wal
 **/*.db-shm
-*.log
+backend/fireguard.db
+backend/sentinelos.db
+backend/*.db
 
-# Build output
-**/dist/
-**/.vite/
+# Model weights & evidence binaries
+*.zip
+*.pt
+!sentinel-pipeline/tests/fixtures/**
+backend/models/yolo26s_auto.pt
+backend/models/yolo26s.pt/
+backend/models/*.pt
+backend/evidence/
+backend/evidence/*
+**/evidence/*.jpg
+sentinel-pipeline/data/
+**/facility_maps/*
+!**/facility_maps/.gitkeep
 
-# Secrets
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment files (secrets - never commit)
 .env
 .env.local
+backend/.env
+**/.env
+
+# Scratch / debug artifacts
+scratch/
+*.patch
+Thumbs.db
