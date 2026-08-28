@@ -448,7 +448,7 @@ const LiveMonitoring = () => {
                       </div>
                       <h3 className="text-base font-bold text-[var(--color-fg)] tracking-tight">Primary Optical Feed Standby</h3>
                       <p className="text-xs text-[var(--color-muted)] max-w-sm mt-1 mb-4 font-normal leading-relaxed">
-                        Arm the optical sensor to start continuous real-time YOLOv8 neural network inference.
+                        Arm the optical sensor to start continuous real-time neural vision network inference.
                       </p>
                       <div className="flex items-center gap-2.5">
                         <button

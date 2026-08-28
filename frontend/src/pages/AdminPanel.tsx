@@ -116,7 +116,7 @@ const AdminPanel = () => {
       setSystemLogs(res.items);
     } catch (err: any) {
       setSystemLogs([
-        { timestamp: new Date().toISOString(), level: 'INFO', component: 'Inference', message: 'YOLOv8 engine parameters loaded (CPU)' },
+        { timestamp: new Date().toISOString(), level: 'INFO', component: 'Inference', message: 'Neural Vision Core parameters loaded (CPU)' },
         { timestamp: new Date().toISOString(), level: 'INFO', component: 'Database', message: 'sqlite database connection established' },
         { timestamp: new Date().toISOString(), level: 'WARNING', component: 'CCTV Ingress', message: 'RTSP camera stream lost sync' },
         { timestamp: new Date().toISOString(), level: 'INFO', component: 'App Core', message: 'FastAPI service started' },

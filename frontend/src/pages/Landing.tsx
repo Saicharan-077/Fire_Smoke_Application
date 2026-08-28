@@ -71,7 +71,7 @@ const Landing = () => {
   const features = [
     {
       icon: <Flame className="w-5 h-5 text-[var(--fire)]" />,
-      title: 'YOLOv8 Edge Inference',
+      title: 'Neural Vision Inference',
       desc: 'High-speed local computer vision layers process frames in milliseconds, ensuring anomalies are flagged without network transport lag.'
     },
     {
@@ -97,7 +97,7 @@ const Landing = () => {
       a: "FireGuard AI uses standard IP network protocol layers. Any camera supporting RTSP (Real-Time Streaming Protocol) or HTTP streaming can be registered in the Settings panel and monitored continuously."
     },
     {
-      q: "Can the YOLOv8 model run locally on standard hardware?",
+      q: "Can the AI vision engine run locally on standard hardware?",
       a: "Yes. The backend architecture automatically evaluates host hardware capabilities. It switches seamlessly between CUDA-accelerated GPU pipelines and low-overhead CPU workers without requiring code modifications."
     },
     {
@@ -141,7 +141,7 @@ const Landing = () => {
             <nav className="hidden md:flex items-center gap-6 text-[13px] font-semibold text-[var(--color-muted)]">
               <a href="#features" className="hover:text-[var(--color-fg)] transition-colors">Features</a>
               <a href="#solutions" className="hover:text-[var(--color-fg)] transition-colors">Architecture</a>
-              <a href="#tech" className="hover:text-[var(--color-fg)] transition-colors">YOLOv8 CV</a>
+              <a href="#tech" className="hover:text-[var(--color-fg)] transition-colors">AI Vision Engine</a>
               <a href="#faq" className="hover:text-[var(--color-fg)] transition-colors">Documentation</a>
             </nav>
           </div>
@@ -353,8 +353,8 @@ const Landing = () => {
                       </div>
                       <div className="space-y-2 text-xs font-semibold text-[var(--text-2)]">
                         <div className="flex justify-between border-b border-[var(--border)] pb-1.5">
-                          <span>YOLO Model:</span>
-                          <span className="text-[var(--text)] font-semibold">best.pt loaded</span>
+                          <span>AI Engine Core:</span>
+                          <span className="text-[var(--text)] font-semibold">Active & Armed</span>
                         </div>
                         <div className="flex justify-between border-b border-[var(--border)] pb-1.5">
                           <span>Inference Latency:</span>
@@ -504,7 +504,7 @@ const Landing = () => {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             {[
-              { icon: <Cpu className="w-6 h-6 text-sky-500 mx-auto" />, name: "YOLOv8 Vision Core", desc: "Object recognition engine" },
+              { icon: <Cpu className="w-6 h-6 text-sky-500 mx-auto" />, name: "Neural Vision Core", desc: "Hazard & anomaly classifier" },
               { icon: <HardDrive className="w-6 h-6 text-blue-500 mx-auto" />, name: "FastAPI Routing", desc: "High performance Python API" },
               { icon: <Terminal className="w-6 h-6 text-emerald-500 mx-auto" />, name: "Vite + React 19", desc: "Premium single-page web app" },
               { icon: <Shield className="w-6 h-6 text-rose-500 mx-auto" />, name: "Granular RBAC", desc: "SQLite database constraint logs" }

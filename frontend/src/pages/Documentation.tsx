@@ -27,7 +27,7 @@ const Documentation = () => {
   const apiEndpoints = [
     { method: 'POST', path: '/api/v1/auth/login', desc: 'Authenticate and receive session token' },
     { method: 'GET', path: '/api/v1/cameras', desc: 'List all registered CCTV cameras' },
-    { method: 'POST', path: '/api/v1/upload/image', desc: 'Upload image for YOLOv8 AI inference & trigger alert' },
+    { method: 'POST', path: '/api/v1/upload/image', desc: 'Upload image for neural vision AI inference & trigger alert' },
     { method: 'POST', path: '/api/v1/upload/video', desc: 'Upload video to group detections by class type' },
     { method: 'GET', path: '/api/v1/alerts', desc: 'Retrieve recent active and resolved alert events' },
     { method: 'GET', path: '/api/v1/admin/health', desc: 'Fetch system health, active sessions & database status' },
@@ -137,7 +137,7 @@ npm run dev`}
                 <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
                   <Cpu className="w-5 h-5 text-indigo-400" />
                 </div>
-                <h3 className="font-bold text-white">YOLOv8 AI Inference</h3>
+                <h3 className="font-bold text-white">Neural Vision AI Inference</h3>
                 <p className="text-sm text-gray-400 leading-relaxed">
                   FastAPI acts as the local computer vision pipeline. The model parses frames, applies Non-Maximum Suppression (NMS), and generates confidence thresholds.
                 </p>

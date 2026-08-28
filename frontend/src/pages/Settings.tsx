@@ -211,8 +211,8 @@ const SettingsPage = () => {
           {activeSection === 'ai' && (
             <>
               <div className="px-5 py-4 border-b border-[var(--border)] bg-[var(--surface-2)]">
-                <p className="text-[13px] font-bold text-[var(--text)] uppercase tracking-wider">YOLOv8 Model Configuration</p>
-                <p className="text-[12px] text-[var(--text-2)] font-semibold mt-0.5">Adjust inference thresholds and detection behavior</p>
+                <p className="text-[13px] font-bold text-[var(--text)] uppercase tracking-wider">AI Vision Engine Configuration</p>
+                <p className="text-[12px] text-[var(--text-2)] font-semibold mt-0.5">Adjust neural inference thresholds and detection behavior</p>
               </div>
               <div className="p-5 space-y-5">
                 <div className="flex flex-col gap-1.5 pb-4 border-b border-[var(--border)]">
@@ -403,7 +403,7 @@ const SettingsPage = () => {
                   <p className="text-[13px] font-bold text-[var(--text)] uppercase tracking-wider">System Information</p>
                   {[
                     { label: 'Platform', value: 'FireGuard AI SOC v2.0' },
-                    { label: 'ML Vision Engine', value: 'YOLOv26s Fire & Smoke Model' },
+                    { label: 'AI Vision Engine', value: 'FireGuard Neural Vision Pipeline' },
                     { label: 'Backend Database', value: 'FastAPI + SQLAlchemy + SQLite' },
                     { label: 'Frontend Framework', value: 'React 19 + Vite 8 + TS' },
                   ].map(r => (

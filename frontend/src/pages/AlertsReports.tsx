@@ -494,7 +494,7 @@ const AlertsReports = () => {
                                       {/* Event 1 */}
                                       <div className="relative">
                                         <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-sky-500 border-2 border-white dark:border-zinc-900" />
-                                        <p className="text-[var(--text)] font-bold">Anomaly Flagged by YOLOv8 Vision Core</p>
+                                        <p className="text-[var(--text)] font-bold">Anomaly Flagged by AI Vision Core</p>
                                         <p className="text-[9px] text-[var(--text-3)] mt-0.5 font-mono">{new Date(alert.timestamp).toLocaleString()}</p>
                                         <p className="text-[10px] text-[var(--text-3)] mt-1 leading-relaxed">
                                           Autonomous engine flagged high-probability {alert.detection_type} anomaly. Bounding boxes drawn at frame coordinates.

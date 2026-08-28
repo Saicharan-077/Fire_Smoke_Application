@@ -541,7 +541,7 @@ const Dashboard = () => {
             setDetections([]);
           }
         } 
-        // Real AI YOLO continuous monitoring
+        // Real AI continuous monitoring
         else if (tick % frameSkipRef.current === 0 && !isProcessing) {
           isProcessing = true;
           c.toBlob(async (blob) => {
@@ -759,7 +759,7 @@ const Dashboard = () => {
           value={`${avgInferenceLatency} ms`} 
           icon={Activity} 
           color="bg-blue-500/10 text-blue-400 border border-blue-500/20" 
-          sub="YOLOv8 Edge Engine" 
+          sub="Neural Vision Core" 
         />
       </motion.div>
 
@@ -982,8 +982,8 @@ const Dashboard = () => {
           <div className="p-5 space-y-4">
             <div className="grid grid-cols-2 gap-4 text-[11px]">
               <div>
-                <span className="text-[var(--color-muted)] block uppercase text-[10px] font-bold tracking-wider">Model Name</span>
-                <span className="text-[var(--color-fg)] font-bold text-[13px]">YOLOv8s Fire-Smoke</span>
+                <span className="text-[var(--color-muted)] block uppercase text-[10px] font-bold tracking-wider">Vision Engine</span>
+                <span className="text-[var(--color-fg)] font-bold text-[13px]">FireGuard Vision Core</span>
               </div>
               <div>
                 <span className="text-[var(--color-muted)] block uppercase text-[10px] font-bold tracking-wider">Engine Hardware</span>
