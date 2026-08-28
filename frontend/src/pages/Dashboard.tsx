@@ -16,7 +16,7 @@ import {
   Volume2, VolumeX, Maximize, Minimize,
   Grid2x2, Map,
   ShieldAlert, Camera, AlertCircle,
-  ShieldCheck
+  ShieldCheck, BellRing, Flame
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -327,7 +327,7 @@ const Dashboard = () => {
 
   const [simulationMode] = useState(!isOperatorOrAdmin);
 
-  const { playHighBeep, stopSiren } = useAlertSound();
+  const { playEmergencySiren, stopSiren } = useAlertSound();
 
   // Tick clock
   useEffect(() => {
@@ -574,7 +574,7 @@ const Dashboard = () => {
 
                 if (threat && threat !== camThreatRef.current) {
                   setCamThreat(threat);
-                  void playHighBeep();
+                  void playEmergencySiren(2.8);
 
                   const newAlert = {
                     id: res.alert_ids[0] || `wc-${Date.now()}`,
@@ -663,6 +663,13 @@ const Dashboard = () => {
 
   const activeFiresCount = stats.fire_alerts + (camThreat === 'fire' ? 1 : 0);
   const activeSmokesCount = stats.smoke_alerts + (camThreat === 'smoke' ? 1 : 0);
+  const hasActiveThreat = activeFiresCount > 0 || activeSmokesCount > 0 || !!camThreat;
+
+  useEffect(() => {
+    if (hasActiveThreat && !muted) {
+      playEmergencySiren(2.8);
+    }
+  }, [hasActiveThreat, muted, playEmergencySiren]);
 
   const activeAlertsList = useMemo(() => (stats.recent_alerts || []).filter((a: any) => a.status === 'active'), [stats]);
 
@@ -704,6 +711,18 @@ const Dashboard = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              playEmergencySiren(2.8);
+              toast('🔊 Sounding 2-3s Emergency Siren Alarm...', 'error');
+            }}
+            className="floating-pill text-rose-400 hover:text-rose-300 hover:border-rose-500/40 cursor-pointer font-bold text-xs flex items-center gap-1"
+            title="Test 2-3s Siren Alarm Sound"
+          >
+            <BellRing size={12} className="animate-pulse" />
+            <span>Test Siren</span>
+          </button>
+
           <div className="floating-pill py-0.5">
             <button
               onClick={() => setViewMode('grid')}
@@ -728,6 +747,55 @@ const Dashboard = () => {
           </button>
         </div>
       </motion.div>
+
+      {/* High-Impact Emergency Hazard Siren Banner */}
+      {hasActiveThreat && (
+        <motion.div
+          initial={{ opacity: 0, y: -10, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="p-4 rounded-2xl border-2 border-rose-500 bg-gradient-to-r from-rose-950/80 via-red-900/50 to-slate-950 text-white shadow-[0_0_50px_rgba(239,68,68,0.4)] flex flex-wrap items-center justify-between gap-4 animate-pulse"
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-rose-500/20 border border-rose-500/50 text-rose-400 flex items-center justify-center shrink-0 shadow-lg shadow-rose-500/20">
+              <BellRing className="w-6 h-6 animate-bounce text-rose-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-wider text-rose-400 flex items-center gap-1.5">
+                  <Flame size={14} className="text-rose-500" /> CRITICAL HAZARD ACTIVE — {activeFiresCount > 0 ? 'FIRE INCIDENT' : 'SMOKE DETECTED'}
+                </span>
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-600 text-white uppercase tracking-wider shadow-sm">
+                  SIREN ACTIVE (2-3s)
+                </span>
+              </div>
+              <p className="text-xs text-rose-200/90 font-semibold mt-0.5">
+                Immediate threat detected in optical surveillance feed. Emergency acoustic siren sounding continuously for 2–3s.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => playEmergencySiren(2.8)}
+              className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+            >
+              <Volume2 size={13} /> Re-Play Siren (3s)
+            </button>
+            <button
+              onClick={() => {
+                stopSiren();
+                setCamThreat(null);
+                setCamerasState(prev => prev.map(c => ({ ...c, threat: null, priority: 'green' })));
+                toast('Emergency siren silenced and alarm cleared', 'info');
+              }}
+              className="px-3.5 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-rose-500/40 text-rose-300 font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <VolumeX size={13} /> Silence Siren
+            </button>
+          </div>
+        </motion.div>
+      )}
 
       {/* Compact 4 KPI Cards */}
       <motion.div variants={stagger} className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">

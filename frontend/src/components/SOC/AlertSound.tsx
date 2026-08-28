@@ -3,86 +3,123 @@ import { useAppSettingsStore } from '../../store/appSettingsStore';
 
 export function useAlertSound() {
   const { alertSoundEnabled } = useAppSettingsStore();
-  const lastBeepAtRef = useRef<number>(0);
-  const sirenIntervalRef = useRef<any>(null);
+  const lastSirenAtRef = useRef<number>(0);
+  const activeOscillatorsRef = useRef<Array<{ stop: () => void }>>([]);
+  const sirenTimeoutRef = useRef<any>(null);
 
-  // High-Volume High-Pitch Emergency Beep Tone (Plays every 2.5-3 seconds when fire is sustained)
-  const playHighBeep = useCallback(async () => {
+  // High-Impact Industrial Emergency Siren (Plays continuously for 2.5 - 3.0 seconds)
+  const playEmergencySiren = useCallback((durationSeconds: number = 2.8) => {
     if (!alertSoundEnabled) return;
 
     const now = Date.now();
-    const elapsed = now - lastBeepAtRef.current;
-    if (elapsed < 2500) return; // Strict 2.5s cooldown to beep every 2.5-3 seconds
+    // Allow triggering if not currently playing or at least 2.5s since last start
+    if (now - lastSirenAtRef.current < 2500) return;
+    lastSirenAtRef.current = now;
 
     try {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextClass) return;
 
       const ctx = new AudioContextClass();
-      
-      // High-volume double beep (C6 1046.5Hz & E6 1318.5Hz)
-      const playPulse = (startTime: number, freq: number) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
 
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(freq, startTime);
+      const t0 = ctx.currentTime;
+      const tEnd = t0 + durationSeconds;
 
-        gain.gain.setValueAtTime(0.35, startTime); // Full volume gain
-        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.18);
+      // Master Gain
+      const masterGain = ctx.createGain();
+      masterGain.gain.setValueAtTime(0.01, t0);
+      masterGain.gain.linearRampToValueAtTime(0.40, t0 + 0.1); // Fast attack
+      masterGain.gain.setValueAtTime(0.40, tEnd - 0.2);
+      masterGain.gain.linearRampToValueAtTime(0.001, tEnd); // Smooth decay
+      masterGain.connect(ctx.destination);
 
-        osc.connect(gain);
-        gain.connect(ctx.destination);
+      // Primary Siren Oscillator (Sweeping pitch 700Hz -> 1350Hz -> 700Hz)
+      const osc1 = ctx.createOscillator();
+      osc1.type = 'sawtooth';
 
-        osc.start(startTime);
-        osc.stop(startTime + 0.2);
+      // Sweep frequency back and forth over the duration (approx 2 sweeps per second)
+      const sweepRate = 0.5; // seconds per cycle
+      const cycles = Math.ceil(durationSeconds / sweepRate);
+      for (let i = 0; i < cycles; i++) {
+        const cycleStart = t0 + (i * sweepRate);
+        const cycleMid = cycleStart + (sweepRate / 2);
+        const cycleEnd = cycleStart + sweepRate;
+
+        osc1.frequency.setValueAtTime(700, Math.min(tEnd, cycleStart));
+        osc1.frequency.exponentialRampToValueAtTime(1350, Math.min(tEnd, cycleMid));
+        osc1.frequency.exponentialRampToValueAtTime(700, Math.min(tEnd, cycleEnd));
+      }
+
+      // Secondary Harmonizer Oscillator (gives rich alarm texture)
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'square';
+      gain2.gain.setValueAtTime(0.25, t0);
+
+      for (let i = 0; i < cycles; i++) {
+        const cycleStart = t0 + (i * sweepRate);
+        const cycleMid = cycleStart + (sweepRate / 2);
+        const cycleEnd = cycleStart + sweepRate;
+
+        osc2.frequency.setValueAtTime(850, Math.min(tEnd, cycleStart));
+        osc2.frequency.exponentialRampToValueAtTime(1550, Math.min(tEnd, cycleMid));
+        osc2.frequency.exponentialRampToValueAtTime(850, Math.min(tEnd, cycleEnd));
+      }
+
+      osc1.connect(masterGain);
+      osc2.connect(gain2);
+      gain2.connect(masterGain);
+
+      osc1.start(t0);
+      osc2.start(t0);
+      osc1.stop(tEnd);
+      osc2.stop(tEnd);
+
+      const handleStop = () => {
+        try {
+          osc1.stop();
+          osc2.stop();
+          ctx.close().catch(() => {});
+        } catch {}
       };
 
-      // Double Beep burst spaced 120ms apart
-      playPulse(ctx.currentTime, 1046.50);
-      playPulse(ctx.currentTime + 0.14, 1318.51);
+      activeOscillatorsRef.current.push({ stop: handleStop });
 
-      lastBeepAtRef.current = now;
+      if (sirenTimeoutRef.current) clearTimeout(sirenTimeoutRef.current);
+      sirenTimeoutRef.current = setTimeout(() => {
+        handleStop();
+      }, durationSeconds * 1000 + 100);
+
     } catch (e) {
-      console.error('Failed to play high beep sound:', e);
+      console.error('Failed to synthesize emergency siren:', e);
     }
   }, [alertSoundEnabled]);
 
-  const startSustainedBeepLoop = useCallback(() => {
-    if (!alertSoundEnabled || sirenIntervalRef.current) return;
-
-    void playHighBeep();
-    sirenIntervalRef.current = setInterval(() => {
-      void playHighBeep();
-    }, 2800); // Repeat every 2.8 seconds
-  }, [alertSoundEnabled, playHighBeep]);
-
-  const stopSustainedBeepLoop = useCallback(() => {
-    if (sirenIntervalRef.current) {
-      clearInterval(sirenIntervalRef.current);
-      sirenIntervalRef.current = null;
+  const stopSiren = useCallback(() => {
+    if (sirenTimeoutRef.current) {
+      clearTimeout(sirenTimeoutRef.current);
+      sirenTimeoutRef.current = null;
     }
+    activeOscillatorsRef.current.forEach((o) => {
+      try { o.stop(); } catch {}
+    });
+    activeOscillatorsRef.current = [];
   }, []);
-
-  const triggerSustainedFireAlarm = useCallback((consecutiveFrames: number) => {
-    // Only trigger if fire has been detected continuously for 2-3 seconds (~15-20 frames)
-    if (consecutiveFrames >= 15) {
-      startSustainedBeepLoop();
-    }
-  }, [startSustainedBeepLoop]);
 
   useEffect(() => {
     return () => {
-      stopSustainedBeepLoop();
+      stopSiren();
     };
-  }, [stopSustainedBeepLoop]);
+  }, [stopSiren]);
 
   return {
-    play: playHighBeep,
-    playHighBeep,
-    startSiren: startSustainedBeepLoop,
-    stopSiren: stopSustainedBeepLoop,
-    triggerSustainedFireAlarm,
+    play: playEmergencySiren,
+    playHighBeep: playEmergencySiren,
+    playEmergencySiren,
+    startSiren: playEmergencySiren,
+    stopSiren,
   };
 }
-
