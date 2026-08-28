@@ -196,10 +196,26 @@ def test_auth_modes():
           f"auth_mode()={auth.auth_mode()}")
 
     import asyncio
-    from fastapi import HTTPException
+    from fastapi import HTTPException, Request
 
-    async def call(key):
-        return await auth.require_api_key(key)
+    def _fake_request(path: str = "/v1/alerts") -> Request:
+        # A minimal ASGI scope so require_api_key can read request.url.path,
+        # matching how FastAPI actually invokes it -- with the real Request
+        # object, not a bare header string.
+        scope = {
+            "type": "http", "path": path, "headers": [], "query_string": b"",
+            "method": "GET", "scheme": "http", "server": ("test", 80),
+        }
+        return Request(scope)
+
+    async def call(key, path="/v1/alerts"):
+        # api_key is left at its default (None): this test exercises the
+        # header path. The query-param path is covered by a live HTTP check
+        # in tests/test_api_integration.py, which exercises it through an
+        # actual FastAPI request cycle rather than a direct function call.
+        return await auth.require_api_key(
+            request=_fake_request(path), x_api_key=key, api_key=None,
+        )
 
     rejected = False
     try:

@@ -11,6 +11,7 @@ import ForgotPassword from './pages/ForgotPassword';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Detection = lazy(() => import('./pages/Detection'));
+const Calibration = lazy(() => import('./pages/Calibration'));
 const LiveMonitoring = lazy(() => import('./pages/LiveMonitoring'));
 const AlertsReports = lazy(() => import('./pages/AlertsReports'));
 const Analytics = lazy(() => import('./pages/Analytics'));
@@ -65,6 +66,7 @@ function App() {
             <Route element={<Layout />}>
               <Route path="/dashboard" element={<RequireRole permission="dashboard"><Dashboard /></RequireRole>} />
               <Route path="/detection" element={<RequireRole permission="detection"><Detection /></RequireRole>} />
+              <Route path="/calibration" element={<RequireRole permission="detection"><Calibration /></RequireRole>} />
               <Route path="/live-monitoring" element={<RequireRole permission="live_monitoring"><LiveMonitoring /></RequireRole>} />
               <Route path="/alerts-reports" element={<RequireRole permission="alerts_reports"><AlertsReports /></RequireRole>} />
               <Route path="/analytics" element={<RequireRole permission="analytics"><Analytics /></RequireRole>} />

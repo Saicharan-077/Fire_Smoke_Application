@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Settings, Bell, LogOut,
   Camera, BarChart3, Shield, Menu,
   ChevronRight, ChevronLeft, Search, AlertTriangle,
-  Video, History, Sun, Moon, Sparkles
+  Video, History, Sun, Moon, Sparkles, Crosshair
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useNotificationsStore } from '../store/notificationsStore';
@@ -36,6 +36,7 @@ const Layout = () => {
     { label: 'Dashboard',       path: '/dashboard',       icon: LayoutDashboard },
     { label: 'Live Monitoring',  path: '/live-monitoring', icon: Video },
     { label: 'Detection',       path: '/detection',       icon: Camera },
+    { label: 'Calibration',     path: '/calibration',     icon: Crosshair },
     { label: 'History',         path: '/alerts-reports',  icon: History },
     { label: 'Analytics',       path: '/analytics',       icon: BarChart3 },
     { label: 'Settings',        path: '/settings',        icon: Settings },
@@ -349,6 +350,7 @@ const Layout = () => {
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard':       'Dashboard',
   '/detection':       'Detection',
+  '/calibration':     'Calibration',
   '/live-monitoring': 'Live Monitoring',
   '/alerts-reports':  'History',
   '/analytics':       'Analytics',

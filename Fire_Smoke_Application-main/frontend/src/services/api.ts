@@ -245,8 +245,12 @@ export const deleteAlert = (alertId: string) =>
 
 
 // ── Evidence ──────────────────────────────────────────────────────────────────
+// Pipeline-sourced alerts (merged in via AlertsReports.tsx) pre-resolve their
+// evidence to an already-absolute, token-signed URL (see pipelineEvidenceUrl
+// in pipelineApi.ts) and store it straight in `evidence_path` -- passed
+// through here unchanged rather than prefixed with the dashboard's own BASE.
 export const evidenceUrl = (path: string | null) =>
-  path ? `${BASE}${path}` : null;
+  path ? (/^https?:\/\//i.test(path) ? path : `${BASE}${path}`) : null;
 
 export const exportHistoryCsvUrl = (params?: Record<string, unknown>) =>
   `${BASE}/api/v1/history/export/csv${toQuery(params)}`;

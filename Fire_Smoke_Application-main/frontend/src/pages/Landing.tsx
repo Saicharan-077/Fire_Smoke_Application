@@ -71,7 +71,7 @@ const Landing = () => {
   const features = [
     {
       icon: <Flame className="w-5 h-5 text-[var(--fire)]" />,
-      title: 'YOLOv8 Edge Inference',
+      title: 'Real-Time Edge Inference',
       desc: 'High-speed local computer vision layers process frames in milliseconds, ensuring anomalies are flagged without network transport lag.'
     },
     {
@@ -97,7 +97,7 @@ const Landing = () => {
       a: "SentinelOS uses standard IP network protocol layers. Any camera supporting RTSP (Real-Time Streaming Protocol) or HTTP streaming can be registered in the Settings panel and monitored continuously."
     },
     {
-      q: "Can the YOLOv8 model run locally on standard hardware?",
+      q: "Can the detection model run locally on standard hardware?",
       a: "Yes. The backend architecture automatically evaluates host hardware capabilities. It switches seamlessly between CUDA-accelerated GPU pipelines and low-overhead CPU workers without requiring code modifications."
     },
     {
@@ -499,7 +499,7 @@ const Landing = () => {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             {[
-              { icon: <Cpu className="w-6 h-6 text-sky-500 mx-auto" />, name: "YOLOv8 Vision Core", desc: "Object recognition engine" },
+              { icon: <Cpu className="w-6 h-6 text-sky-500 mx-auto" />, name: "AI Vision Core", desc: "Object recognition engine" },
               { icon: <HardDrive className="w-6 h-6 text-blue-500 mx-auto" />, name: "FastAPI Routing", desc: "High performance Python API" },
               { icon: <Terminal className="w-6 h-6 text-emerald-500 mx-auto" />, name: "Vite + React 19", desc: "Premium single-page web app" },
               { icon: <Shield className="w-6 h-6 text-rose-500 mx-auto" />, name: "Granular RBAC", desc: "SQLite database constraint logs" }

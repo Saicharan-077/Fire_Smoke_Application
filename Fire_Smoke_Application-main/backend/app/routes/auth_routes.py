@@ -241,6 +241,46 @@ def change_password(
     return {"status": "success", "message": "Password updated successfully"}
 
 
+@router.post("/set-resolution-pin")
+def set_resolution_pin(
+    body: schemas.SetResolutionPinRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Provision or clear the resolution PIN.
+
+    This is the endpoint PipelineAlertLifecycle.resolve() has been missing:
+    the resolve path could VERIFY a PIN since launch, but nothing could ever
+    SET one -- the only way to provision `resolution_pin_hash` was a direct
+    database write, which is not something that exists in production. This
+    closes that gap; the resolve path itself is unchanged.
+    """
+    if not verify_password(body.password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Password is incorrect")
+
+    if body.new_pin == "":
+        current_user.resolution_pin_hash = None
+        db.commit()
+        log_audit(db, current_user, "RESOLUTION_PIN_CLEARED", "User cleared their resolution PIN")
+        return {"status": "success", "message": "Resolution PIN cleared", "pin_set": False}
+
+    if not body.new_pin.isdigit() or not (4 <= len(body.new_pin) <= 6):
+        raise HTTPException(status_code=400, detail="PIN must be 4-6 digits")
+    if body.new_pin != body.confirm_pin:
+        raise HTTPException(status_code=400, detail="PINs do not match")
+
+    current_user.resolution_pin_hash = hash_password(body.new_pin)
+    db.commit()
+    log_audit(db, current_user, "RESOLUTION_PIN_SET", "User set a resolution PIN")
+    return {"status": "success", "message": "Resolution PIN set", "pin_set": True}
+
+
+@router.get("/resolution-pin/status")
+def resolution_pin_status(current_user: models.User = Depends(get_current_user)):
+    """Whether a PIN is configured -- never the PIN or its hash."""
+    return {"pin_set": bool(current_user.resolution_pin_hash)}
+
+
 @router.post("/logout")
 def logout(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     current_user.session_token = None

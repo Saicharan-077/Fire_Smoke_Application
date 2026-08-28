@@ -211,7 +211,7 @@ const SettingsPage = () => {
           {activeSection === 'ai' && (
             <>
               <div className="px-5 py-4 border-b border-[var(--border)] bg-[var(--surface-2)]">
-                <p className="text-[13px] font-bold text-[var(--text)] uppercase tracking-wider">YOLOv8 Model Configuration</p>
+                <p className="text-[13px] font-bold text-[var(--text)] uppercase tracking-wider">Detection Model Configuration</p>
                 <p className="text-[12px] text-[var(--text-2)] font-semibold mt-0.5">Adjust inference thresholds and detection behavior</p>
               </div>
               <div className="p-5 space-y-5">

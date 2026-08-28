@@ -11,6 +11,25 @@ services:
       - YOLO_MODEL_PATH=models/best.pt
       - CORS_ORIGINS=http://localhost:5173,http://localhost:3000,http://localhost
       - SEED_DATABASE=true
+      # --- detection pipeline integration (sentinel-pipeline) ---
+      # The pipeline is NOT containerized here (no Dockerfile exists yet for
+      # it -- see NEWREADME.md TODO). PIPELINE_BASE_URL therefore points at
+      # wherever it actually runs; localhost only works if this container
+      # uses host networking or the pipeline runs on the same host outside
+      # Docker. In a real multi-container deploy this must be a real
+      # reachable host/service name, not left at the default.
+      #
+      # PIPELINE_API_KEY and DASHBOARD_MEDIA_TOKEN_SECRET have NO default on
+      # purpose: `${VAR:?msg}` makes `docker compose up` refuse to start
+      # rather than silently booting with the pipeline proxy unauthenticated
+      # or with signed media tokens impossible to verify. Set them in a
+      # top-level `.env` next to this file (see `.env.example`) -- that file
+      # is Compose's own variable-substitution mechanism, separate from (and
+      # in addition to) `backend/.env`, which the application code reads at
+      # runtime.
+      - PIPELINE_BASE_URL=${PIPELINE_BASE_URL:-http://localhost:8100}
+      - PIPELINE_API_KEY=${PIPELINE_API_KEY:?PIPELINE_API_KEY must be set -- see .env.example}
+      - DASHBOARD_MEDIA_TOKEN_SECRET=${DASHBOARD_MEDIA_TOKEN_SECRET:?DASHBOARD_MEDIA_TOKEN_SECRET must be set -- see .env.example}
     volumes:
       - ./backend/models:/app/models:ro
     healthcheck:

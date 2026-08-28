@@ -5,6 +5,12 @@ import {
   getDashboardStats, getDashboardAnalytics, getIncidents,
   getSettings, uploadImage, type Detection
 } from '../services/api';
+import { pipelineDetectFrame, toLegacyDetectionShape, getOrRegisterPipelineCamera, pipelineModelInfo, pipelineGateStats, pipelineActiveAlertStats, type PipelineAlertStats, PIPELINE_WEBCAM_UPLOAD_INTERVAL_MS } from '../services/pipelineApi';
+
+// See Detection.tsx's PIPELINE_CAMERA_NAME for why this is a name, not a
+// hardcoded id.
+const PIPELINE_CAMERA_NAME = 'Dashboard CAM-01 Webcam';
+import { PIPELINE_FLAGS } from '../config/pipelineConfig';
 import { useAuthStore } from '../store/authStore';
 import { listCameras, getCameraMetrics, patchCameraPriority } from '../services/cameraService';
 import { CameraMetricsOverlay, type CameraMetric } from '../components/Dashboard/CameraMetricsOverlay';
@@ -307,6 +313,109 @@ const Dashboard = () => {
   const [detections, setDetections] = useState<Detection[]>([]);
   const [frameSkip, setFrameSkip] = useState(3);
   const [avgInferenceLatency, setAvgInferenceLatency] = useState(284); // mock/actual average in ms
+  // Real model identity, read from the pipeline when its flag is on. Falls
+  // back to the legacy static labels otherwise -- never invented, never
+  // hardcoded to a name that might not match what's actually deployed
+  // (the old "YOLOv8s" label was factually wrong; the real weights are
+  // YOLO26s, confirmed by reading the checkpoint directly).
+  const [pipelineModelName, setPipelineModelName] = useState<string | null>(null);
+  const [pipelineDevice, setPipelineDevice] = useState<string | null>(null);
+  // Real Gate telemetry for the ONE camera tile actually wired to the
+  // pipeline (CAM-01, via PIPELINE_CAMERA_NAME). The other seeded tiles
+  // (CAM-02..05) have no pipeline-side presence at all -- they show a
+  // genuine "no data" state under the pipeline flag rather than the
+  // fabricated literal the legacy fallback used
+  // (pixel_change_pct: 14.2/0.4, motion_score: 0.08/0.002 -- confirmed fake,
+  // see the original investigation).
+  const [pipelineCam01GateStats, setPipelineCam01GateStats] = useState<CameraMetric | null>(null);
+
+  // Fixes the disclosed D5/B3 gap: the legacy `stats` object below only ever
+  // counted the dashboard's own alerts table. Once pipeline alerts flow in
+  // (AlertsReports.tsx's dual-read), this card silently undercounted. Gated
+  // on PIPELINE_FLAGS.alerts (not .dashboard) because this is alert-count
+  // data, the same domain AlertsReports.tsx's flag governs -- if pipeline
+  // alerts aren't considered "real" there yet, they shouldn't be counted
+  // here either.
+  const [pipelineAlertStats, setPipelineAlertStats] = useState<PipelineAlertStats | null>(null);
+
+  useEffect(() => {
+    if (!PIPELINE_FLAGS.alerts) { setPipelineAlertStats(null); return; }
+    let cancelled = false;
+    const poll = () => {
+      pipelineActiveAlertStats().then((s) => { if (!cancelled) setPipelineAlertStats(s); }).catch(() => {});
+    };
+    poll();
+    const id = window.setInterval(poll, 10_000);
+    return () => { cancelled = true; window.clearInterval(id); };
+  }, []);
+
+  useEffect(() => {
+    if (!PIPELINE_FLAGS.dashboard) return;
+    let cancelled = false;
+    pipelineModelInfo()
+      .then((info) => {
+        if (cancelled) return;
+        setPipelineModelName(`${info.architecture} (${Object.values(info.classes).join('/')})`);
+        setPipelineDevice(info.device.toUpperCase());
+      })
+      .catch(() => { /* leave null -> legacy label shows instead */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!PIPELINE_FLAGS.dashboard) return;
+    let cancelled = false;
+    let intervalId: number | undefined;
+
+    getOrRegisterPipelineCamera(PIPELINE_CAMERA_NAME).then((id) => {
+      if (cancelled) return;
+
+      const poll = () => {
+        pipelineGateStats(id)
+          .then((g) => {
+            if (cancelled) return;
+            // Fields the real Gate genuinely tracks map directly. Fields it
+            // does NOT track (target_fps, actual_fps, dropped_frames,
+            // queue_size -- all concepts from the old, never-running
+            // scheduler's fictional 6-state model) are 0, not invented --
+            // that is a real absence of data, not a value to guess at.
+            // pixel_change_pct and motion_score both come from the SAME
+            // single real signal (change_score), in the two unit
+            // conventions the UI already expects -- not two independently
+            // fabricated numbers.
+            const cam01 = camerasState.find((c) => c.id === 'CAM-01');
+            setPipelineCam01GateStats({
+              camera_id: g.camera_id,
+              name: 'CAM-01 Warehouse Entrance',
+              stream_url: '',
+              priority: g.risk_tier === 'high' ? 'HIGH' : g.risk_tier === 'low' ? 'LOW' : 'MEDIUM',
+              current_state: g.state === 'ACTIVE' ? (cam01?.threat ? 'FIRE' : 'MOTION') : 'IDLE',
+              target_fps: 0,
+              actual_fps: 0,
+              pixel_change_pct: g.change_score * 100,
+              motion_score: g.change_score,
+              inference_latency_ms: cam01?.latency || avgInferenceLatency,
+              dropped_frames: 0,
+              queue_size: 0,
+              last_detection_type: cam01?.threat ?? null,
+              last_detection_conf: cam01?.confidence || 0,
+              last_detection_timestamp: cam01?.lastSeen ?? null,
+            });
+          })
+          .catch(() => {
+            // 404 -- no gate state yet (camera registered but hasn't
+            // processed a frame). Leave null so the UI shows "no data",
+            // never a stale or invented value.
+            if (!cancelled) setPipelineCam01GateStats(null);
+          });
+      };
+      poll();
+      intervalId = window.setInterval(poll, 2000);
+    });
+
+    return () => { cancelled = true; if (intervalId) window.clearInterval(intervalId); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Stores
   const storeAlerts = useDashboardStore(s => s.recentAlerts);
@@ -474,6 +583,8 @@ const Dashboard = () => {
   useEffect(() => { camThreatRef.current = camThreat; }, [camThreat]);
   const detectionsRef = useRef(detections);
   useEffect(() => { detectionsRef.current = detections; }, [detections]);
+  // Pipeline path only: bounds upload rate, NOT the detection decision itself.
+  const lastPipelineUploadRef = useRef(0);
 
   // Webcam Canvas drawing loop + AI pipeline integration
   useEffect(() => {
@@ -537,8 +648,73 @@ const Dashboard = () => {
             setDetections([]);
           }
         } 
-        // Real AI YOLO continuous monitoring
-        else if (tick % frameSkipRef.current === 0 && !isProcessing) {
+        // Real AI YOLO continuous monitoring -- pipeline path (PIPELINE_FLAGS.dashboard)
+        else if (PIPELINE_FLAGS.dashboard
+                 && performance.now() - lastPipelineUploadRef.current >= PIPELINE_WEBCAM_UPLOAD_INTERVAL_MS
+                 && !isProcessing) {
+          isProcessing = true;
+          c.toBlob(async (blob) => {
+            if (!blob) {
+              isProcessing = false;
+              return;
+            }
+            try {
+              lastPipelineUploadRef.current = performance.now();
+              const t0 = performance.now();
+              // apply_gate=true: the pipeline's real Gate decides whether this
+              // frame is worth inferring on.
+              const pipelineCameraId = await getOrRegisterPipelineCamera(PIPELINE_CAMERA_NAME);
+              const raw = await pipelineDetectFrame(blob, pipelineCameraId, true);
+              const res = toLegacyDetectionShape(raw);
+              const latencyVal = Math.round(performance.now() - t0);
+              setAvgInferenceLatency(latencyVal);
+              
+              if (res && res.detections) {
+                setDetections(res.detections);
+                const hasFire = res.detections.some(d => d.detection_type === 'fire');
+                const hasSmoke = res.detections.some(d => d.detection_type === 'smoke');
+
+                const threat = hasFire ? 'fire' : hasSmoke ? 'smoke' : null;
+                
+                // Sync status to CAM-01 custom state
+                setCamerasState(prev => prev.map(cam => cam.id === 'CAM-01' ? {
+                  ...cam,
+                  priority: threat === 'fire' ? 'red' : threat === 'smoke' ? 'yellow' : 'green',
+                  threat: threat,
+                  confidence: threat ? Math.max(...res.detections.map(d => d.confidence)) : 0,
+                  latency: latencyVal
+                } : cam));
+
+                if (threat && threat !== camThreatRef.current) {
+                  setCamThreat(threat);
+                  void playHighBeep();
+
+                  const newAlert = {
+                    id: res.alert_ids[0] || `wc-${Date.now()}`,
+                    alertType: threat,
+                    cameraId: 'CAM-01',
+                    cameraName: 'CAM-01 Warehouse Entrance',
+                    zone: 'Zone A',
+                    confidence: Math.max(...res.detections.map(d => d.confidence)),
+                    timestamp: new Date().toISOString(),
+                    severity: threat === 'fire' ? 'critical' : 'warning',
+                    isRead: false
+                  } as any;
+                  addNotification(newAlert);
+                  pushPopup(newAlert);
+                } else if (!threat && camThreatRef.current) {
+                  setCamThreat(null);
+                }
+              }
+            } catch (err) {
+              console.error("Webcam AI inference failed (pipeline):", err);
+            } finally {
+              isProcessing = false;
+            }
+          }, 'image/jpeg', 0.85);
+        }
+        // Real AI YOLO continuous monitoring -- legacy path (flag off)
+        else if (!PIPELINE_FLAGS.dashboard && tick % frameSkipRef.current === 0 && !isProcessing) {
           isProcessing = true;
           c.toBlob(async (blob) => {
             if (!blob) {
@@ -656,9 +832,9 @@ const Dashboard = () => {
   // Computations for KPI counters
   const totalCamsCount = camerasState.length;
   const onlineCamsCount = camerasState.filter(c => c.status === 'online').length;
-  const activeAlertsCount = stats.active_alerts + (camThreat ? 1 : 0);
-  const activeFiresCount = stats.fire_alerts + (camThreat === 'fire' ? 1 : 0);
-  const activeSmokesCount = stats.smoke_alerts + (camThreat === 'smoke' ? 1 : 0);
+  const activeAlertsCount = stats.active_alerts + (camThreat ? 1 : 0) + (pipelineAlertStats?.active ?? 0);
+  const activeFiresCount = stats.fire_alerts + (camThreat === 'fire' ? 1 : 0) + (pipelineAlertStats?.fire ?? 0);
+  const activeSmokesCount = stats.smoke_alerts + (camThreat === 'smoke' ? 1 : 0) + (pipelineAlertStats?.smoke ?? 0);
 
   const activeAlertsList = useMemo(() => (stats.recent_alerts || []).filter((a: any) => a.status === 'active'), [stats]);
 
@@ -724,7 +900,7 @@ const Dashboard = () => {
       <motion.div variants={stagger} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <StatCard label="Total CCTV Channels" value={totalCamsCount} icon={Camera} color="bg-[var(--surface-2)] text-[var(--text-2)] border border-[var(--border)]" sub={`${onlineCamsCount} active`} />
         <StatCard label="System Health" value={activeAlertsCount > 0 ? "WARNING" : "NOMINAL"} icon={CheckCircle2} color={activeAlertsCount > 0 ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : "bg-green-500/10 text-green-500 border border-green-500/20"} sub="AI model verified" ok={activeAlertsCount === 0} />
-        <StatCard label="Active Alerts" value={activeAlertsCount} icon={ShieldAlert} color={activeAlertsCount > 0 ? "bg-red-500/10 text-red-500 border border-red-500/20" : "bg-[var(--surface-2)] text-[var(--text-2)] border border-[var(--border)]"} sub={`${activeFiresCount} Fire, ${activeSmokesCount} Smoke`} />
+        <StatCard label="Active Alerts" value={activeAlertsCount} icon={ShieldAlert} color={activeAlertsCount > 0 ? "bg-red-500/10 text-red-500 border border-red-500/20" : "bg-[var(--surface-2)] text-[var(--text-2)] border border-[var(--border)]"} sub={`${activeFiresCount} Fire, ${activeSmokesCount} Smoke${pipelineAlertStats?.truncated ? ' (pipeline count capped at 500)' : ''}`} />
         <StatCard label="Average Speed" value={`${avgInferenceLatency} ms`} icon={Activity} color="bg-blue-500/10 text-blue-500 border border-blue-500/20" sub="End-to-End Latency" />
         <StatCard label="AI Engine Status" value="YOLOv26s Model" icon={Cpu} color="bg-purple-500/10 text-purple-500 border border-purple-500/20" sub="Exported model active" />
       </motion.div>
@@ -832,28 +1008,43 @@ const Dashboard = () => {
 
                         {/* Intelligent Adaptive Scheduler Live Metrics Overlay */}
                         <div className="mt-3">
-                          <CameraMetricsOverlay
-                            metric={
-                              metricsMap[camera.id] || {
-                                camera_id: camera.id,
-                                name: camera.name,
-                                stream_url: '',
-                                priority: 'MEDIUM',
-                                current_state: camera.status === 'online' ? (camera.threat ? 'FIRE' : 'IDLE') : 'IDLE',
-                                target_fps: camera.status === 'online' ? (camera.threat ? 15 : 2) : 0,
-                                actual_fps: camera.fps || 0,
-                                pixel_change_pct: camera.threat ? 14.2 : 0.4,
-                                motion_score: camera.threat ? 0.08 : 0.002,
-                                inference_latency_ms: camera.latency || avgInferenceLatency,
-                                dropped_frames: 0,
-                                queue_size: 1,
-                                last_detection_type: camera.threat,
-                                last_detection_conf: camera.confidence || 0,
-                                last_detection_timestamp: camera.lastSeen,
+                          {PIPELINE_FLAGS.dashboard ? (
+                            camera.id === 'CAM-01' && pipelineCam01GateStats ? (
+                              <CameraMetricsOverlay
+                                metric={pipelineCam01GateStats}
+                                onPriorityChange={handlePriorityChange}
+                              />
+                            ) : (
+                              <div className="text-[11px] text-[var(--text-3)] italic px-3 py-4 border border-dashed border-[var(--border)] rounded-lg text-center">
+                                {camera.id === 'CAM-01'
+                                  ? 'No gate telemetry yet — camera registered, awaiting first frame'
+                                  : 'No pipeline data for this camera'}
+                              </div>
+                            )
+                          ) : (
+                            <CameraMetricsOverlay
+                              metric={
+                                metricsMap[camera.id] || {
+                                  camera_id: camera.id,
+                                  name: camera.name,
+                                  stream_url: '',
+                                  priority: 'MEDIUM',
+                                  current_state: camera.status === 'online' ? (camera.threat ? 'FIRE' : 'IDLE') : 'IDLE',
+                                  target_fps: camera.status === 'online' ? (camera.threat ? 15 : 2) : 0,
+                                  actual_fps: camera.fps || 0,
+                                  pixel_change_pct: camera.threat ? 14.2 : 0.4,
+                                  motion_score: camera.threat ? 0.08 : 0.002,
+                                  inference_latency_ms: camera.latency || avgInferenceLatency,
+                                  dropped_frames: 0,
+                                  queue_size: 1,
+                                  last_detection_type: camera.threat,
+                                  last_detection_conf: camera.confidence || 0,
+                                  last_detection_timestamp: camera.lastSeen,
+                                }
                               }
-                            }
-                            onPriorityChange={handlePriorityChange}
-                          />
+                              onPriorityChange={handlePriorityChange}
+                            />
+                          )}
                         </div>
 
                         {/* Enlarged Details Sidebar (Shows only if RED threat is active on this card) */}
@@ -949,11 +1140,13 @@ const Dashboard = () => {
             <div className="grid grid-cols-2 gap-4 text-[11px]">
               <div>
                 <span className="text-[var(--text-3)] block uppercase text-[9px] tracking-wider">Model Name</span>
-                <span className="text-[var(--text)] font-semibold font-mono">YOLOv8s Fire-Smoke</span>
+                <span className="text-[var(--text)] font-semibold font-mono">
+                  {pipelineModelName ?? 'YOLOv8s Fire-Smoke'}
+                </span>
               </div>
               <div>
                 <span className="text-[var(--text-3)] block uppercase text-[9px] tracking-wider">Engine Hardware</span>
-                <span className="text-sky-600 font-semibold font-mono">CPU Core</span>
+                <span className="text-sky-600 font-semibold font-mono">{pipelineDevice ?? 'CPU Core'}</span>
               </div>
               <div>
                 <span className="text-[var(--text-3)] block uppercase text-[9px] tracking-wider">Avg Inference</span>

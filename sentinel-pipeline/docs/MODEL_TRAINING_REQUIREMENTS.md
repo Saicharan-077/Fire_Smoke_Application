@@ -24,7 +24,7 @@ network on raw pixels**. That keeps the training surface small. Full inventory:
 | D | Classifier **Tier-1 rules** | No — HSV/texture thresholds | Partially exists | — |
 | E | Tracking layer | No — IoU/centroid association | Being built | — |
 | F | Context Engine | No — lookup + arithmetic | Being built | — |
-| G | Calibration (zone clustering) | No — DBSCAN/convex hull | Being built | — |
+| G | Calibration (zone clustering) | No — convex hull + MAD outlier trim (no DBSCAN; `sklearn` isn't even a dependency) | Built (`context/calibration.py`) | — |
 | H | Camera drift detection | No — ORB/SIFT feature matching | Designed | — |
 
 **So: one required training (A), one optional (B). Everything else is

@@ -21,7 +21,12 @@ import hmac
 import logging
 import os
 
-from fastapi import Header, HTTPException
+from fastapi import Header, HTTPException, Query, Request
+
+# Imported for its side effect: loading `.env` into os.environ. Without this
+# the key is only visible when something else has already imported config,
+# which made auth silently report DISABLED depending on import order.
+from .. import config as _config  # noqa: F401
 
 logger = logging.getLogger("sentinel.auth")
 
@@ -43,12 +48,38 @@ def warn_if_open() -> None:
         )
 
 
-async def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
-    """FastAPI dependency. No-op when no key is configured."""
+#: Paths reachable without a key. `/v1/health` is deliberately open so an
+#: uptime monitor or load balancer can probe the service, and so an operator can
+#: see `"auth": "DISABLED"` without already holding a key. It exposes status
+#: counters only -- no detection data, no evidence, no camera configuration.
+OPEN_PATHS = frozenset({"/v1/health", "/docs", "/redoc", "/openapi.json"})
+
+
+async def require_api_key(
+    request: Request,
+    x_api_key: str | None = Header(default=None),
+    api_key: str | None = Query(default=None),
+) -> None:
+    """FastAPI dependency. No-op when no key is configured.
+
+    Applied at APP level. A route-level ``dependencies=[]`` does NOT override an
+    app-level dependency in FastAPI -- both run -- so exemptions have to be
+    handled here, by path.
+
+    Accepts the key via the ``X-API-Key`` header (preferred) OR an
+    ``api_key`` query parameter. The query param exists ONLY because the MJPEG
+    stream and evidence images are loaded via plain ``<img>``/``<video>`` tags,
+    which cannot set a custom header -- there is no fetch() in the middle to
+    attach one to. Prefer the header everywhere a header is possible; this
+    path is a deliberately narrow exception, not a general auth mechanism.
+    """
     expected = configured_key()
     if expected is None:
         return
-    if not x_api_key or not hmac.compare_digest(x_api_key, expected):
+    if request.url.path in OPEN_PATHS:
+        return
+    supplied = x_api_key or api_key
+    if not supplied or not hmac.compare_digest(supplied, expected):
         raise HTTPException(
             status_code=401,
             detail="missing or invalid X-API-Key",

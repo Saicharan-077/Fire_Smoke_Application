@@ -41,7 +41,7 @@ from ..scheduler.scheduler import MultiCameraScheduler
 from ..storage.alerts import alert_to_dict
 from ..storage.models import CameraRecord
 from .auth import auth_mode, require_api_key, warn_if_open
-from .schemas import CalibrationStart, CameraCreate, ZoneApprove
+from .schemas import CalibrationStart, CameraCreate, ZoneApprove, ZoneEdit
 from .streaming import StreamRegistry
 
 logger = logging.getLogger("sentinel.api")
@@ -124,7 +124,7 @@ def _decode(data: bytes) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 
-@app.get("/v1/health", tags=["status"], dependencies=[])
+@app.get("/v1/health", tags=["status"])  # exempted by path in auth.OPEN_PATHS
 def health():
     p = get_pipeline()
     h = p.health()
@@ -311,6 +311,49 @@ def approve_zone(camera_id: str, body: ZoneApprove):
 @app.get("/v1/zones", tags=["calibration"])
 def list_zones():
     return [z.as_dict() for z in get_pipeline().context.zones.all()]
+
+
+@app.patch("/v1/cameras/{camera_id}/zone", tags=["calibration"])
+def edit_zone(camera_id: str, body: ZoneEdit):
+    """Human correction to an already-approved zone (NOT a re-calibration).
+
+    Requires an existing approved zone -- 404 otherwise, this is not a way to
+    skip calibration. Every field is optional; only what's supplied changes.
+    Returns both the before and after state so the caller (the dashboard's
+    audit-logged edit endpoint) can record an exact diff without a second
+    round-trip.
+    """
+    p = get_pipeline()
+    changes: dict = {}
+    if body.risk_weight is not None:
+        changes["risk_weight"] = body.risk_weight
+    if body.polygon is not None:
+        changes["polygon"] = tuple((int(x), int(y)) for x, y in body.polygon)
+    if body.flammable_materials_nearby is not None:
+        changes["flammable_materials_nearby"] = body.flammable_materials_nearby
+    if body.designated_activity_allowed is not None:
+        changes["designated_activity_allowed"] = tuple(body.designated_activity_allowed)
+    if body.adjacent_camera_ids is not None:
+        changes["adjacent_camera_ids"] = tuple(body.adjacent_camera_ids)
+    if body.envelope is not None:
+        changes["envelope"] = body.envelope.model_dump()
+
+    result = p.context.edit_zone(camera_id, **changes)
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="no approved zone for this camera -- edit requires an existing zone, "
+            "use POST .../zone to approve one first",
+        )
+    before, after = result
+    p.sync_zone_to_gate(camera_id)
+    gate = p.gate.stats(camera_id)
+    return {
+        "before": before.as_dict(),
+        "after": after.as_dict(),
+        "gate_forced_interval_s": gate.forced_interval_s if gate else None,
+        "gate_risk_tier": gate.risk_tier if gate else None,
+    }
 
 
 # ---------------------------------------------------------------------------

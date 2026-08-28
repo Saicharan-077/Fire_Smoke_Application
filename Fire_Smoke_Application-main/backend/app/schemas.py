@@ -270,6 +270,22 @@ class ChangePasswordRequest(BaseModel):
     confirm_password: str
 
 
+class SetResolutionPinRequest(BaseModel):
+    """Provision or clear the resolution PIN used to gate pipeline alert
+    resolution (see PipelineAlertLifecycle). The login PASSWORD, not any
+    existing PIN, is the proof of identity here -- there is no "current PIN"
+    to check on first set, and requiring the account password for a
+    security-relevant change mirrors change-password's own pattern.
+
+    An empty `new_pin` clears the PIN (resolution reverts to unrestricted).
+    A non-empty `new_pin` must be 4-6 digits -- a deliberately short,
+    kiosk-style code, not a second password.
+    """
+    password: str
+    new_pin: str = ""
+    confirm_pin: str = ""
+
+
 class IncidentCreate(BaseModel):
     title: str
     description: Optional[str] = None

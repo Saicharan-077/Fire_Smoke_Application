@@ -19,7 +19,9 @@ Items that could be finished here have been, and are not listed — see
 **Blocked by:** needs real cameras observing a real scene for a real window
 
 The full calibration machinery is built and tested: observation windows,
-DBSCAN/convex-hull clustering with outlier trimming, always-on detection,
+convex-hull clustering with MAD-based outlier trimming (not DBSCAN — no
+`sklearn` dependency exists in this repo; corrected 2026-08-28, see
+`MIGRATION_DECISIONS_LOG.md`), always-on detection,
 normal-envelope statistics, behavioural adjacency correlation, one-click
 approval, boundary-drift flagging, and persistence across restart.
 
@@ -45,15 +47,46 @@ it would look configured.
 containment means every detection is treated as a breach, and the forced
 override runs at the conservative 17 s uncalibrated interval.
 
-### A2. Camera adjacency map
-**Owner:** site operator
-**Blocked by:** same window as A1, plus a site layout
+### A1b. Stale duplicate test zones now visible in the dashboard
+**Owner:** whoever cleans up dev/test data
+**New, found 2026-08-28** during D12 (dashboard Zone Data tab). ~12 duplicate
+"chemical_storage"/"break_area" zones from earlier `test_api_integration.py`
+runs are now visible to any operator who opens the new Zone Data tab — they
+were previously harmless clutter because no UI listed all zones. No
+`DELETE /v1/zones/{id}` endpoint exists to clean them up properly (confirmed
+absent from the route inventory in `app.py`); would need either a new
+pipeline-side endpoint or direct DB access, same limitation D5 already noted
+for the (separately stale) test cameras.
+
+### A2. Camera adjacency map — **geometric seed now built (2026-08-28)**
+**Owner:** site operator (still needed for the behavioural half's window)
 
 Adjacency drives same-fire deduplication across cameras. Two inputs:
-- **Geometric seed** — rough camera positions and facing on a site map. *Needs a
-  site map that does not exist here.*
+- **Geometric seed** — rough camera positions and facing on a site map. **No
+  longer blocked.** The dashboard now has a Facility Map tab
+  (`Calibration.tsx` → Facility Map): upload a site image, place each camera
+  (position + facing direction + field-of-view angle + range), and the
+  dashboard backend (`facility_map_routes.py`) computes the exact
+  field-of-view overlap between every camera pair via convex-sector polygon
+  clipping (Sutherland-Hodgman — same dependency-free approach as
+  calibration's convex-hull clustering, not a geometry library). This answers
+  "what cameras share a field of view, and to what extent" — not just binary
+  adjacency. Live-verified: two synthetic cameras placed with overlapping
+  cones produced a real 43%/43% overlap, independently confirmed via a direct
+  API call. See `MIGRATION_DECISIONS_LOG.md` D14.
+  **Still needed from a site operator:** a REAL site map/floor plan and real
+  camera placements — this session only verified the mechanism with a
+  synthetic test image, not real facility geometry.
 - **Behavioural confirmation** — cross-camera trigger correlation during the
-  window. Implemented; needs the window.
+  window. Implemented; needs the window (unchanged, still blocked on real
+  camera time).
+
+**Important distinction preserved by design:** neither signal writes to a
+zone's `adjacent_camera_ids` automatically. A computed FOV overlap surfaces
+an "Apply via <camera>'s zone" suggestion, which still requires the full
+authorized + reviewed + reasoned + logged zone-edit flow (D13) before it
+becomes a confirmed adjacency the Context Engine's incident correlation
+actually uses.
 
 **Until done:** cameras with no declared overlap produce **separate incidents**.
 That is the deliberate safe default — merging two real fires would hide one.
@@ -178,19 +211,20 @@ in this repo.
 Needed before dashboard cutover (`DASHBOARD_MIGRATION_PLAN.md` §7.5): same host
 or separate? Determines CORS config and whether `PIPELINE_API_KEY` is mandatory.
 
-### C3. API key for production
+### C3. API key for production — **DONE**
 **Owner:** whoever deploys
-`PIPELINE_API_KEY` is **unset**, so the API is currently unauthenticated. That
-is fine on localhost and visible on `/v1/health` as `"auth": "DISABLED"` — it
-cannot be confused with a secured deployment. **Set it before exposing the
-service.**
+`PIPELINE_API_KEY` is now **set** (`sentinel-pipeline/.env` and the dashboard
+backend's `backend/.env`, both gitignored); `/v1/health` reports `"auth":
+"enabled"`. `docker-compose.yml`'s `environment:` block now fails fast
+(`${PIPELINE_API_KEY:?...}`) if it's missing at container-start time instead
+of silently running unauthenticated. Kept here as a record that this was once
+open, not because it still is.
 
-### C4. Version control
+### C4. Version control — **DONE**
 **Owner:** project owner
-Neither `Fire&Smoke/` nor `Fire_Smoke_Application-main/` is a git repository.
-Given this project has already lost work to an unversioned `git checkout`
-incident, `git init` is a prerequisite for the dashboard migration
-(`DASHBOARD_MIGRATION_PLAN.md` step 0), not an optional nicety.
+`git init` was run under `Fire&Smoke/` (step 0 of the dashboard migration);
+work is on `feature/sentinel-detection-pipeline`. No remote is configured —
+the user pushes manually. Kept here as a record, not an open item.
 
 ---
 
@@ -198,9 +232,13 @@ incident, `git init` is a prerequisite for the dashboard migration
 
 | # | Item | Notes |
 |---|---|---|
-| D1 | Dashboard migration execution | Plan written, awaiting approval |
+| D1 | Dashboard migration execution | **Steps 3-7 done and live-verified**: Detection (webcam), LiveMonitoring (webcam), Dashboard, and AlertsReports (dual-read) all migrated. Remaining: steps 8-9 (broader X-checklist sign-off, default-flag-on decision) — see `MIGRATION_DECISIONS_LOG.md` D8/D9 and the checklist table there. |
 | D2 | Deleting superseded dashboard/backend detection code | Phase 3, separate approval |
 | D3 | The Classifier itself | Built separately by teammate |
+| D4 | **Video-upload full pipeline parity** (annotated output video, thumbnail, live per-frame WS telemetry) | Detection.tsx's video-upload flow (`uploadVideoAsync` + live WS preview) intentionally stays on the legacy path. The pipeline's `/v1/detect/video` job has no equivalent to the legacy path's annotated-output-video assembly, thumbnail generation, or live per-frame telemetry stream (fps/inference_fps/skipped_frames/active_tracks/eta_sec) — closing this gap needs new pipeline-side capability, not a frontend rewiring. Only the webcam/continuous-frame path was migrated in this pass. See `MIGRATION_DECISIONS_LOG.md` D1. |
+| D5 | **Dashboard "Active Alerts" stat card undercounts** | **FIXED** (`MIGRATION_DECISIONS_LOG.md` D11) — `pipelineActiveAlertStats()` merges pipeline counts in, verified exactly against real DB/API data (240/178/74). Remaining limitation: capped at 500 pipeline alerts, no true aggregate endpoint. |
+| D6 | **AlertsReports: no UI for Acknowledge/Escalate on pipeline alerts, no dedicated PIN-entry modal** | **Still open.** `pipelineAcknowledgeAlert()`/`pipelineEscalateAlert()` exist in `pipelineApi.ts` and call live-tested backend endpoints, but no buttons were added — the pre-existing table only ever exposed Resolve + Delete, so this keeps parity rather than adding new surface under time pressure. Resolve's PIN path currently falls back to `window.prompt()` rather than a proper modal — acceptable while no user has a PIN set, but should become a real modal once PINs are adopted (`/set-resolution-pin` is live). |
+| D7 | **CSV export undercounted; PDF export still does** | **CSV fixed** (`MIGRATION_DECISIONS_LOG.md` D11) — new client-side "Export Merged CSV" button, verified 253/253 lines against real data. **PDF not fixed** — server-rendered audit-log template, judged out of scope; UI now discloses this directly instead of leaving it silent. |
 
 ---
 

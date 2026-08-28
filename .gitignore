@@ -14,6 +14,8 @@ __pycache__/
 # Runtime state
 sentinel-pipeline/data/
 **/evidence/*.jpg
+**/facility_maps/*
+!**/facility_maps/.gitkeep
 **/*.db
 **/*.db-wal
 **/*.db-shm
@@ -22,3 +24,7 @@ sentinel-pipeline/data/
 # Build output
 **/dist/
 **/.vite/
+
+# Secrets
+.env
+.env.local

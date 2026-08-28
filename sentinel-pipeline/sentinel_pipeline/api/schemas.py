@@ -42,6 +42,37 @@ class ZoneApprove(BaseModel):
     adjacent_camera_ids: list[str] = Field(default_factory=list)
 
 
+class EnvelopeEdit(BaseModel):
+    """Partial override of a zone's normal-behaviour envelope. Every field is
+    optional -- an omitted field keeps its current calibrated value, so a
+    human correcting one wrong number (e.g. max_area) never has to
+    re-supply the rest of a stats block they didn't mean to touch."""
+
+    min_area: int | None = None
+    max_area: int | None = None
+    mean_area: float | None = None
+    std_area: float | None = None
+    always_on: bool | None = None
+    area_sigma_tolerance: float | None = Field(None, ge=0.1)
+
+
+class ZoneEdit(BaseModel):
+    """Human correction to an ALREADY-APPROVED zone -- not a re-calibration.
+
+    Every field is optional; only supplied fields are changed. Requires an
+    existing approved zone (404 otherwise) -- this is deliberately not a
+    backdoor to skip calibration, only a way to fix a wrong value calibration
+    or a prior approval produced.
+    """
+
+    risk_weight: float | None = Field(None, ge=0.0, le=1.0)
+    polygon: list[list[int]] | None = None
+    flammable_materials_nearby: bool | None = None
+    designated_activity_allowed: list[str] | None = None
+    adjacent_camera_ids: list[str] | None = None
+    envelope: EnvelopeEdit | None = None
+
+
 class DetectionOut(BaseModel):
     track_id: int
     camera_id: str

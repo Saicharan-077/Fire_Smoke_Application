@@ -5,12 +5,17 @@ import { Button } from '../components/Common/Button';
 import { Input, Select } from '../components/Common/Input';
 import { Modal } from '../components/Common/Modal';
 import { useToast } from '../components/ui/Toast';
-import { 
-  getAlerts, updateAlertStatus, deleteAlert, 
-  getIncidents, createIncident, updateIncident, deleteIncident, 
-  evidenceUrl, type Incident 
+import {
+  getAlerts, updateAlertStatus, deleteAlert,
+  getIncidents, createIncident, updateIncident, deleteIncident,
+  evidenceUrl, type Incident
 } from '../services/api';
 import { APP_CONFIG } from '../config/appConfig';
+import { PIPELINE_FLAGS } from '../config/pipelineConfig';
+import {
+  pipelineListAlerts, pipelineEvidenceUrl, pipelineAlertLifecycleBatch,
+  pipelineResolveAlert, type PipelineAlert,
+} from '../services/pipelineApi';
 import { 
   ShieldCheck, Check, Trash2, Edit2, 
   Download, RefreshCw, Eye, FileText, BarChart, Plus, AlertOctagon,
@@ -53,12 +58,56 @@ const AlertsReports = () => {
         detection_type: alertFilterType || undefined,
         status: alertFilterStatus || undefined,
       });
-      setAlerts(Array.isArray(data) ? data : (data as any)?.items ?? []);
+      const legacy = (Array.isArray(data) ? data : (data as any)?.items ?? [])
+        .map((a: any) => ({ ...a, source: 'legacy' as const }));
+
+      let merged = legacy;
+      if (PIPELINE_FLAGS.alerts) {
+        try {
+          merged = [...legacy, ...(await fetchPipelineAlertsMerged())];
+        } catch (e: any) {
+          toast(e.message || 'Could not load pipeline alerts (showing dashboard-native alerts only).', 'error');
+        }
+      }
+      setAlerts(merged);
     } catch (err: any) {
       toast(err.message || 'Failed to fetch alerts.', 'error');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Dual-read (Option A, approved): pipeline alerts are fetched separately
+  // and merged into the same `alerts` array the legacy table already
+  // renders, tagged `source: 'pipeline'`. Evidence is resolved to an
+  // already-signed absolute URL up front (see evidenceUrl()'s absolute-URL
+  // passthrough in services/api.ts) so the render path needs no branching.
+  const fetchPipelineAlertsMerged = async () => {
+    const pipelineAlerts = await pipelineListAlerts({ limit: 100 });
+    const lifecycles = await pipelineAlertLifecycleBatch(pipelineAlerts.map((a) => a.id));
+    const lifecycleById = new Map(lifecycles.map((l) => [l.pipeline_alert_id, l]));
+    const mapped = await Promise.all(pipelineAlerts.map(async (pa) => {
+      const lc = lifecycleById.get(pa.id) ?? null;
+      const resolvedEvidence = await pipelineEvidenceUrl(pa.evidence_ref).catch(() => null);
+      return {
+        id: pa.id,
+        detection_type: (pa.class === 'fire' ? 'fire' : 'smoke') as 'fire' | 'smoke',
+        confidence: pa.confidence,
+        status: lc?.status === 'resolved' ? 'resolved' : 'active',
+        source_type: 'pipeline',
+        camera_id: pa.camera_id,
+        location: pa.zone_id,
+        file_name: null,
+        evidence_path: resolvedEvidence,
+        frame_number: null,
+        resolved_by: lc?.resolved_by ?? null,
+        timestamp: pa.timestamp,
+        source: 'pipeline' as const,
+        _raw: pa,
+      };
+    }));
+    const byStatus = alertFilterStatus ? mapped.filter((m) => m.status === alertFilterStatus) : mapped;
+    return alertFilterType ? byStatus.filter((m) => m.detection_type === alertFilterType) : byStatus;
   };
 
   const getSeverity = (type: string, conf: number) => {
@@ -99,9 +148,27 @@ const AlertsReports = () => {
       }
     });
 
-  const handleResolveAlert = async (id: string) => {
+  const handleResolveAlert = async (alert: any) => {
     try {
-      await updateAlertStatus(id, 'resolved');
+      if (alert.source === 'pipeline') {
+        try {
+          await pipelineResolveAlert(alert._raw as PipelineAlert);
+        } catch (e: any) {
+          // Backend requires a PIN only when the operator has one set
+          // (see resolve() in pipeline_alert_routes.py) -- prompt and retry
+          // rather than building a dedicated modal for what's currently an
+          // edge case (no user has set a PIN yet as of this migration pass).
+          if (/pin required/i.test(e.message || '')) {
+            const pin = window.prompt('This account has a resolution PIN set. Enter it to resolve:');
+            if (!pin) return;
+            await pipelineResolveAlert(alert._raw as PipelineAlert, pin);
+          } else {
+            throw e;
+          }
+        }
+      } else {
+        await updateAlertStatus(alert.id, 'resolved');
+      }
       toast('Alert marked as resolved.', 'success');
       void fetchAlerts();
     } catch (err: any) {
@@ -109,10 +176,17 @@ const AlertsReports = () => {
     }
   };
 
-  const handleDeleteAlert = async (id: string) => {
+  const handleDeleteAlert = async (alert: any) => {
+    if (alert.source === 'pipeline') {
+      // No delete endpoint on pipeline_alert_routes.py by design -- the
+      // pipeline owns the alert record, the dashboard only owns lifecycle
+      // state. Deleting would desync from the pipeline's own alert store.
+      toast('Pipeline-sourced alerts are owned by the detection pipeline and cannot be deleted from here.', 'info');
+      return;
+    }
     if (!window.confirm('Permanently delete this alert?')) return;
     try {
-      await deleteAlert(id);
+      await deleteAlert(alert.id);
       toast('Alert deleted successfully.', 'info');
       void fetchAlerts();
     } catch (err: any) {
@@ -193,6 +267,67 @@ const AlertsReports = () => {
   };
 
   // 3. Reports Tab State
+
+  // Fixes the disclosed D6 gap: the legacy PDF/CSV exports below read only
+  // the dashboard's own history/incidents tables, so they undercount the
+  // same way the Dashboard stat card did (see pipelineActiveAlertStats in
+  // pipelineApi.ts, D5). A true fix for the PDF (a formatted "certified
+  // audit log") would mean replicating its server-side template rendering
+  // client-side -- out of scope here. The CSV case is tractable: build one
+  // client-side from BOTH sources directly, independent of the currently
+  // loaded/filtered `alerts` state so it always reflects everything, not
+  // just whatever filter happens to be active on the Live Warning Flags tab.
+  const handleExportMergedCsv = async () => {
+    try {
+      toast('Building merged CSV (legacy + pipeline)...', 'info');
+      const legacyAll = await getAlerts({});
+      const legacyRows = (Array.isArray(legacyAll) ? legacyAll : (legacyAll as any)?.items ?? [])
+        .map((a: any) => ({
+          id: a.id, source: 'legacy', detection_type: a.detection_type, confidence: a.confidence,
+          status: a.status, camera_id: a.camera_id ?? '', location: a.location ?? '',
+          source_type: a.source_type ?? '', timestamp: a.timestamp, resolved_by: a.resolved_by ?? '',
+        }));
+
+      let pipelineRows: Array<Record<string, unknown>> = [];
+      if (PIPELINE_FLAGS.alerts) {
+        const pipelineAlerts = await pipelineListAlerts({ limit: 500 });
+        const lifecycles = await pipelineAlertLifecycleBatch(pipelineAlerts.map((a) => a.id));
+        const lifecycleById = new Map(lifecycles.map((l) => [l.pipeline_alert_id, l]));
+        pipelineRows = pipelineAlerts.map((pa) => {
+          const lc = lifecycleById.get(pa.id);
+          return {
+            id: pa.id, source: 'pipeline', detection_type: pa.class === 'fire' ? 'fire' : 'smoke',
+            confidence: pa.confidence, status: lc?.status === 'resolved' ? 'resolved' : 'active',
+            camera_id: pa.camera_id, location: pa.zone_id ?? '', source_type: pa.source_type,
+            timestamp: pa.timestamp, resolved_by: lc?.resolved_by ?? '',
+          };
+        });
+      }
+
+      const rows = [...legacyRows, ...pipelineRows];
+      const header = ['id', 'source', 'detection_type', 'confidence', 'status', 'camera_id', 'location', 'source_type', 'timestamp', 'resolved_by'];
+      const csvLines = [header.join(',')];
+      for (const r of rows) {
+        csvLines.push(header.map((k) => {
+          const s = String((r as any)[k] ?? '').replace(/"/g, '""');
+          return /[",\n]/.test(s) ? `"${s}"` : s;
+        }).join(','));
+      }
+      const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `alerts-merged-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast(`Exported ${rows.length} warnings (${legacyRows.length} legacy + ${pipelineRows.length} pipeline).`, 'success');
+    } catch (err: any) {
+      toast(err.message || 'Merged export failed.', 'error');
+    }
+  };
+
   const handleExportPdf = () => {
     const token = localStorage.getItem('fg-token');
     const base = APP_CONFIG.apiBaseUrl;
@@ -431,21 +566,23 @@ const AlertsReports = () => {
                                   variant="outline" 
                                   size="sm" 
                                   className="h-8 p-2 rounded-lg bg-[var(--surface)] border border-[var(--border)]" 
-                                  onClick={() => void handleResolveAlert(alert.id)}
+                                  onClick={() => void handleResolveAlert(alert)}
                                   title="Resolve Alert"
                                 >
                                   <Check size={12} />
                                 </Button>
                               )}
-                              <Button 
-                                variant="destructive" 
-                                size="sm" 
-                                className="h-8 p-2 rounded-lg" 
-                                onClick={() => void handleDeleteAlert(alert.id)}
-                                title="Delete Alert"
-                              >
-                                <Trash2 size={12} />
-                              </Button>
+                              {alert.source !== 'pipeline' && (
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  className="h-8 p-2 rounded-lg"
+                                  onClick={() => void handleDeleteAlert(alert)}
+                                  title="Delete Alert"
+                                >
+                                  <Trash2 size={12} />
+                                </Button>
+                              )}
                             </td>
                           </tr>
                           {isExpanded && (
@@ -493,7 +630,7 @@ const AlertsReports = () => {
                                       {/* Event 1 */}
                                       <div className="relative">
                                         <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-sky-500 border-2 border-white dark:border-zinc-900" />
-                                        <p className="text-[var(--text)] font-bold">Anomaly Flagged by YOLOv8 Vision Core</p>
+                                        <p className="text-[var(--text)] font-bold">Anomaly Flagged by AI Vision Core</p>
                                         <p className="text-[9px] text-[var(--text-3)] mt-0.5 font-mono">{new Date(alert.timestamp).toLocaleString()}</p>
                                         <p className="text-[10px] text-[var(--text-3)] mt-1 leading-relaxed">
                                           Autonomous engine flagged high-probability {alert.detection_type} anomaly. Bounding boxes drawn at frame coordinates.
@@ -649,7 +786,7 @@ const AlertsReports = () => {
       )}
 
       {activeTab === 'reports' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-slide-up">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-slide-up">
           <Card className="bg-[var(--surface)] border-[var(--border)] shadow-xs">
             <CardContent className="p-6 space-y-4">
               <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-500 w-fit">
@@ -658,6 +795,9 @@ const AlertsReports = () => {
               <h3 className="font-bold text-xs uppercase tracking-wider text-[var(--text)]">Generate Operations Incident Report</h3>
               <p className="text-[11px] text-[var(--text-2)] leading-relaxed font-semibold">
                 Compile all logged fire, smoke, and threat warnings. Creates a certified operational PDF audit log detailing timestamps, confidence percentages, and operator comments.
+                {PIPELINE_FLAGS.alerts && (
+                  <span className="block mt-1.5 text-amber-500">Dashboard-native alerts only — does not yet include pipeline-sourced warnings. Use the CSV export for the full merged set.</span>
+                )}
               </p>
               <Button variant="primary" size="sm" onClick={handleExportPdf} className="w-full flex items-center justify-center gap-2 text-xs font-bold">
                 <Download size={14} /> Download PDF Report
@@ -673,6 +813,9 @@ const AlertsReports = () => {
               <h3 className="font-bold text-xs uppercase tracking-wider text-[var(--text)]">Download Ingest Logs (CSV)</h3>
               <p className="text-[11px] text-[var(--text-2)] leading-relaxed font-semibold">
                 Export complete historical threat and surveillance activity records into a CSV spreadsheet. Perfect for import into external data analysis databases.
+                {PIPELINE_FLAGS.alerts && (
+                  <span className="block mt-1.5 text-amber-500">Dashboard-native alerts only. Use "Export Merged CSV" for pipeline-sourced warnings too.</span>
+                )}
               </p>
               <Button variant="outline" size="sm" onClick={() => {
                 const token = localStorage.getItem('fg-token');
@@ -683,6 +826,23 @@ const AlertsReports = () => {
               </Button>
             </CardContent>
           </Card>
+
+          {PIPELINE_FLAGS.alerts && (
+            <Card className="bg-[var(--surface)] border-[var(--border)] shadow-xs">
+              <CardContent className="p-6 space-y-4">
+                <div className="p-2.5 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-500 w-fit">
+                  <Download className="w-6 h-6" />
+                </div>
+                <h3 className="font-bold text-xs uppercase tracking-wider text-[var(--text)]">Export Merged CSV (All Sources)</h3>
+                <p className="text-[11px] text-[var(--text-2)] leading-relaxed font-semibold">
+                  Builds a CSV in your browser from both the dashboard's own alerts AND the detection pipeline's alerts, resolved status included. Capped at 500 pipeline alerts.
+                </p>
+                <Button variant="outline" size="sm" onClick={() => void handleExportMergedCsv()} className="w-full flex items-center justify-center gap-2 bg-[var(--surface)] border border-[var(--border)] text-xs font-bold">
+                  <Download size={14} /> Export Merged CSV
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 

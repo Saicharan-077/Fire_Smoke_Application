@@ -2,6 +2,17 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useToast } from '../components/ui/Toast';
 import { uploadImage, uploadVideoAsync, getVideoJobStatus, cancelVideoJob, connectVideoStreamSocket, getVideoMjpegStreamUrl, testCctvConnection, getSettings, evidenceUrl } from '../services/api';
+import { pipelineDetectFrame, toLegacyDetectionShape, getOrRegisterPipelineCamera, PIPELINE_WEBCAM_UPLOAD_INTERVAL_MS } from '../services/pipelineApi';
+import { PIPELINE_FLAGS } from '../config/pipelineConfig';
+
+// This page's webcam surface, resolved to a real pipeline camera_id via
+// getOrRegisterPipelineCamera (self-registers once by name, then caches).
+// Named distinctly from Dashboard's and LiveMonitoring's webcam surfaces so
+// each keeps its own Gate/tracking/calibration state on the pipeline side --
+// they are physically the same browser webcam API but logically distinct
+// "cameras" as far as the pipeline is concerned, matching how the legacy
+// paths already used different literal ids ('webcam-01' vs 'CAM-01').
+const PIPELINE_CAMERA_NAME = 'Detection Page Webcam';
 import { RtspStreamPlayer } from '../components/Common/RtspStreamPlayer';
 
 import { useAuthStore } from '../store/authStore';
@@ -358,6 +369,10 @@ const Detection = () => {
   useEffect(() => { simModeRef.current = simulationMode; }, [simulationMode]);
   const frameSkipRef = useRef(frameSkip);
   useEffect(() => { frameSkipRef.current = frameSkip; }, [frameSkip]);
+  // Pipeline path only: bounds upload rate, NOT the detection decision itself
+  // (the pipeline's own Gate makes that call server-side). See
+  // PIPELINE_WEBCAM_UPLOAD_INTERVAL_MS in services/pipelineApi.ts.
+  const lastPipelineUploadRef = useRef(0);
   const webThreatRef = useRef(webThreat);
   useEffect(() => { webThreatRef.current = webThreat; }, [webThreat]);
   const detectionsRef = useRef(detections);
@@ -418,8 +433,61 @@ const Detection = () => {
             setDetections([]);
           }
         }
-        // Real AI Mode
-        else if (tick % frameSkipRef.current === 0 && !isProcessing) {
+        // Real AI Mode -- pipeline path (PIPELINE_FLAGS.detection)
+        else if (PIPELINE_FLAGS.detection
+                 && performance.now() - lastPipelineUploadRef.current >= PIPELINE_WEBCAM_UPLOAD_INTERVAL_MS
+                 && !isProcessing) {
+          isProcessing = true;
+          lastPipelineUploadRef.current = performance.now();
+          c.toBlob(async (blob) => {
+            if (!blob) { isProcessing = false; return; }
+            try {
+              // apply_gate=true: the pipeline's real Gate decides whether this
+              // frame is worth inferring on -- the upload-rate cap above only
+              // bounds bandwidth, it is not the detection decision.
+              const pipelineCameraId = await getOrRegisterPipelineCamera(PIPELINE_CAMERA_NAME);
+              const raw = await pipelineDetectFrame(blob, pipelineCameraId, true);
+              const res = toLegacyDetectionShape(raw);
+              if (res && res.detections) {
+                setDetections(res.detections);
+                const hasFire = res.detections.some(d => d.detection_type === 'fire');
+                const hasSmoke = res.detections.some(d => d.detection_type === 'smoke');
+
+                if (hasFire || hasSmoke) {
+                  const threat = hasFire ? 'fire' : 'smoke';
+                  if (threat !== webThreatRef.current) {
+                    setWebThreat(threat);
+                    if (!mutedRef.current) void playAlertChime();
+
+                    const newAlert = {
+                      id: res.alert_ids[0] || `wc-det-${Date.now()}`,
+                      alertType: threat,
+                      cameraId: 'webcam-01',
+                      cameraName: 'Station Webcam',
+                      zone: 'Local Command',
+                      confidence: Math.max(...res.detections.map(d => d.confidence)),
+                      timestamp: new Date().toISOString(),
+                      severity: threat === 'fire' ? 'critical' : 'warning',
+                      isRead: false
+                    } as any;
+                    addNotification(newAlert);
+                    pushPopup(newAlert);
+                  }
+                } else {
+                  if (webThreatRef.current) {
+                    setWebThreat(null);
+                  }
+                }
+              }
+            } catch (err) {
+              console.error("Webcam inference error (pipeline):", err);
+            } finally {
+              isProcessing = false;
+            }
+          }, 'image/jpeg', 0.85);
+        }
+        // Real AI Mode -- legacy path (flag off)
+        else if (!PIPELINE_FLAGS.detection && tick % frameSkipRef.current === 0 && !isProcessing) {
           isProcessing = true;
           c.toBlob(async (blob) => {
             if (!blob) {

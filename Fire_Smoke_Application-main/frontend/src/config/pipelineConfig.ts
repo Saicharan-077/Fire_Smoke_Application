@@ -33,9 +33,15 @@ export const PIPELINE_FLAGS = {
 
 export type PipelinePage = keyof typeof PIPELINE_FLAGS;
 
+/**
+ * Deliberately does NOT hold a pipeline base URL or API key. The browser never
+ * talks to the pipeline directly -- every call is routed through the
+ * dashboard backend's proxy (see `services/pipelineApi.ts`), which holds the
+ * real pipeline URL and key server-side, in its own environment. Keeping
+ * those fields here, even unused, would be exactly the kind of loose end that
+ * gets wired back into a direct browser->pipeline call by a future edit.
+ */
 export const PIPELINE_CONFIG = {
-  baseUrl: env.VITE_PIPELINE_BASE_URL ?? 'http://localhost:8100',
-  apiKey: env.VITE_PIPELINE_API_KEY ?? '',
   /** Health poll interval, ms. Drives the automatic fallback. */
   healthIntervalMs: 15000,
 } as const;

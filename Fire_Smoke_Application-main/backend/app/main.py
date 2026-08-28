@@ -20,7 +20,8 @@ from .middleware.rate_limit import RateLimitMiddleware
 from .routes import (
     auth_routes, upload_routes, alert_routes, dashboard_routes, camera_routes,
     history_routes, incident_routes, settings_routes, profile_routes, detect_routes,
-    admin_routes, analytics_routes,
+    admin_routes, analytics_routes, pipeline_alert_routes,
+    pipeline_proxy_routes, zone_edit_routes, facility_map_routes,
 )
 from .routes.auth_routes import get_user_by_websocket_token, get_current_user, get_user_by_token
 from .services.analytics_service import (
@@ -384,6 +385,10 @@ def get_evidence_file(filename: str):
 app.include_router(auth_routes.router)
 app.include_router(upload_routes.router)
 app.include_router(alert_routes.router)
+app.include_router(pipeline_alert_routes.router)
+app.include_router(pipeline_proxy_routes.router)
+app.include_router(zone_edit_routes.router)
+app.include_router(facility_map_routes.router)
 app.include_router(dashboard_routes.router)
 app.include_router(camera_routes.router)
 app.include_router(history_routes.router)

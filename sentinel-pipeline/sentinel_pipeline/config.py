@@ -16,6 +16,29 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parent.parent
 
 
+def _load_dotenv() -> None:
+    """Load `.env` from the package root, without adding a dependency.
+
+    Real environment variables always win, so a deployment can override the
+    file. Kept deliberately small: this runs once at import, and config must
+    never be read from anywhere on a hot path.
+    """
+    env_file = _ROOT / ".env"
+    if not env_file.is_file():
+        return
+    for raw in env_file.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key, value = key.strip(), value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+_load_dotenv()
+
+
 def _env_f(key: str, default: float) -> float:
     try:
         return float(os.getenv(key, default))

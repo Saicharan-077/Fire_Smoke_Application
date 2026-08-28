@@ -5,6 +5,13 @@ import { Button } from '../components/Common/Button';
 import { Badge } from '../components/Common/Badge';
 import { useToast } from '../components/ui/Toast';
 import { getAlerts, testCctvConnection, getSettings, uploadImage } from '../services/api';
+import { pipelineDetectFrame, toLegacyDetectionShape, getOrRegisterPipelineCamera, PIPELINE_WEBCAM_UPLOAD_INTERVAL_MS } from '../services/pipelineApi';
+
+// See Detection.tsx's PIPELINE_CAMERA_NAME for why this is a name, not a
+// hardcoded id -- each page's webcam surface self-registers once and is
+// cached thereafter.
+const PIPELINE_CAMERA_NAME = 'Live Monitoring Webcam';
+import { PIPELINE_FLAGS } from '../config/pipelineConfig';
 import { listCameras } from '../services/cameraService';
 import { 
   Camera, MonitorPlay, ShieldCheck, 
@@ -224,6 +231,9 @@ const LiveMonitoring = () => {
   useEffect(() => { webcamThreatRef.current = webcamThreat; }, [webcamThreat]);
   const detectionsRef = useRef(detections);
   useEffect(() => { detectionsRef.current = detections; }, [detections]);
+  // Pipeline path only: bounds upload rate, NOT the detection decision itself
+  // (the pipeline's own Gate makes that call server-side).
+  const lastPipelineUploadRef = useRef(0);
 
   // Loop for Webcam canvas drawing & threat simulation
   useEffect(() => {
@@ -284,8 +294,66 @@ const LiveMonitoring = () => {
             setDetections([]);
           }
         }
-        // Real AI Mode
-        else if (tick % frameSkipRef.current === 0 && !isProcessing) {
+        // Real AI Mode -- pipeline path (PIPELINE_FLAGS.liveMonitoring)
+        else if (PIPELINE_FLAGS.liveMonitoring
+                 && performance.now() - lastPipelineUploadRef.current >= PIPELINE_WEBCAM_UPLOAD_INTERVAL_MS
+                 && !isProcessing) {
+          isProcessing = true;
+          canvas.toBlob(async (blob) => {
+            if (!blob) {
+              isProcessing = false;
+              return;
+            }
+            try {
+              const file = new File([blob], "frame.jpg", { type: "image/jpeg" });
+              lastPipelineUploadRef.current = performance.now();
+              // apply_gate=true: the pipeline's real Gate decides whether this
+              // frame is worth inferring on.
+              const pipelineCameraId = await getOrRegisterPipelineCamera(PIPELINE_CAMERA_NAME);
+              const raw = await pipelineDetectFrame(file, pipelineCameraId, true);
+              const res = toLegacyDetectionShape(raw);
+              if (res && res.detections) {
+                setDetections(res.detections);
+                const hasFire = res.detections.some(d => d.detection_type === 'fire');
+                const hasSmoke = res.detections.some(d => d.detection_type === 'smoke');
+
+                if (hasFire || hasSmoke) {
+                  const threat = hasFire ? 'fire' : 'smoke';
+                  if (threat !== webcamThreatRef.current) {
+                    setWebcamThreat(threat);
+                    startSiren();
+
+                    const newAlert = {
+                      id: res.alert_ids[0] || `wc-${Date.now()}`,
+                      alertType: threat,
+                      cameraId: 'webcam-01',
+                      cameraName: 'Station Webcam',
+                      zone: 'Local Command',
+                      confidence: Math.max(...res.detections.map(d => d.confidence)),
+                      timestamp: new Date().toISOString(),
+                      severity: threat === 'fire' ? 'critical' : 'warning',
+                      isRead: false
+                    } as any;
+                    historyAdd(newAlert);
+                    pushPopup(newAlert);
+                    void loadRecentAlerts();
+                  }
+                } else {
+                  if (webcamThreatRef.current) {
+                    setWebcamThreat(null);
+                    stopSiren();
+                  }
+                }
+              }
+            } catch (err) {
+              console.error("Webcam AI inference failed (pipeline):", err);
+            } finally {
+              isProcessing = false;
+            }
+          }, 'image/jpeg', 0.85);
+        }
+        // Real AI Mode -- legacy path (flag off)
+        else if (!PIPELINE_FLAGS.liveMonitoring && tick % frameSkipRef.current === 0 && !isProcessing) {
           isProcessing = true;
           canvas.toBlob(async (blob) => {
             if (!blob) {
@@ -643,7 +711,7 @@ const LiveMonitoring = () => {
                 <Activity className="text-[var(--fire)] animate-pulse w-5 h-5" />
                 <div>
                   <h4 className="font-bold text-xs text-[var(--text)] uppercase tracking-wider">Live Detection Ingestion Pipeline</h4>
-                  <p className="text-[10px] text-[var(--text-2)] mt-0.5 font-semibold">Global YOLOv8 core engine is scanning surveillance memory buffers in real-time.</p>
+                  <p className="text-[10px] text-[var(--text-2)] mt-0.5 font-semibold">Global AI vision core is scanning surveillance memory buffers in real-time.</p>
                 </div>
               </div>
               <div className="flex gap-4 text-xs font-bold text-[var(--text-2)] uppercase tracking-wider">

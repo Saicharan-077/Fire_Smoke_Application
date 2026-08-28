@@ -308,6 +308,45 @@ class ContextEngine:
         self._drift_flagged.discard(camera_id)
         return zone
 
+    def edit_zone(self, camera_id: str, **changes) -> tuple[Zone, Zone] | None:
+        """Human correction to an ALREADY-APPROVED zone.
+
+        Not a re-calibration -- does not touch CalibrationManager at all, so
+        it can never accidentally reset envelope/polygon data the way
+        re-running the approve endpoint without an active session would
+        (``CalibrationManager.approve()`` falls back to a blank
+        ``NormalEnvelope()`` when there is no live session, which is correct
+        for approving a *new* suggestion but wrong for editing an existing
+        one).
+
+        Only supplied (non-None) fields change; the rest of the zone is
+        carried over via ``dataclasses.replace``. Returns ``(before, after)``
+        so the caller can log an exact diff, or ``None`` if there is no
+        approved zone for this camera to edit.
+        """
+        import dataclasses
+
+        current = self._zones.get_for_camera(camera_id)
+        if current is None or not current.approved:
+            return None
+
+        before = current
+        field_changes = {k: v for k, v in changes.items() if k != "envelope" and v is not None}
+        envelope_changes = changes.get("envelope")
+
+        new_envelope = current.envelope
+        if envelope_changes:
+            env_fields = {k: v for k, v in envelope_changes.items() if v is not None}
+            if env_fields:
+                new_envelope = dataclasses.replace(current.envelope, **env_fields)
+
+        after = dataclasses.replace(current, **field_changes, envelope=new_envelope)
+
+        self._zones.set(after)
+        self._zone_store.save(after)
+        self._drift_flagged.discard(camera_id)
+        return before, after
+
     def load_persisted(self) -> dict:
         """Restore zones and in-flight calibration windows after a restart.
 

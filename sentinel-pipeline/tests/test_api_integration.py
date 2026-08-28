@@ -18,7 +18,13 @@ import urllib.request
 import uuid
 from pathlib import Path
 
+import os
+
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8100"
+# Real clients authenticate with X-API-Key once auth is enabled. Reading it
+# from the environment mirrors how a deployed frontend gets it -- from config,
+# not hardcoded -- and keeps this test honest about needing it.
+API_KEY = os.environ.get("PIPELINE_API_KEY_TEST", "")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from tests.fixtures import frame_paths  # noqa: E402
 
@@ -35,10 +41,12 @@ def check(name: str, ok: bool, detail: str) -> bool:
 
 
 def req(method: str, path: str, body: dict | None = None, raw: bytes | None = None,
-        content_type: str | None = None):
+        content_type: str | None = None, auth: bool = True):
     url = f"{BASE}{path}"
     data = None
     headers = {}
+    if API_KEY and auth:
+        headers["X-API-Key"] = API_KEY
     if body is not None:
         data = json.dumps(body).encode()
         headers["Content-Type"] = "application/json"
@@ -71,6 +79,19 @@ def multipart(path: str, file_bytes: bytes, filename: str = "frame.jpg"):
     return req("POST", path, raw=body, content_type=f"multipart/form-data; boundary={boundary}")
 
 
+def multipart_no_auth(path: str, file_bytes: bytes, filename: str = "frame.jpg"):
+    boundary = uuid.uuid4().hex
+    body = b"".join([
+        f"--{boundary}\r\n".encode(),
+        f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'.encode(),
+        b"Content-Type: image/jpeg\r\n\r\n",
+        file_bytes,
+        f"\r\n--{boundary}--\r\n".encode(),
+    ])
+    return req("POST", path, raw=body,
+               content_type=f"multipart/form-data; boundary={boundary}", auth=False)
+
+
 # ---------------------------------------------------------------------------
 
 
@@ -96,6 +117,23 @@ def main() -> int:
           st == 200 and "cropped_frame_rgb" in contract.get("classifier_input_fields", []),
           f"version={contract.get('contract_version')} "
           f"raw_classes={contract.get('raw_classes')}")
+
+    # Auth. This test runs against whatever the server was started with; if a
+    # key is configured, verify BOTH accepted paths and that no-key is refused.
+    # Query-param auth exists only for <img>/<video> tags (MJPEG, evidence) that
+    # cannot set a header -- verified here via a live HTTP roundtrip, since the
+    # unit tests call require_api_key() directly without a real request cycle.
+    if health.get("auth") == "enabled":
+        if API_KEY:
+            st, _ = req("GET", "/v1/alerts", auth=False)
+            check("no key -> 401 when auth is enabled", st == 401, f"status={st}")
+            st, _ = req("GET", f"/v1/alerts?api_key={API_KEY}", auth=False)
+            check("query-param auth accepted (img/video tag path)", st == 200,
+                  f"status={st}")
+            st, _ = req("GET", "/v1/alerts")  # helper's default header path
+            check("header auth accepted (fetch/XHR path)", st == 200, f"status={st}")
+        else:
+            print("  [SKIP] auth checks -- set PIPELINE_API_KEY_TEST to exercise them")
 
     # 2. Camera registration
     st, cam = req("POST", "/v1/cameras",
@@ -134,7 +172,13 @@ def main() -> int:
     if ev:
         fname = ev.rsplit("/", 1)[-1]
         try:
-            with urllib.request.urlopen(f"{BASE}/v1/evidence/{fname}", timeout=30) as r:
+            # Evidence is rendered by the dashboard via a plain <img src>, which
+            # cannot set a header -- so this must go through the query-param path,
+            # exactly like pipelineEvidenceUrl() in the frontend client does.
+            ev_url = f"{BASE}/v1/evidence/{fname}"
+            if API_KEY:
+                ev_url += f"?api_key={API_KEY}"
+            with urllib.request.urlopen(ev_url, timeout=30) as r:
                 blob = r.read()
             check("evidence image is retrievable via the API",
                   r.status == 200 and len(blob) > 1000,

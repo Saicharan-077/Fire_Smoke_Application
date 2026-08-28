@@ -51,7 +51,9 @@ else:
   detection anyway (`MAD < 1.8` rejects low-frame-to-frame-change ROIs) —
   the bug was structural, not a single fixable line.
 - **A multi-camera scheduler that had never run.** `camera_scheduler.py`
-  referenced `threading.Lock()`, `threading.Thread`, `threading.Event` but
+  referenced `threading.Lock()`, `thread
+￼
+ing.Thread`, `threading.Event` but
   never imported `threading`. Every camera processor construction raised
   `NameError`, silently swallowed by a broad `except Exception` in the main
   loop, which logged and retried forever. The service reported healthy and
@@ -207,7 +209,8 @@ silently dropped by a future classifier implementation.
 
 **One shared tracking layer for Motion and Flicker**, rather than each
 building its own object-persistence logic — both need "the same candidate,
-across N frames," so the pipeline provides it once.
+across N frames," so the pipeli
+        configne provides it once.
 
 **Zone containment as the sole basis for severity**, not raw detection
 confidence. A camera watching a designated burn pit and a camera watching a
@@ -251,7 +254,8 @@ Also independently confirmed:
   classes `{fire, smoke, sparks}`, CUDA device, conf threshold 0.2 — not
   hardcoded anywhere.
 - **123/124 real fire images correctly triggered detection** in a functional
-  (not benchmark-accuracy) sweep of a real dataset.
+  (not benchmark-accuracy) swee
+        configp of a real dataset.
 - **Frontend toolchain actually runs**: `tsc --noEmit` clean against the real
   `tsconfig.app.json`, and `vite build` succeeds, for every new
   dashboard-integration file — checked by installing a real Node runtime
@@ -319,8 +323,26 @@ folded into this branch's history yet, pending resolution of:
    branch — flagged rather than shipped.**
 
 **Deployment hardware is unconfirmed.** Dev measurements are on an RTX A2000
-(6GB); CPU-only inference has not been benchmarked and prior-audit numbers
-suggest roughly a 14x latency difference. This materially affects
+(6GB); CPU-only inference has not been benchmar
+￼
+ked and prior-audit numbers
+suggest roughly a 14x latency difference. s production-representative.
+
+**Classifier training data quality issue found, not yet acted on.**
+Dataset composition analysis found the `sparks` class carrying a
+disproportionate fullframe-box rate (roughly 94x the fire class's rate),
+suggesting label quality issues specific to that class. Flagged in
+`sentinel-pipeline/docs/TODO_ACTION_ITEMS.md` for the classifier engineer
+rather than silently worked around.
+
+**Flicker sampling strategy needs a decision**, documented with tradeoffs in
+`sentinel-pipeline/docs/FLICKER_SAMPLING_TRADEOFFS.md` — not yet chosen.
+
+---
+
+## 8. What's next
+
+1. Resolve the three checkpoint items aboThis materially affects
 multi-camera scheduling assumptions and is called out rather than papered
 over with a dev-machine number presented as production-representative.
 
