@@ -21,6 +21,7 @@ dist-ssr
 .venv*/
 .venv-pipeline/
 .venv-dashboard/
+.pytest_cache/
 .node-bin/
 backend/.venv
 backend/venv*

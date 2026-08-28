@@ -16,6 +16,7 @@ const LiveMonitoring = lazy(() => import('./pages/LiveMonitoring'));
 const AlertsReports = lazy(() => import('./pages/AlertsReports'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const Settings = lazy(() => import('./pages/Settings'));
+const Calibration = lazy(() => import('./pages/Calibration'));
 const Profile = lazy(() => import('./pages/Profile'));
 const AdminPanel = lazy(() => import('./pages/AdminPanel'));
 const Documentation = lazy(() => import('./pages/Documentation'));
@@ -75,6 +76,7 @@ function App() {
               <Route path="/reports" element={<Navigate to="/alerts-reports" replace />} />
               <Route path="/incidents" element={<Navigate to="/alerts-reports" replace />} />
               <Route path="/analytics" element={<RequireRole permission="analytics"><Analytics /></RequireRole>} />
+              <Route path="/calibration" element={<RequireRole permission="settings"><Calibration /></RequireRole>} />
               <Route path="/settings" element={<RequireRole permission="settings"><Settings /></RequireRole>} />
               <Route path="/admin" element={<RequireRole permission="admin"><AdminPanel /></RequireRole>} />
               <Route path="/profile" element={<RequireRole permission="profile"><Profile /></RequireRole>} />
