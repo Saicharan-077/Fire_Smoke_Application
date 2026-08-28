@@ -68,7 +68,12 @@ function App() {
               <Route path="/dashboard" element={<RequireRole permission="dashboard"><Dashboard /></RequireRole>} />
               <Route path="/detection" element={<RequireRole permission="detection"><Detection /></RequireRole>} />
               <Route path="/live-monitoring" element={<RequireRole permission="live_monitoring"><LiveMonitoring /></RequireRole>} />
+              <Route path="/cameras" element={<Navigate to="/live-monitoring" replace />} />
+              <Route path="/zones" element={<Navigate to="/live-monitoring" replace />} />
               <Route path="/alerts-reports" element={<RequireRole permission="alerts_reports"><AlertsReports /></RequireRole>} />
+              <Route path="/history" element={<Navigate to="/alerts-reports" replace />} />
+              <Route path="/reports" element={<Navigate to="/alerts-reports" replace />} />
+              <Route path="/incidents" element={<Navigate to="/alerts-reports" replace />} />
               <Route path="/analytics" element={<RequireRole permission="analytics"><Analytics /></RequireRole>} />
               <Route path="/settings" element={<RequireRole permission="settings"><Settings /></RequireRole>} />
               <Route path="/admin" element={<RequireRole permission="admin"><AdminPanel /></RequireRole>} />
