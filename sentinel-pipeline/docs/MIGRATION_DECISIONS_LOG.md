@@ -615,3 +615,36 @@ account from two places again.
   tracked in `TODO_ACTION_ITEMS.md` A2.
 
 ---
+
+## D15 — Batch-start calibration on multiple cameras at once
+
+**Decision:** the Calibrate tab's camera picker (`Calibration.tsx`) was a
+single `<select>` — starting calibration on N cameras meant N separate
+manual round-trips through the dropdown. Replaced it with a multi-select
+checkbox list (`startSet: Set<string>`) plus "Select all"/"Clear"; "Start
+Calibration" now fires `pipelineCalibrateStart` for every checked camera via
+`Promise.allSettled` (partial-failure tolerant — reports "started X/Y" if
+some fail) and adds all successes to a `calibratingCameras: Set<string>` at
+once.
+
+**Why the suggestion/approve detail panel stays single-camera:** approving a
+zone is inherently per-camera (one polygon, one risk weight, one zone_id).
+Rather than running N parallel suggestion pollers in this tab (duplicating
+what `CalibrationLiveOverview` already does well), starting is now
+batch-capable but the detail panel keeps a "Viewing details for" dropdown
+that focuses on and polls one calibrating camera at a time — switching it
+tears down the old poller and starts a new one for the newly-focused camera.
+Already-calibrating cameras are greyed out and unselectable in the checklist
+(can't double-start), with a `CALIBRATING` badge per row.
+
+**Live-verified, real API calls, not assumed:** checked 4 real registered
+cameras (webcam-01, Dashboard CAM-01, Live Monitoring, Test Camera A),
+clicked "Start Calibration (4 cameras)" once — network log confirmed **4
+separate real `POST .../calibrate/start` calls**, all `200 OK`, fired
+together. The Live Overview tab immediately showed all 4 as `CALIBRATING`
+with independent real observation counts, alongside the pre-existing
+calibrating/calibrated cameras from earlier sessions — proving the batch
+start and the existing multi-camera live-polling view compose correctly,
+not just that each works in isolation.
+
+---

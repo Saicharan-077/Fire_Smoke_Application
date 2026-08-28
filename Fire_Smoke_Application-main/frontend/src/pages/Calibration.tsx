@@ -56,9 +56,19 @@ export default function Calibration() {
   const { toast } = useToast();
   const [pageTab, setPageTab] = useState<'calibrate' | 'live' | 'zones' | 'map'>('calibrate');
   const [cameras, setCameras] = useState<CameraOption[]>([]);
+  // Which camera(s) are checked to be started together. Separate from
+  // `selectedCamera` (below) -- starting is a batch action across many
+  // cameras at once ("we should be able to calibrate multiple cameras at
+  // once"), while the suggestion/approve detail panel still focuses on ONE
+  // camera at a time (approving a zone is inherently per-camera). Watch ALL
+  // of them progress simultaneously on the Live Overview tab, which already
+  // polls every calibrating camera -- this tab's detail panel intentionally
+  // doesn't duplicate that, to avoid running N parallel pollers here too.
+  const [startSet, setStartSet] = useState<Set<string>>(new Set());
   const [selectedCamera, setSelectedCamera] = useState<string>('');
   const [windowMinutes, setWindowMinutes] = useState(DEMO_WINDOW_MINUTES_DEFAULT);
-  const [calibrating, setCalibrating] = useState(false);
+  const [calibratingCameras, setCalibratingCameras] = useState<Set<string>>(new Set());
+  const calibrating = calibratingCameras.has(selectedCamera);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [suggestion, setSuggestion] = useState<SuggestionState | null>(null);
   const [riskWeight, setRiskWeight] = useState(0.5);
@@ -66,11 +76,22 @@ export default function Calibration() {
   const [approvedZoneId, setApprovedZoneId] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
 
+  const toggleStartSet = (cameraId: string) => {
+    setStartSet((prev) => {
+      const next = new Set(prev);
+      if (next.has(cameraId)) next.delete(cameraId); else next.add(cameraId);
+      return next;
+    });
+  };
+
   useEffect(() => {
     pipelineListCameras()
       .then((cams) => {
         setCameras(cams.map((c) => ({ camera_id: c.camera_id, name: c.name })));
-        if (cams.length && !selectedCamera) setSelectedCamera(cams[0].camera_id);
+        if (cams.length && !selectedCamera) {
+          setSelectedCamera(cams[0].camera_id);
+          setStartSet(new Set([cams[0].camera_id]));
+        }
       })
       .catch(() => toast('Could not load cameras from the pipeline', 'error'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -91,19 +112,40 @@ export default function Calibration() {
   };
 
   const startCalibration = async () => {
-    if (!selectedCamera) { toast('Select a camera first', 'error'); return; }
-    try {
-      await pipelineCalibrateStart(selectedCamera, windowMinutes / 60);
-      setCalibrating(true);
+    const targets = Array.from(startSet.size ? startSet : (selectedCamera ? [selectedCamera] : []));
+    if (targets.length === 0) { toast('Select at least one camera first', 'error'); return; }
+
+    const results = await Promise.allSettled(
+      targets.map((id) => pipelineCalibrateStart(id, windowMinutes / 60)),
+    );
+    const started = targets.filter((_, i) => results[i].status === 'fulfilled');
+    const failed = targets.filter((_, i) => results[i].status === 'rejected');
+
+    if (started.length) {
+      setCalibratingCameras((prev) => new Set([...prev, ...started]));
+      // Focus the detail/suggestion panel on one of the cameras just
+      // started (prefer the currently-selected one if it's among them).
+      if (!started.includes(selectedCamera)) setSelectedCamera(started[0]);
       setStartedAt(Date.now());
       setSuggestion(null);
       setApprovedZoneId(null);
-      toast(`Calibration started (demo window: ${windowMinutes} min)`, 'success');
+      const focus = started.includes(selectedCamera) ? selectedCamera : started[0];
       if (pollRef.current) window.clearInterval(pollRef.current);
-      pollRef.current = window.setInterval(() => pollSuggestion(selectedCamera), 1500);
-      void pollSuggestion(selectedCamera);
-    } catch (e: any) {
-      toast('Failed to start calibration: ' + e.message, 'error');
+      pollRef.current = window.setInterval(() => pollSuggestion(focus), 1500);
+      void pollSuggestion(focus);
+    }
+
+    if (started.length && !failed.length) {
+      toast(
+        started.length === 1
+          ? `Calibration started (demo window: ${windowMinutes} min)`
+          : `Calibration started on ${started.length} cameras at once (demo window: ${windowMinutes} min each). Watch them all on the Live Overview tab.`,
+        'success',
+      );
+    } else if (started.length && failed.length) {
+      toast(`Started ${started.length}/${targets.length} — ${failed.length} failed (already calibrating, or unreachable).`, 'info');
+    } else {
+      toast('Failed to start calibration on the selected camera(s).', 'error');
     }
   };
 
@@ -128,7 +170,8 @@ export default function Calibration() {
       setApprovedZoneId(zoneId);
       toast('Zone approved and written to the real zones table', 'success');
       if (pollRef.current) { window.clearInterval(pollRef.current); pollRef.current = null; }
-      setCalibrating(false);
+      setCalibratingCameras((prev) => { const next = new Set(prev); next.delete(selectedCamera); return next; });
+      setStartSet((prev) => { const next = new Set(prev); next.delete(selectedCamera); return next; });
       console.log('Zone approval result:', result);
     } catch (e: any) {
       toast('Approval failed: ' + e.message, 'error');
@@ -182,42 +225,99 @@ export default function Calibration() {
       {pageTab === 'calibrate' && (
       <Card>
         <CardContent className="p-5 space-y-4">
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-semibold text-[var(--text-2)]">
+                Cameras to calibrate ({startSet.size} selected — starts together, one click)
+              </label>
+              <div className="flex gap-2">
+                <button
+                  className="text-[10px] font-bold text-sky-500 hover:underline cursor-pointer"
+                  onClick={() => setStartSet(new Set(cameras.filter((c) => !calibratingCameras.has(c.camera_id)).map((c) => c.camera_id)))}
+                >
+                  Select all
+                </button>
+                <button
+                  className="text-[10px] font-bold text-[var(--text-2)] hover:underline cursor-pointer"
+                  onClick={() => setStartSet(new Set())}
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+            <div className="border border-[var(--border)] rounded-lg max-h-40 overflow-y-auto bg-[var(--bg-2)] divide-y divide-[var(--border)]">
+              {cameras.length === 0 && <p className="p-3 text-xs text-[var(--text-3)]">No cameras registered</p>}
+              {cameras.map((c) => {
+                const isCalibrating = calibratingCameras.has(c.camera_id);
+                return (
+                  <label key={c.camera_id} className={`flex items-center gap-2 px-3 py-1.5 text-xs cursor-pointer ${isCalibrating ? 'opacity-50' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={startSet.has(c.camera_id)}
+                      disabled={isCalibrating}
+                      onChange={() => toggleStartSet(c.camera_id)}
+                    />
+                    <span className={selectedCamera === c.camera_id ? 'font-bold text-sky-500' : ''}>{c.name}</span>
+                    {isCalibrating && <Badge variant="success" className="text-[8px] ml-auto">calibrating</Badge>}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="flex flex-wrap gap-4 items-end">
             <div>
-              <label className="text-xs font-semibold text-[var(--text-2)] block mb-1">Camera</label>
-              <select
-                className="border rounded px-3 py-2 bg-[var(--bg-2)] text-[var(--text)] min-w-[220px]"
-                value={selectedCamera}
-                onChange={(e) => setSelectedCamera(e.target.value)}
-                disabled={calibrating}
-              >
-                {cameras.length === 0 && <option value="">No cameras registered</option>}
-                {cameras.map((c) => (
-                  <option key={c.camera_id} value={c.camera_id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
               <label className="text-xs font-semibold text-[var(--text-2)] block mb-1">
-                Demo window (minutes)
+                Demo window (minutes, applies to every camera started together)
               </label>
               <input
                 type="number" min={1} max={30} value={windowMinutes}
                 onChange={(e) => setWindowMinutes(Number(e.target.value))}
                 className="border rounded px-3 py-2 bg-[var(--bg-2)] text-[var(--text)] w-24"
-                disabled={calibrating}
               />
             </div>
-            {!calibrating ? (
-              <Button onClick={startCalibration} disabled={!selectedCamera}>
-                <Radio className="w-4 h-4 mr-1" /> Start Calibration
-              </Button>
-            ) : (
-              <Button variant="outline" onClick={skipAhead}>
-                <FastForward className="w-4 h-4 mr-1" /> Get Suggestion Now (skip ahead)
-              </Button>
-            )}
+            <Button onClick={startCalibration} disabled={startSet.size === 0}>
+              <Radio className="w-4 h-4 mr-1" /> Start Calibration{startSet.size > 1 ? ` (${startSet.size} cameras)` : ''}
+            </Button>
           </div>
+
+          {calibratingCameras.size > 0 && (
+            <div className="flex flex-wrap items-end gap-4 border-t border-[var(--border)] pt-4">
+              <div>
+                <label className="text-xs font-semibold text-[var(--text-2)] block mb-1">Viewing details for</label>
+                <select
+                  className="border rounded px-3 py-2 bg-[var(--bg-2)] text-[var(--text)] min-w-[220px]"
+                  value={selectedCamera}
+                  onChange={(e) => {
+                    setSelectedCamera(e.target.value);
+                    setSuggestion(null);
+                    setApprovedZoneId(null);
+                    if (pollRef.current) window.clearInterval(pollRef.current);
+                    if (calibratingCameras.has(e.target.value)) {
+                      pollRef.current = window.setInterval(() => pollSuggestion(e.target.value), 1500);
+                      void pollSuggestion(e.target.value);
+                    }
+                  }}
+                >
+                  {cameras.map((c) => (
+                    <option key={c.camera_id} value={c.camera_id}>
+                      {c.name}{calibratingCameras.has(c.camera_id) ? ' (calibrating)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {calibrating && (
+                <Button variant="outline" onClick={skipAhead}>
+                  <FastForward className="w-4 h-4 mr-1" /> Get Suggestion Now (skip ahead)
+                </Button>
+              )}
+              {calibratingCameras.size > 1 && (
+                <p className="text-[10px] text-[var(--text-2)] max-w-xs">
+                  {calibratingCameras.size} cameras are calibrating right now — see the <b>Live Overview &amp; Adjacency</b> tab to watch all of them at once. This panel shows detail for one at a time.
+                </p>
+              )}
+            </div>
+          )}
 
           {calibrating && (
             <div className="border-t border-[var(--border)] pt-4">
