@@ -1052,7 +1052,7 @@ const Dashboard = () => {
             </span>
           </div>
           <div className="p-4 h-[135px]">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={100}>
+            <ResponsiveContainer width="100%" height={100} minWidth={0} minHeight={100}>
               <AreaChart data={timeline} margin={{ top: 2, right: 2, left: -28, bottom: 0 }}>
                 <defs>
                   <linearGradient id="gFire" x1="0" y1="0" x2="0" y2="1">
