@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Settings, Bell, LogOut,
   Camera, BarChart3, Shield, Menu,
   ChevronRight, ChevronLeft, Search, AlertTriangle,
-  Video, History, Sun, Moon, Sparkles
+  Video, History, Sun, Moon, Sparkles, Target
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useNotificationsStore } from '../store/notificationsStore';
@@ -38,6 +38,7 @@ const Layout = () => {
     { label: 'Detection',       path: '/detection',       icon: Camera },
     { label: 'History',         path: '/alerts-reports',  icon: History },
     { label: 'Analytics',       path: '/analytics',       icon: BarChart3 },
+    { label: 'Calibration',     path: '/calibration',     icon: Target },
     { label: 'Settings',        path: '/settings',        icon: Settings },
   ];
 
