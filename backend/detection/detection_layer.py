@@ -619,22 +619,37 @@ class DetectionLayer:
                     flame_ratio = scores.get("flame_color_ratio", 0.0)
                     brightness = scores.get("avg_brightness", 0.0) / 255.0
                     sparks = scores.get("sparks_count", 0)
+                    components = scores.get("components_count", 0)
                     flicker = scores.get("flicker_index", 0.0)
                     color_score = min(1.0, flame_ratio / 0.10)
                     cv_score = 0.5 * color_score + 0.3 * brightness + 0.2 * flicker
 
-                    # Fusion Weights: 50% YOLO Deep Learning + 25% CV Color Mask + 15% Dynamic Brightness/Flicker + 10% Sparks/Hotspots
-                    spark_boost = min(0.15, sparks * 0.03)
-                    fusion_score = (0.50 * raw_yolo_conf) + (0.25 * color_score) + (0.15 * brightness) + (0.10 * flicker) + spark_boost
-                    fusion_score = min(0.99, max(0.05, fusion_score))
+                    # Check if ROI is actually a spark burst / ember shower
+                    is_spark_burst = (
+                        sparks >= 3 or
+                        components >= 5 or
+                        (flame_ratio < 0.20 and brightness > 0.40 and sparks >= 1)
+                    )
 
-                    # Sub-categorization
-                    if area_ratio < 0.015 or box_area < 1800:
-                        candidate_cat = "far_fire_candidate"
-                    elif sparks >= 3 or flicker > 0.65:
+                    if is_spark_burst:
+                        det_type = "sparks"
+                        det["detection_type"] = "sparks"
                         candidate_cat = "spark_occluded"
+                        spark_score = min(0.99, max(0.60, 0.45 * raw_yolo_conf + 0.35 * brightness + 0.20 * min(1.0, sparks / 10.0)))
+                        fusion_score = spark_score
                     else:
-                        candidate_cat = "normal_fire"
+                        # Fusion Weights for continuous flame fire
+                        spark_boost = min(0.15, sparks * 0.03)
+                        fusion_score = (0.50 * raw_yolo_conf) + (0.25 * color_score) + (0.15 * brightness) + (0.10 * flicker) + spark_boost
+                        fusion_score = min(0.99, max(0.05, fusion_score))
+
+                        # Sub-categorization
+                        if area_ratio < 0.015 or box_area < 1800:
+                            candidate_cat = "far_fire_candidate"
+                        elif sparks >= 2 or flicker > 0.65:
+                            candidate_cat = "spark_occluded"
+                        else:
+                            candidate_cat = "normal_fire"
 
                 elif det_type == "smoke":
                     sat = scores.get("avg_saturation", 0.0) / 255.0
@@ -738,25 +753,48 @@ class DetectionLayer:
         return raw_candidates
 
     def detect_image(self, frame: np.ndarray, db_settings: dict | None = None) -> Tuple[np.ndarray, List[Dict[str, Any]]]:
-        """Single entry point for image inference. Returns (annotated_frame, detections)."""
+        """Single entry point for image inference with full YOLO + CV Spark/Flame fusion and NMS."""
         t_start = time.perf_counter()
         active_cfg = self._merge_db_settings(db_settings)
 
         # Stage 1: AI model inference
         raw_dets = self._run_stage1_ai(frame, active_cfg)
 
-        if not raw_dets:
+        # Stage 2: CV Spark & Hotspot Candidate Extraction
+        cv_candidates = self.detect_cv_candidates(frame)
+
+        all_candidates = list(raw_dets)
+        for cv_c in cv_candidates:
+            overlap = any(
+                ByteTracker._compute_iou(cv_c["bbox"], yd["bbox"]) > 0.40
+                for yd in raw_dets
+            )
+            if not overlap:
+                all_candidates.append(cv_c)
+
+        if not all_candidates:
             t_total = (time.perf_counter() - t_start) * 1000.0
             logger.info(f"[Inference] IMAGE-UPLOAD — 0 det(s) in {t_total:.0f}ms")
             return frame, []
 
-        # Stage 2: Verification
-        verified_dets = self._run_stage2_verification(frame, raw_dets, active_cfg, camera_id="IMAGE-UPLOAD")
-        annotated = self.annotate_frame(frame, verified_dets)
+        # Stage 3: Verification & Fusion
+        verified_dets = self._run_stage2_verification(frame, all_candidates, active_cfg, camera_id="IMAGE-UPLOAD")
+
+        # Stage 4: NMS deduplication to remove duplicate overlapping boxes
+        final_dets = []
+        for d in sorted(verified_dets, key=lambda x: x["confidence"], reverse=True):
+            is_dup = any(
+                ByteTracker._compute_iou(d["bbox"], kept["bbox"]) > 0.45
+                for kept in final_dets
+            )
+            if not is_dup:
+                final_dets.append(d)
+
+        annotated = self.annotate_frame(frame, final_dets)
 
         t_total = (time.perf_counter() - t_start) * 1000.0
-        logger.info(f"[Inference] IMAGE-UPLOAD — {len(verified_dets)} det(s) in {t_total:.0f}ms (stage1={len(raw_dets)})")
-        return annotated, verified_dets
+        logger.info(f"[Inference] IMAGE-UPLOAD — {len(final_dets)} det(s) in {t_total:.0f}ms (candidates={len(all_candidates)})")
+        return annotated, final_dets
 
     def temporal_verify(self, source_id: str, detections: List[Dict[str, Any]], active_cfg: DetectionConfig) -> List[Dict[str, Any]]:
         """Filters detections to ensure temporal consistency and performs confidence smoothing."""
@@ -974,16 +1012,44 @@ class DetectionLayer:
         }
 
     def detect_cv_candidates(self, frame: np.ndarray, prev_gray: np.ndarray | None = None) -> List[Dict[str, Any]]:
-        """Lightweight CV layer to detect micro-sparks and small distant flame candidates."""
+        """Lightweight CV layer to detect individual micro-sparks and radiating spark bursts."""
         candidates = []
         h, w = frame.shape[:2]
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         
-        # 1. Micro-sparks detector: ultra-bright hotspot pixels
-        spark_mask = cv2.inRange(hsv, np.array([0, 0, 190]), np.array([180, 255, 255]))
+        # 1. Spark mask: ultra-bright hotspot pixels
+        spark_mask = cv2.inRange(hsv, np.array([0, 0, 180]), np.array([180, 255, 255]))
+        
+        # 2. Spark Clusters (grouping radiating spark bursts / showers)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
+        dilated = cv2.dilate(spark_mask, kernel, iterations=2)
+        contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for c in contours:
+            x, y, cw, ch = cv2.boundingRect(c)
+            area = cw * ch
+            if area >= 80:
+                pad = 4
+                bx1, by1 = max(0, x - pad), max(0, y - pad)
+                bx2, by2 = min(w, x + cw + pad), min(h, y + ch + pad)
+                roi_gray = gray[by1:by2, bx1:bx2]
+                bright_val = float(np.mean(roi_gray)) if roi_gray.size > 0 else 100.0
+                conf = round(min(0.96, max(0.55, 0.45 + (bright_val / 255.0) * 0.50)), 4)
+                
+                candidates.append({
+                    "detection_type": "sparks",
+                    "confidence": conf,
+                    "bbox": {"x1": bx1, "y1": by1, "x2": bx2, "y2": by2},
+                    "source": "cv",
+                    "candidate_category": "spark_occluded",
+                    "alert_level": "YELLOW",
+                    "verified": True,
+                    "verification_scores": {"spark_area": area, "brightness": round(bright_val, 1)}
+                })
+        
+        # 3. Micro-sparks (small individual ember points)
         num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(spark_mask)
-        for i in range(1, min(num_labels, 15)):
+        for i in range(1, min(num_labels, 25)):
             area = int(stats[i, cv2.CC_STAT_AREA])
             if 2 <= area <= 60:
                 sx = int(stats[i, cv2.CC_STAT_LEFT])
@@ -994,21 +1060,22 @@ class DetectionLayer:
                 bx1, by1 = max(0, sx - pad), max(0, sy - pad)
                 bx2, by2 = min(w, sx + sw + pad), min(h, sy + sh + pad)
                 
-                flicker_score = 0.5
-                if prev_gray is not None and prev_gray.shape == gray.shape:
-                    diff_val = float(np.mean(cv2.absdiff(gray[by1:by2, bx1:bx2], prev_gray[by1:by2, bx1:bx2])))
-                    flicker_score = min(1.0, diff_val / 20.0)
-                
-                candidates.append({
-                    "detection_type": "sparks",
-                    "confidence": round(0.45 + 0.35 * flicker_score, 4),
-                    "bbox": {"x1": bx1, "y1": by1, "x2": bx2, "y2": by2},
-                    "source": "cv",
-                    "candidate_category": "spark_occluded",
-                    "alert_level": "YELLOW",
-                    "verified": True,
-                    "verification_scores": {"spark_area": area, "flicker": round(flicker_score, 2)}
-                })
+                # Check if already enclosed by an existing cluster
+                is_enclosed = any(
+                    (bx1 >= cb["bbox"]["x1"] and by1 >= cb["bbox"]["y1"] and bx2 <= cb["bbox"]["x2"] and by2 <= cb["bbox"]["y2"])
+                    for cb in candidates
+                )
+                if not is_enclosed:
+                    candidates.append({
+                        "detection_type": "sparks",
+                        "confidence": 0.65,
+                        "bbox": {"x1": bx1, "y1": by1, "x2": bx2, "y2": by2},
+                        "source": "cv",
+                        "candidate_category": "spark_occluded",
+                        "alert_level": "YELLOW",
+                        "verified": True,
+                        "verification_scores": {"spark_area": area}
+                    })
         return candidates
 
     def detect_video_stream(
