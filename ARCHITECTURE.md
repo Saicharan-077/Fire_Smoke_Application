@@ -116,14 +116,61 @@ Client                    Server
 
 ---
 
-## Detection Pipeline
+## Detection Pipeline Architecture
 
 ```
-Upload/Stream → Decode (OpenCV) → YOLOv8 Inference → Filter classes
-     → Apply NMS → Draw bounding boxes → Save evidence
-     → Create Alert → Create DetectionEvent → WebSocket push
-     → Return JSON response to client
+                    CAMERA FRAME
+                         │
+              ┌──────────┴──────────┐
+              │                     │
+           YOLOv8                 OpenCV CV
+              │                     │
+       Fire / Smoke          Color + Motion
+       normal objects        + Flicker + Sparks
+              │                     │
+              └──────────┬──────────┘
+                         ↓
+                 EVIDENCE FUSION
+                         ↓
+              TEMPORAL VERIFICATION
+                         ↓
+              ┌──────────┼──────────┐
+              ↓          ↓          ↓
+           NORMAL      FAR FIRE    SPARK /
+            FIRE       CANDIDATE   OCCLUDED
+              │          │          │
+              └──────────┴──────────┘
+                         ↓
+                    ALERT ENGINE
+                         ↓
+                  GREEN / YELLOW / RED
 ```
+
+### Pipeline Flow Breakdown
+
+1. **Dual Stream Ingestion**:
+   - **YOLOv8 Deep Learning Stream**: Neural object localization, predicting bounding boxes and confidence for `fire`, `smoke`, and contextual scene objects.
+   - **OpenCV Computer Vision Stream**: Deterministic optical verification analyzing multi-range HSV color masks, texture variance, optical flow / motion differential, high-temperature sparks, and flicker frequency (8–12 Hz).
+
+2. **Evidence Fusion (Phase 4)**:
+   - Dynamic multi-factor scoring:
+     - **45%** Deep Learning YOLO confidence
+     - **30%** Spectral & HSV color mask ratio
+     - **15%** Luminance, sparks, and flicker index
+     - **10%** Local temporal motion stability
+
+3. **Temporal Verification & Tracking (ByteTrack)**:
+   - Associates bounding boxes across sequential frames with IoU persistence and Exponential Moving Average (EMA) confidence smoothing, preventing transient flickers or camera artifacts from triggering false alarms.
+
+4. **Threat Categorization**:
+   - **Normal Fire**: Confirmed sustained fire signature across spatial and temporal dimensions.
+   - **Far Fire Candidate**: Small-scale pixel area hotspot verified through intense color concentration and luminance dynamics.
+   - **Spark / Occluded**: Fleeting micro-bursts, welding sparks, or smoke-occluded thermal regions.
+
+5. **Alert Engine (Phase 5)**:
+   - **🟢 GREEN**: Normal / Secure monitoring state.
+   - **🟡 YELLOW**: Advisory candidate requiring temporal confirmation or low-confidence persistence.
+   - **🔴 RED**: Confirmed emergency trigger broadcasting WebSockets to SOC dashboard and triggering automated incident logging.
 
 ---
 

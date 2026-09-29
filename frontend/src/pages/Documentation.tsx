@@ -2,8 +2,9 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Shield, ArrowLeft, Key, BookOpen, Terminal, 
-  Network, Cpu, Info, Database 
+  Network, Cpu, Info, Database, Zap 
 } from 'lucide-react';
+import InteractiveArchitectureFlow from '../components/Architecture/InteractiveArchitectureFlow';
 
 const Documentation = () => {
   const navigate = useNavigate();
@@ -127,10 +128,59 @@ npm run dev`}
             </div>
           </motion.section>
 
+          {/* Interactive Detection Pipeline Architecture */}
+          <motion.section variants={itemVariants} className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold flex items-center gap-2 text-white">
+                <Zap className="w-6 h-6 text-amber-500" /> Detection Pipeline & Evidence Fusion
+              </h2>
+              <span className="px-3 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-mono">
+                Dual-Stream Engine
+              </span>
+            </div>
+
+            {/* Interactive Architecture Widget */}
+            <InteractiveArchitectureFlow />
+
+            {/* ASCII & Structural Architecture View */}
+            <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
+              <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider font-mono flex items-center gap-2">
+                <Network className="w-4 h-4 text-indigo-400" /> Pipeline Topology ASCII Map
+              </h3>
+              <pre className="bg-black/60 border border-white/5 p-5 rounded-xl text-xs font-mono text-amber-300 leading-relaxed overflow-x-auto select-all">
+{`                    CAMERA FRAME
+                         │
+              ┌──────────┴──────────┐
+              │                     │
+           YOLOv8                 OpenCV CV
+              │                     │
+       Fire / Smoke          Color + Motion
+       normal objects        + Flicker + Sparks
+              │                     │
+              └──────────┬──────────┘
+                         ↓
+                 EVIDENCE FUSION
+                         ↓
+              TEMPORAL VERIFICATION
+                         ↓
+              ┌──────────┼──────────┐
+              ↓          ↓          ↓
+           NORMAL      FAR FIRE    SPARK /
+            FIRE       CANDIDATE   OCCLUDED
+              │          │          │
+              └──────────┴──────────┘
+                         ↓
+                    ALERT ENGINE
+                         ↓
+                  GREEN / YELLOW / RED`}
+              </pre>
+            </div>
+          </motion.section>
+
           {/* Core System Architecture */}
           <motion.section variants={itemVariants} className="space-y-4">
             <h2 className="text-2xl font-bold flex items-center gap-2 text-white">
-              <Network className="w-6 h-6 text-indigo-500" /> System Architecture
+              <Network className="w-6 h-6 text-indigo-500" /> System Architecture & Microservices
             </h2>
             <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/5 grid grid-cols-1 md:grid-cols-3 gap-8">
               <div className="space-y-3">

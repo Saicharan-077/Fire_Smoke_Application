@@ -347,14 +347,31 @@ class DetectionLayer:
             avg_sat = 0.0
             avg_val = 0.0
 
+        # 6. Spark Detection & High-Intensity Hotspots (CV Heuristics)
+        # Sparks: localized, ultra-bright, high-temperature micro-regions
+        spark_mask = cv2.inRange(roi_hsv, np.array([0, 50, 230]), np.array([180, 255, 255]))
+        num_spark_labels, _, spark_stats, _ = cv2.connectedComponentsWithStats(spark_mask)
+        sparks_count = 0
+        for i in range(1, num_spark_labels):
+            area = spark_stats[i, cv2.CC_STAT_AREA]
+            if 1 <= area <= 30:
+                sparks_count += 1
+
+        # 7. Intensity Variance / Flicker Metric
+        v_channel = roi_hsv[:, :, 2]
+        intensity_std = float(np.std(v_channel))
+        flicker_index = min(1.0, intensity_std / 64.0)
+
         scores = {
             "flame_color_ratio": round(flame_color_ratio, 4),
             "avg_brightness": round(avg_val, 2),
             "avg_saturation": round(avg_sat, 2),
             "components_count": max(0, num_labels - 1),
+            "sparks_count": sparks_count,
+            "flicker_index": round(flicker_index, 3),
         }
 
-        # 6. Verification Checks
+        # 8. Verification Checks
         if flame_color_ratio < config.min_pixel_ratio:
             return False, f"low_flame_ratio (ratio={flame_color_ratio:.4f} < threshold={config.min_pixel_ratio})", scores
         if avg_val < config.min_brightness:
@@ -562,18 +579,58 @@ class DetectionLayer:
             det["verification_scores"] = scores
 
             if is_valid:
-                # Calculate final confidence score derived from Stage 1 (YOLO) and Stage 2 (Verification)
-                # Phase 4 - Decision Fusion
-                if det_type == "fire" and "flame_color_ratio" in scores and "avg_brightness" in scores:
-                    verify_score = 0.5 * (min(1.0, scores["flame_color_ratio"] / 0.20)) + 0.5 * (scores["avg_brightness"] / 255.0)
-                    final_conf = 0.6 * det["confidence"] + 0.4 * verify_score
-                elif det_type == "smoke" and "avg_saturation" in scores:
-                    verify_score = 1.0 - (scores["avg_saturation"] / 255.0)
-                    final_conf = 0.6 * det["confidence"] + 0.4 * verify_score
+                # Phase 4 - Evidence Fusion & Candidate Categorization
+                raw_yolo_conf = float(det["confidence"])
+                box_area = (cx2 - cx1) * (cy2 - cy1)
+                frame_area = max(1, h * w)
+                area_ratio = box_area / frame_area
+
+                candidate_cat = "normal_fire"
+                fusion_score = raw_yolo_conf
+
+                if det_type == "fire":
+                    flame_ratio = scores.get("flame_color_ratio", 0.0)
+                    brightness = scores.get("avg_brightness", 0.0) / 255.0
+                    sparks = scores.get("sparks_count", 0)
+                    flicker = scores.get("flicker_index", 0.0)
+                    color_score = min(1.0, flame_ratio / 0.20)
+                    cv_score = 0.5 * color_score + 0.3 * brightness + 0.2 * flicker
+
+                    # Fusion Weights: 45% YOLO Deep Learning + 30% CV Color Mask + 15% Dynamic Brightness/Flicker + 10% Sparks/Hotspots
+                    spark_boost = min(0.15, sparks * 0.03)
+                    fusion_score = (0.45 * raw_yolo_conf) + (0.30 * color_score) + (0.15 * brightness) + (0.10 * flicker) + spark_boost
+                    fusion_score = min(0.99, max(0.05, fusion_score))
+
+                    # Sub-categorization
+                    if area_ratio < 0.015 or box_area < 1800:
+                        candidate_cat = "far_fire_candidate"
+                    elif sparks >= 3 or flicker > 0.65:
+                        candidate_cat = "spark_occluded"
+                    else:
+                        candidate_cat = "normal_fire"
+
+                elif det_type == "smoke":
+                    sat = scores.get("avg_saturation", 0.0) / 255.0
+                    edge_dens = scores.get("edge_density", 0.0)
+                    desat_score = max(0.0, 1.0 - sat)
+                    edge_score = max(0.0, 1.0 - min(1.0, edge_dens / 0.15))
+                    fusion_score = (0.50 * raw_yolo_conf) + (0.35 * desat_score) + (0.15 * edge_score)
+                    candidate_cat = "normal_smoke"
+
+                # Phase 5 - Alert Engine Severity Mapping
+                final_conf = round(float(fusion_score), 4)
+                if final_conf >= 0.70 or (det_type == "fire" and candidate_cat == "normal_fire" and final_conf >= 0.60):
+                    alert_level = "RED"
+                elif final_conf >= 0.35 or candidate_cat in ("far_fire_candidate", "spark_occluded"):
+                    alert_level = "YELLOW"
                 else:
-                    final_conf = det["confidence"]
-                
-                det["confidence"] = round(float(final_conf), 4)
+                    alert_level = "GREEN"
+
+                det["confidence"] = final_conf
+                det["raw_yolo_conf"] = raw_yolo_conf
+                det["candidate_category"] = candidate_cat
+                det["alert_level"] = alert_level
+                det["fusion_score"] = final_conf
                 verified_detections.append(det)
             else:
                 logger.info(f"[Stage 2 Reject] {det_type} conf={det['confidence']:.4f} rejected: {reason}")
@@ -1069,7 +1126,13 @@ class DetectionLayer:
             cv2.rectangle(out, (bb["x1"], bb["y1"]), (bb["x2"], bb["y2"]), color, 2)
             
             tid_str = f" #{d['track_id']}" if "track_id" in d else ""
-            label = f"{d['detection_type'].upper()}{tid_str} {d['confidence']:.0%}"
+            cat_tag = ""
+            if d.get("candidate_category") == "far_fire_candidate":
+                cat_tag = " [FAR]"
+            elif d.get("candidate_category") == "spark_occluded":
+                cat_tag = " [SPARK]"
+
+            label = f"{d['detection_type'].upper()}{cat_tag}{tid_str} {d['confidence']:.0%}"
             (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
 
             if bb["y1"] - th - 8 >= 0:
