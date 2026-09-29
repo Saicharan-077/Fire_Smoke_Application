@@ -12,6 +12,8 @@
   <img alt="YOLO26m" src="https://img.shields.io/badge/YOLO26m-ultralytics-purple.svg" />
 </p>
 
+> 📖 **Comprehensive End-to-End System Documentation**: For complete production architectural specifications, mathematical evidence fusion matrices, common platform integration contracts, and multi-use-case workflows, see [**FIRE_SMOKE_SYSTEM_DOCUMENTATION.md**](docs/FIRE_SMOKE_SYSTEM_DOCUMENTATION.md).
+
 ---
 
 ## Project Overview
