@@ -356,15 +356,25 @@ app = FastAPI(title="SentinelOS API", version="1.0.0", lifespan=lifespan)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RateLimitMiddleware)
 
-# CORS — configurable via env
-_origins = [origin.strip() for origin in os.environ.get("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",") if origin.strip()]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS — configurable via env, defaults to allowing all origins for local network & mobile testing
+_cors_env = os.environ.get("CORS_ORIGINS", "*")
+if _cors_env.strip() == "*":
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    _origins = [origin.strip() for origin in _cors_env.split(",") if origin.strip()]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # Serve evidence images as static files
 EVIDENCE_DIR = os.path.join(os.path.dirname(__file__), "..", "evidence")

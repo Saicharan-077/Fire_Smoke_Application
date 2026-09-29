@@ -4,11 +4,11 @@ const BASE = APP_CONFIG.apiBaseUrl;
 
 
 export interface BBox { x1: number; y1: number; x2: number; y2: number; }
-export interface Detection { detection_type: 'fire' | 'smoke'; confidence: number; bbox: BBox; }
+export interface Detection { detection_type: 'fire' | 'smoke' | 'sparks' | string; confidence: number; bbox: BBox; candidate_category?: string; alert_level?: string; }
 
 export interface Alert {
   id: string;
-  detection_type: 'fire' | 'smoke';
+  detection_type: 'fire' | 'smoke' | 'sparks' | string;
   confidence: number;
   status: 'active' | 'resolved';
 
@@ -27,6 +27,7 @@ export interface DashboardStats {
   active_alerts: number;
   fire_alerts: number;
   smoke_alerts: number;
+  spark_alerts?: number;
   connected_cameras: number;
   online_cameras?: number;
   total_cameras?: number;
@@ -39,7 +40,7 @@ export interface DashboardStats {
 export interface DetectionEvent {
   id: string;
   alert_id: string | null;
-  detection_type: 'fire' | 'smoke';
+  detection_type: 'fire' | 'smoke' | 'sparks' | string;
   confidence: number;
   bbox_x1: number | null;
   bbox_y1: number | null;

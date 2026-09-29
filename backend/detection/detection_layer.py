@@ -336,7 +336,7 @@ class DetectionLayer:
                 valid_pixels += stats[i, cv2.CC_STAT_AREA]
 
         # 4. Pixel density / ratio
-        flame_color_ratio = valid_pixels / total_pixels if total_pixels > 0 else 0.0
+        flame_color_ratio = float(valid_pixels / total_pixels) if total_pixels > 0 else 0.0
 
         # 5. Brightness (V) & Saturation (S)
         if valid_pixels > 0:
@@ -353,7 +353,7 @@ class DetectionLayer:
         num_spark_labels, _, spark_stats, _ = cv2.connectedComponentsWithStats(spark_mask)
         sparks_count = 0
         for i in range(1, num_spark_labels):
-            area = spark_stats[i, cv2.CC_STAT_AREA]
+            area = int(spark_stats[i, cv2.CC_STAT_AREA])
             if 1 <= area <= 30:
                 sparks_count += 1
 
@@ -363,22 +363,45 @@ class DetectionLayer:
         flicker_index = min(1.0, intensity_std / 64.0)
 
         scores = {
-            "flame_color_ratio": round(flame_color_ratio, 4),
-            "avg_brightness": round(avg_val, 2),
-            "avg_saturation": round(avg_sat, 2),
-            "components_count": max(0, num_labels - 1),
-            "sparks_count": sparks_count,
-            "flicker_index": round(flicker_index, 3),
+            "flame_color_ratio": round(float(flame_color_ratio), 4),
+            "avg_brightness": round(float(avg_val), 2),
+            "avg_saturation": round(float(avg_sat), 2),
+            "components_count": int(max(0, num_labels - 1)),
+            "sparks_count": int(sparks_count),
+            "flicker_index": round(float(flicker_index), 3),
         }
 
         # 8. Verification Checks
-        if flame_color_ratio < config.min_pixel_ratio:
+        sat_threshold = config.min_saturation
+        # If flame has bright white/yellow core (common with webcams and lighters), relax saturation
+        if avg_val >= 120.0:
+            sat_threshold = max(5.0, config.min_saturation * 0.3)
+
+        if flame_color_ratio < config.min_pixel_ratio and sparks_count == 0:
             return False, f"low_flame_ratio (ratio={flame_color_ratio:.4f} < threshold={config.min_pixel_ratio})", scores
         if avg_val < config.min_brightness:
             return False, f"low_brightness (brightness={avg_val:.1f} < threshold={config.min_brightness})", scores
-        if avg_sat < config.min_saturation:
-            return False, f"low_saturation (saturation={avg_sat:.1f} < threshold={config.min_saturation})", scores
+        if avg_sat < sat_threshold:
+            return False, f"low_saturation (saturation={avg_sat:.1f} < threshold={sat_threshold:.1f})", scores
 
+        return True, "passed", scores
+
+    def verify_sparks(self, roi_bgr: np.ndarray, roi_hsv: np.ndarray) -> Tuple[bool, str, dict]:
+        """Sparks verification checking high-intensity hotspot pixels or bright core."""
+        if roi_bgr.size == 0 or roi_bgr.shape[0] == 0 or roi_bgr.shape[1] == 0:
+            return False, "empty_roi", {}
+        v_channel = roi_hsv[:, :, 2]
+        max_val = float(np.max(v_channel))
+        avg_val = float(np.mean(v_channel))
+        spark_mask = cv2.inRange(roi_hsv, np.array([0, 0, 150]), np.array([180, 255, 255]))
+        spark_pixels = int(np.count_nonzero(spark_mask))
+        scores = {
+            "max_brightness": round(max_val, 1),
+            "avg_brightness": round(avg_val, 1),
+            "spark_pixels": spark_pixels
+        }
+        if max_val < 80.0 and spark_pixels == 0:
+            return False, f"low_spark_intensity (max_val={max_val:.1f})", scores
         return True, "passed", scores
 
     def verify_smoke(self, roi_bgr: np.ndarray, roi_hsv: np.ndarray, roi_gray: np.ndarray, config: SmokeVerificationConfig) -> Tuple[bool, str, dict]:
@@ -553,11 +576,15 @@ class DetectionLayer:
                 is_valid, reason, scores = self.verify_fire(roi_bgr, roi_hsv, active_cfg.fire)
             elif det_type == "smoke":
                 is_valid, reason, scores = self.verify_smoke(roi_bgr, roi_hsv, roi_gray, active_cfg.smoke)
+            elif det_type in ("sparks", "spark"):
+                is_valid, reason, scores = self.verify_sparks(roi_bgr, roi_hsv)
             else:
                 is_valid, reason, scores = True, "passed_raw_yolo", {}
 
             # 2. Local Temporal Variance Check to ignore static backgrounds (walls, concrete floors, stationary shadows)
-            if is_valid and camera_id and camera_id in self.prev_frames and self.prev_frames[camera_id] is not None:
+            # Skip MAD rejection for webcams, images, or high confidence detections
+            is_live_stream = bool(camera_id and (camera_id.startswith("webcam") or camera_id.startswith("CAM-") or camera_id == "IMAGE-UPLOAD"))
+            if is_valid and not is_live_stream and det["confidence"] < 0.35 and camera_id and camera_id in self.prev_frames and self.prev_frames[camera_id] is not None:
                 prev_frame = self.prev_frames[camera_id]
                 if prev_frame.shape == frame.shape:
                     prev_roi_bgr = prev_frame[cy1:cy2, cx1:cx2]
@@ -569,9 +596,9 @@ class DetectionLayer:
                             diff_img = cv2.absdiff(roi_gray, prev_roi_gray)
                             mad = float(np.mean(diff_img))
                             # If Mean Absolute Difference is extremely low, it's a static background
-                            if mad < 1.8:
+                            if mad < 1.0:
                                 is_valid = False
-                                reason = f"static_background (MAD={mad:.2f} < 1.8)"
+                                reason = f"static_background (MAD={mad:.2f} < 1.0)"
                                 scores["temporal_mad"] = round(mad, 2)
 
             # Cache verification details for debug logging
@@ -593,12 +620,12 @@ class DetectionLayer:
                     brightness = scores.get("avg_brightness", 0.0) / 255.0
                     sparks = scores.get("sparks_count", 0)
                     flicker = scores.get("flicker_index", 0.0)
-                    color_score = min(1.0, flame_ratio / 0.20)
+                    color_score = min(1.0, flame_ratio / 0.10)
                     cv_score = 0.5 * color_score + 0.3 * brightness + 0.2 * flicker
 
-                    # Fusion Weights: 45% YOLO Deep Learning + 30% CV Color Mask + 15% Dynamic Brightness/Flicker + 10% Sparks/Hotspots
+                    # Fusion Weights: 50% YOLO Deep Learning + 25% CV Color Mask + 15% Dynamic Brightness/Flicker + 10% Sparks/Hotspots
                     spark_boost = min(0.15, sparks * 0.03)
-                    fusion_score = (0.45 * raw_yolo_conf) + (0.30 * color_score) + (0.15 * brightness) + (0.10 * flicker) + spark_boost
+                    fusion_score = (0.50 * raw_yolo_conf) + (0.25 * color_score) + (0.15 * brightness) + (0.10 * flicker) + spark_boost
                     fusion_score = min(0.99, max(0.05, fusion_score))
 
                     # Sub-categorization
@@ -614,14 +641,19 @@ class DetectionLayer:
                     edge_dens = scores.get("edge_density", 0.0)
                     desat_score = max(0.0, 1.0 - sat)
                     edge_score = max(0.0, 1.0 - min(1.0, edge_dens / 0.15))
-                    fusion_score = (0.50 * raw_yolo_conf) + (0.35 * desat_score) + (0.15 * edge_score)
+                    fusion_score = (0.55 * raw_yolo_conf) + (0.30 * desat_score) + (0.15 * edge_score)
                     candidate_cat = "normal_smoke"
+
+                elif det_type in ("sparks", "spark"):
+                    max_b = scores.get("max_brightness", 120.0) / 255.0
+                    fusion_score = (0.60 * raw_yolo_conf) + (0.40 * max_b)
+                    candidate_cat = "spark_occluded"
 
                 # Phase 5 - Alert Engine Severity Mapping
                 final_conf = round(float(fusion_score), 4)
-                if final_conf >= 0.70 or (det_type == "fire" and candidate_cat == "normal_fire" and final_conf >= 0.60):
+                if final_conf >= 0.65 or (det_type == "fire" and candidate_cat == "normal_fire" and final_conf >= 0.50):
                     alert_level = "RED"
-                elif final_conf >= 0.35 or candidate_cat in ("far_fire_candidate", "spark_occluded"):
+                elif final_conf >= 0.30 or candidate_cat in ("far_fire_candidate", "spark_occluded") or det_type in ("sparks", "spark"):
                     alert_level = "YELLOW"
                 else:
                     alert_level = "GREEN"
@@ -641,18 +673,21 @@ class DetectionLayer:
     def _map_class(self, cls_id: int, raw_name: str) -> str | None:
         """Map YOLO class ID/name to detection type. Returns None for non-threat classes."""
         low = str(raw_name).lower().strip()
-        # Direct fire/smoke model class names
+        # Direct fire/smoke/sparks model class names
         if "fire" in low or "flame" in low:
             return "fire"
         if "smoke" in low:
             return "smoke"
+        if "spark" in low:
+            return "sparks"
         # Background/neutral class - explicitly skip
         if low in ("other", "background", "neutral", "none", "negative"):
             return None
-        # Legacy numeric class codes (some custom datasets)
+        # Legacy numeric class codes (some custom datasets: 0=fire, 1=smoke, 2=sparks)
         if low.isdigit():
             if int(low) == 0: return "fire"
             if int(low) == 1: return "smoke"
+            if int(low) == 2: return "sparks"
         # COCO general classes - skip (not relevant to fire detection)
         return None
 
@@ -726,21 +761,25 @@ class DetectionLayer:
     def temporal_verify(self, source_id: str, detections: List[Dict[str, Any]], active_cfg: DetectionConfig) -> List[Dict[str, Any]]:
         """Filters detections to ensure temporal consistency and performs confidence smoothing."""
         if source_id not in self.consecutive_tracker:
-            self.consecutive_tracker[source_id] = {"fire": 0, "smoke": 0}
+            self.consecutive_tracker[source_id] = {"fire": 0, "smoke": 0, "sparks": 0}
         if source_id not in self.smoothed_confidence:
-            self.smoothed_confidence[source_id] = {"fire": 0.0, "smoke": 0.0}
+            self.smoothed_confidence[source_id] = {"fire": 0.0, "smoke": 0.0, "sparks": 0.0}
 
         detected_types = {d["detection_type"] for d in detections}
         consecutive_req = active_cfg.consecutive_frames
         alpha = active_cfg.smoothing_alpha
 
+        # For webcam / live continuous testing, respond instantly
+        is_webcam = bool(str(source_id).startswith("webcam") or str(source_id) == "IMAGE-UPLOAD")
+        if is_webcam:
+            consecutive_req = 1
+
         # Update trackers
-        for cls in ("fire", "smoke"):
+        for cls in ("fire", "smoke", "sparks"):
             if cls in detected_types:
-                self.consecutive_tracker[source_id][cls] += 1
-                # Calculate max confidence for this class
+                self.consecutive_tracker[source_id][cls] = self.consecutive_tracker[source_id].get(cls, 0) + 1
                 class_conf = max(d["confidence"] for d in detections if d["detection_type"] == cls)
-                prev_conf = self.smoothed_confidence[source_id][cls]
+                prev_conf = self.smoothed_confidence[source_id].get(cls, 0.0)
                 if prev_conf == 0.0:
                     self.smoothed_confidence[source_id][cls] = class_conf
                 else:
@@ -753,10 +792,11 @@ class DetectionLayer:
         temporally_verified = []
         for d in detections:
             cls = d["detection_type"]
-            if self.consecutive_tracker[source_id][cls] >= consecutive_req:
-                # Apply smoothed confidence
-                d["confidence"] = self.smoothed_confidence[source_id][cls]
+            if self.consecutive_tracker[source_id].get(cls, 0) >= consecutive_req:
+                d["confidence"] = self.smoothed_confidence[source_id].get(cls, d["confidence"])
                 temporally_verified.append(d)
+
+        return temporally_verified
 
         return temporally_verified
 
@@ -1117,8 +1157,10 @@ class DetectionLayer:
         """Annotates frame with bounding boxes, labels, and tracking IDs."""
         out = frame.copy()
         colors = {
-            "fire": (0, 30, 255),    # BGR Red
-            "smoke": (0, 140, 255),  # BGR Orange
+            "fire": (0, 30, 255),      # BGR Red
+            "smoke": (0, 140, 255),    # BGR Orange
+            "sparks": (0, 215, 255),   # BGR Gold/Yellow
+            "spark": (0, 215, 255),    # BGR Gold/Yellow
         }
         for d in detections:
             bb = d["bbox"]

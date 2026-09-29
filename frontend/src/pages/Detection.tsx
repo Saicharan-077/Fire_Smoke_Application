@@ -318,12 +318,12 @@ const Detection = () => {
   const webCanvasRef = useRef<HTMLCanvasElement>(null);
   const [webStream, setWebStream] = useState<MediaStream | null>(null);
   const [webState, setWebState] = useState<'stopped' | 'running' | 'paused'>('stopped');
-  const [webThreat, setWebThreat] = useState<'fire' | 'smoke' | null>(null);
+  const [webThreat, setWebThreat] = useState<'fire' | 'smoke' | 'sparks' | null>(null);
   const [webFps, setWebFps] = useState(0);
   const [muted, setMuted] = useState(true);
   const [simulationMode, setSimulationMode] = useState(false);
   const [detections, setDetections] = useState<any[]>([]);
-  const [frameSkip, setFrameSkip] = useState(3);
+  const [frameSkip, setFrameSkip] = useState(2);
 
   const fetchSettings = async () => {
     try {
@@ -352,6 +352,7 @@ const Detection = () => {
     setWebState('stopped');
     setWebThreat(null);
     setDetections([]);
+    detectionsRef.current = [];
   };
 
   const simModeRef = useRef(simulationMode);
@@ -382,7 +383,7 @@ const Detection = () => {
         // Simulation Mode
         if (simModeRef.current) {
           const cycle = tick % 600;
-          let threat: 'fire' | 'smoke' | null = null;
+          let threat: 'fire' | 'smoke' | 'sparks' | null = null;
           if (cycle > 120 && cycle < 280) threat = 'fire';
           else if (cycle > 340 && cycle < 500) threat = 'smoke';
 
@@ -409,17 +410,20 @@ const Detection = () => {
           }
 
           if (threat) {
-            setDetections([{
+            const mockDets = [{
               detection_type: threat,
               confidence: threat === 'fire' ? 0.95 : 0.87,
               bbox: { x1: 180, y1: 120, x2: 460, y2: 340 }
-            }]);
+            }];
+            detectionsRef.current = mockDets;
+            setDetections(mockDets);
           } else {
+            detectionsRef.current = [];
             setDetections([]);
           }
         }
         // Real AI Mode
-        else if (tick % frameSkipRef.current === 0 && !isProcessing) {
+        else if (tick % Math.max(1, frameSkipRef.current) === 0 && !isProcessing) {
           isProcessing = true;
           c.toBlob(async (blob) => {
             if (!blob) {
@@ -430,23 +434,25 @@ const Detection = () => {
               const file = new File([blob], "frame.jpg", { type: "image/jpeg" });
               const res = await uploadImage(file, 'webcam-01');
               if (res && res.detections) {
+                detectionsRef.current = res.detections;
                 setDetections(res.detections);
-                const hasFire = res.detections.some(d => d.detection_type === 'fire');
-                const hasSmoke = res.detections.some(d => d.detection_type === 'smoke');
+                const hasFire = res.detections.some((d: any) => d.detection_type === 'fire');
+                const hasSmoke = res.detections.some((d: any) => d.detection_type === 'smoke');
+                const hasSparks = res.detections.some((d: any) => d.detection_type === 'sparks' || d.detection_type === 'spark');
 
-                if (hasFire || hasSmoke) {
-                  const threat = hasFire ? 'fire' : 'smoke';
+                if (hasFire || hasSmoke || hasSparks) {
+                  const threat: 'fire' | 'smoke' | 'sparks' = hasFire ? 'fire' : (hasSmoke ? 'smoke' : 'sparks');
                   if (threat !== webThreatRef.current) {
                     setWebThreat(threat);
                     if (!mutedRef.current) void playAlertChime();
 
                     const newAlert = {
-                      id: res.alert_ids[0] || `wc-det-${Date.now()}`,
+                      id: res.alert_ids?.[0] || `wc-det-${Date.now()}`,
                       alertType: threat,
                       cameraId: 'webcam-01',
                       cameraName: 'Station Webcam',
                       zone: 'Local Command',
-                      confidence: Math.max(...res.detections.map(d => d.confidence)),
+                      confidence: Math.max(...res.detections.map((d: any) => d.confidence)),
                       timestamp: new Date().toISOString(),
                       severity: threat === 'fire' ? 'critical' : 'warning',
                       isRead: false
@@ -468,10 +474,11 @@ const Detection = () => {
           }, 'image/jpeg', 0.85);
         }
 
-        // Draw bounding boxes (Red for fire, Orange for smoke)
+        // Draw bounding boxes (Red for fire, Orange for smoke, Gold for sparks)
         if (detectionsRef.current && detectionsRef.current.length > 0) {
-          detectionsRef.current.forEach((det) => {
-            const col = det.detection_type === 'fire' ? '#e5484d' : '#e79020';
+          detectionsRef.current.forEach((det: any) => {
+            const isSparks = det.detection_type === 'sparks' || det.detection_type === 'spark';
+            const col = det.detection_type === 'fire' ? '#e5484d' : (isSparks ? '#f59e0b' : '#e79020');
             ctx.strokeStyle = col;
             ctx.lineWidth = 2.5;
 
@@ -480,12 +487,14 @@ const Detection = () => {
             const height = y2 - y1;
             ctx.strokeRect(x1, y1, width, height);
 
+            const badgeText = `${det.detection_type.toUpperCase()} ${Math.round(det.confidence * 100)}%`;
+            ctx.font = 'bold 11px sans-serif';
+            const textWidth = ctx.measureText(badgeText).width + 16;
             ctx.fillStyle = col;
-            ctx.fillRect(x1, y1 - 25 > 0 ? y1 - 25 : y1, 100, 22);
+            ctx.fillRect(x1, y1 - 25 > 0 ? y1 - 25 : y1, textWidth, 22);
 
             ctx.fillStyle = '#fff';
-            ctx.font = 'bold 11px sans-serif';
-            ctx.fillText(`${det.detection_type.toUpperCase()} ${Math.round(det.confidence * 100)}%`, x1 + 8, (y1 - 25 > 0 ? y1 - 25 : y1) + 15);
+            ctx.fillText(badgeText, x1 + 8, (y1 - 25 > 0 ? y1 - 25 : y1) + 15);
           });
         }
 

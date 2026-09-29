@@ -24,13 +24,13 @@ const LiveMonitoring = () => {
   const webcamCanvasRef = useRef<HTMLCanvasElement>(null);
   const [webcamStream, setWebcamStream] = useState<MediaStream | null>(null);
   const [webcamActive, setWebcamActive] = useState(false);
-  const [webcamThreat, setWebcamThreat] = useState<'fire' | 'smoke' | null>(null);
+  const [webcamThreat, setWebcamThreat] = useState<'fire' | 'smoke' | 'sparks' | null>(null);
   const [, setWebcamFps] = useState(0);
   const [webcamMuted, setWebcamMuted] = useState(true);
 
   const [simulationMode, setSimulationMode] = useState(false);
   const [, setDetections] = useState<any[]>([]);
-  const [frameSkip] = useState(3);
+  const [frameSkip] = useState(2);
 
   const [cameras, setCameras] = useState<any[]>([]);
   const [selectedRtspCam, setSelectedRtspCam] = useState<any>(null);
@@ -221,6 +221,8 @@ const LiveMonitoring = () => {
     }
   };
 
+  const detectionsRef = useRef<any[]>([]);
+
   const simModeRef = useRef(simulationMode);
   useEffect(() => { simModeRef.current = simulationMode; }, [simulationMode]);
   const frameSkipRef = useRef(frameSkip);
@@ -248,7 +250,7 @@ const LiveMonitoring = () => {
 
         if (simModeRef.current) {
           const cycle = tick % 600;
-          let threat: 'fire' | 'smoke' | null = null;
+          let threat: 'fire' | 'smoke' | 'sparks' | null = null;
           if (cycle > 120 && cycle < 280) threat = 'fire';
           else if (cycle > 340 && cycle < 500) threat = 'smoke';
 
@@ -273,8 +275,18 @@ const LiveMonitoring = () => {
               stopSiren();
             }
           }
+
+          if (threat) {
+            detectionsRef.current = [{
+              detection_type: threat,
+              confidence: threat === 'fire' ? 0.96 : 0.88,
+              bbox: { x1: 200, y1: 150, x2: 500, y2: 400 }
+            }];
+          } else {
+            detectionsRef.current = [];
+          }
         }
-        else if (tick % frameSkipRef.current === 0 && !isProcessing) {
+        else if (tick % Math.max(1, frameSkipRef.current) === 0 && !isProcessing) {
           isProcessing = true;
           c.toBlob(async (blob) => {
             if (!blob) {
@@ -285,17 +297,19 @@ const LiveMonitoring = () => {
               const file = new File([blob], "frame.jpg", { type: "image/jpeg" });
               const res = await uploadImage(file, 'webcam-01');
               if (res && res.detections) {
+                detectionsRef.current = res.detections;
                 setDetections(res.detections);
                 const hasFire = res.detections.some((d: any) => d.detection_type === 'fire');
                 const hasSmoke = res.detections.some((d: any) => d.detection_type === 'smoke');
+                const hasSparks = res.detections.some((d: any) => d.detection_type === 'sparks' || d.detection_type === 'spark');
 
-                if (hasFire || hasSmoke) {
-                  const threat = hasFire ? 'fire' : 'smoke';
+                if (hasFire || hasSmoke || hasSparks) {
+                  const threat: 'fire' | 'smoke' | 'sparks' = hasFire ? 'fire' : (hasSmoke ? 'smoke' : 'sparks');
                   if (threat !== webcamThreatRef.current) {
                     setWebcamThreat(threat);
                     if (!mutedRef.current) startSiren();
                     const newAlert = {
-                      id: res.alert_ids[0] || `wc-det-${Date.now()}`,
+                      id: res.alert_ids?.[0] || `wc-det-${Date.now()}`,
                       alertType: threat,
                       cameraId: 'webcam-01',
                       cameraName: 'Primary Optical Node',
@@ -319,6 +333,30 @@ const LiveMonitoring = () => {
               isProcessing = false;
             }
           }, 'image/jpeg', 0.85);
+        }
+
+        // Draw bounding boxes
+        if (detectionsRef.current && detectionsRef.current.length > 0) {
+          detectionsRef.current.forEach((det: any) => {
+            const isSparks = det.detection_type === 'sparks' || det.detection_type === 'spark';
+            const col = det.detection_type === 'fire' ? '#e5484d' : (isSparks ? '#f59e0b' : '#e79020');
+            ctx.strokeStyle = col;
+            ctx.lineWidth = 3;
+
+            const { x1, y1, x2, y2 } = det.bbox;
+            const width = x2 - x1;
+            const height = y2 - y1;
+            ctx.strokeRect(x1, y1, width, height);
+
+            const badgeText = `${det.detection_type.toUpperCase()} ${Math.round(det.confidence * 100)}%`;
+            ctx.font = 'bold 12px sans-serif';
+            const textWidth = ctx.measureText(badgeText).width + 16;
+            ctx.fillStyle = col;
+            ctx.fillRect(x1, y1 - 26 > 0 ? y1 - 26 : y1, textWidth, 24);
+
+            ctx.fillStyle = '#fff';
+            ctx.fillText(badgeText, x1 + 8, (y1 - 26 > 0 ? y1 - 26 : y1) + 16);
+          });
         }
 
         frames++;

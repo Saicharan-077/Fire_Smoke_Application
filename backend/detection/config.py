@@ -8,37 +8,36 @@ logger = logging.getLogger("fireguard.detection.config")
 class FireVerificationConfig(BaseModel):
     hsv_ranges: List[Tuple[Tuple[int, int, int], Tuple[int, int, int]]] = Field(
         default=[
-            ((0, 30, 50), (25, 255, 255)),      # Red-orange fire (wide saturation & brightness)
-            ((150, 30, 50), (180, 255, 255)),    # Deep red wraparound
-            ((25, 30, 50), (45, 255, 255)),      # Yellow-orange fire
+            ((0, 15, 40), (55, 255, 255)),      # Red, orange, golden-yellow, and bright flame core
+            ((150, 15, 40), (180, 255, 255)),    # Deep red wraparound
         ],
         description="List of HSV range bounds (lower_bound, upper_bound) for fire color."
     )
-    min_pixel_ratio: float = Field(0.01, description="Minimum ratio of fire pixels in ROI.")
-    min_brightness: float = Field(60.0, description="Minimum average V value of fire pixels.")
-    min_saturation: float = Field(60.0, description="Minimum average S value of fire pixels.")
+    min_pixel_ratio: float = Field(0.005, description="Minimum ratio of fire pixels in ROI.")
+    min_brightness: float = Field(35.0, description="Minimum average V value of fire pixels.")
+    min_saturation: float = Field(15.0, description="Minimum average S value of fire pixels (allows bright white-hot flames).")
     min_component_size: int = Field(2, description="Minimum connected component area to filter out single-pixel noise.")
 
 class SmokeVerificationConfig(BaseModel):
-    max_saturation: float = Field(130.0, description="Maximum average S value of smoke ROI (smoke is desaturated).")
-    min_brightness: float = Field(30.0, description="Minimum average V value (to reject deep black shadows).")
-    max_chroma: float = Field(60.0, description="Maximum average difference between color channels (chroma).")
-    min_texture_std: float = Field(2.0, description="Minimum standard deviation of grayscale intensities.")
-    max_texture_std: float = Field(80.0, description="Maximum standard deviation of grayscale intensities.")
-    max_edge_density: float = Field(0.20, description="Maximum ratio of Canny edge pixels.")
-    min_entropy: float = Field(1.5, description="Minimum Shannon entropy of grayscale histogram.")
-    max_entropy: float = Field(8.0, description="Maximum Shannon entropy of grayscale histogram.")
-    max_contrast: float = Field(80.0, description="Maximum local contrast (std dev).")
-    max_laplacian_var: float = Field(500.0, description="Maximum variance of Laplacian (checks for soft blur/diffusion).")
-    min_laplacian_var: float = Field(0.5, description="Minimum variance of Laplacian (rejects completely flat/uniform backgrounds).")
-    max_gradient_mag: float = Field(40.0, description="Maximum average gradient magnitude.")
-    min_gradient_mag: float = Field(0.3, description="Minimum average gradient magnitude (rejects flat gradient drift).")
+    max_saturation: float = Field(145.0, description="Maximum average S value of smoke ROI (smoke is desaturated).")
+    min_brightness: float = Field(25.0, description="Minimum average V value (to reject deep black shadows).")
+    max_chroma: float = Field(75.0, description="Maximum average difference between color channels (chroma).")
+    min_texture_std: float = Field(1.5, description="Minimum standard deviation of grayscale intensities.")
+    max_texture_std: float = Field(90.0, description="Maximum standard deviation of grayscale intensities.")
+    max_edge_density: float = Field(0.35, description="Maximum ratio of Canny edge pixels.")
+    min_entropy: float = Field(1.2, description="Minimum Shannon entropy of grayscale histogram.")
+    max_entropy: float = Field(8.2, description="Maximum Shannon entropy of grayscale histogram.")
+    max_contrast: float = Field(90.0, description="Maximum local contrast (std dev).")
+    max_laplacian_var: float = Field(600.0, description="Maximum variance of Laplacian (checks for soft blur/diffusion).")
+    min_laplacian_var: float = Field(0.3, description="Minimum variance of Laplacian (rejects completely flat/uniform backgrounds).")
+    max_gradient_mag: float = Field(50.0, description="Maximum average gradient magnitude.")
+    min_gradient_mag: float = Field(0.2, description="Minimum average gradient magnitude (rejects flat gradient drift).")
 
 class DetectionConfig(BaseModel):
-    model_path: str = Field(default_factory=lambda: os.getenv("MODEL_PATH", "models/best.pt"), description="Path to fire/smoke YOLO26m weights file.")
+    model_path: str = Field(default_factory=lambda: os.getenv("MODEL_PATH", "models/best.pt"), description="Path to fire/smoke/sparks YOLO26m weights file.")
     device: str = Field("cuda", description="Preferred compute device ('cuda' or 'cpu').")
     imgsz: int = Field(640, description="Inference image resolution.")
-    conf_threshold: float = Field(0.20, description="Initial Stage 1 YOLO confidence threshold.")
+    conf_threshold: float = Field(0.18, description="Initial Stage 1 YOLO confidence threshold.")
     iou_threshold: float = Field(0.45, description="Stage 1 YOLO IoU threshold.")
     operating_mode: str = Field("Balanced", description="Operational mode: Balanced | High Precision | High Recall.")
     consecutive_frames: int = Field(1, description="Consecutive frames required to confirm detection (1 = immediate).")
