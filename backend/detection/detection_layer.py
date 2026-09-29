@@ -780,16 +780,31 @@ class DetectionLayer:
         # Stage 3: Verification & Fusion
         verified_dets = self._run_stage2_verification(frame, all_candidates, active_cfg, camera_id="IMAGE-UPLOAD")
 
-        # Stage 4: NMS deduplication to remove duplicate overlapping boxes
+        # Stage 4: Box Enclosure & Overlap Clustering (clean, uncluttered presentation)
         final_dets = []
-        for d in sorted(verified_dets, key=lambda x: x["confidence"], reverse=True):
-            is_dup = any(
-                ByteTracker._compute_iou(d["bbox"], kept["bbox"]) > 0.45
-                for kept in final_dets
-            )
-            if not is_dup:
+        for d in sorted(verified_dets, key=lambda x: (x["bbox"]["x2"] - x["bbox"]["x1"]) * (x["bbox"]["y2"] - x["bbox"]["y1"]), reverse=True):
+            bb = d["bbox"]
+            box_area = max(1, (bb["x2"] - bb["x1"]) * (bb["y2"] - bb["y1"]))
+            
+            # Check if this box is largely enclosed within an existing larger kept box
+            is_enclosed = False
+            for kept in final_dets:
+                kbb = kept["bbox"]
+                ix1, iy1 = max(bb["x1"], kbb["x1"]), max(bb["y1"], kbb["y1"])
+                ix2, iy2 = min(bb["x2"], kbb["x2"]), min(bb["y2"], kbb["y2"])
+                if ix2 > ix1 and iy2 > iy1:
+                    inter_area = (ix2 - ix1) * (iy2 - iy1)
+                    if (inter_area / float(box_area)) > 0.35:
+                        is_enclosed = True
+                        break
+            
+            if not is_enclosed:
                 final_dets.append(d)
+            if len(final_dets) >= 4:
+                break
 
+        # Sort by confidence for display
+        final_dets.sort(key=lambda x: x["confidence"], reverse=True)
         annotated = self.annotate_frame(frame, final_dets)
 
         t_total = (time.perf_counter() - t_start) * 1000.0
@@ -1012,7 +1027,7 @@ class DetectionLayer:
         }
 
     def detect_cv_candidates(self, frame: np.ndarray, prev_gray: np.ndarray | None = None) -> List[Dict[str, Any]]:
-        """Lightweight CV layer to detect individual micro-sparks and radiating spark bursts."""
+        """Lightweight CV layer to detect cohesive spark burst envelopes without clutter."""
         candidates = []
         h, w = frame.shape[:2]
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -1021,20 +1036,21 @@ class DetectionLayer:
         # 1. Spark mask: ultra-bright hotspot pixels
         spark_mask = cv2.inRange(hsv, np.array([0, 0, 180]), np.array([180, 255, 255]))
         
-        # 2. Spark Clusters (grouping radiating spark bursts / showers)
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
-        dilated = cv2.dilate(spark_mask, kernel, iterations=2)
+        # 2. Cohesive Spark Envelopes (morphological close to link all radiating embers into clean burst regions)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (31, 31))
+        connected = cv2.morphologyEx(spark_mask, cv2.MORPH_CLOSE, kernel)
+        dilated = cv2.dilate(connected, kernel, iterations=1)
         contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         for c in contours:
             x, y, cw, ch = cv2.boundingRect(c)
             area = cw * ch
-            if area >= 80:
-                pad = 4
+            if area >= 600:
+                pad = 6
                 bx1, by1 = max(0, x - pad), max(0, y - pad)
                 bx2, by2 = min(w, x + cw + pad), min(h, y + ch + pad)
                 roi_gray = gray[by1:by2, bx1:bx2]
-                bright_val = float(np.mean(roi_gray)) if roi_gray.size > 0 else 100.0
-                conf = round(min(0.96, max(0.55, 0.45 + (bright_val / 255.0) * 0.50)), 4)
+                bright_val = float(np.mean(roi_gray)) if roi_gray.size > 0 else 120.0
+                conf = round(min(0.96, max(0.65, 0.50 + (bright_val / 255.0) * 0.45)), 4)
                 
                 candidates.append({
                     "detection_type": "sparks",
@@ -1046,36 +1062,6 @@ class DetectionLayer:
                     "verified": True,
                     "verification_scores": {"spark_area": area, "brightness": round(bright_val, 1)}
                 })
-        
-        # 3. Micro-sparks (small individual ember points)
-        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(spark_mask)
-        for i in range(1, min(num_labels, 25)):
-            area = int(stats[i, cv2.CC_STAT_AREA])
-            if 2 <= area <= 60:
-                sx = int(stats[i, cv2.CC_STAT_LEFT])
-                sy = int(stats[i, cv2.CC_STAT_TOP])
-                sw = int(stats[i, cv2.CC_STAT_WIDTH])
-                sh = int(stats[i, cv2.CC_STAT_HEIGHT])
-                pad = 4
-                bx1, by1 = max(0, sx - pad), max(0, sy - pad)
-                bx2, by2 = min(w, sx + sw + pad), min(h, sy + sh + pad)
-                
-                # Check if already enclosed by an existing cluster
-                is_enclosed = any(
-                    (bx1 >= cb["bbox"]["x1"] and by1 >= cb["bbox"]["y1"] and bx2 <= cb["bbox"]["x2"] and by2 <= cb["bbox"]["y2"])
-                    for cb in candidates
-                )
-                if not is_enclosed:
-                    candidates.append({
-                        "detection_type": "sparks",
-                        "confidence": 0.65,
-                        "bbox": {"x1": bx1, "y1": by1, "x2": bx2, "y2": by2},
-                        "source": "cv",
-                        "candidate_category": "spark_occluded",
-                        "alert_level": "YELLOW",
-                        "verified": True,
-                        "verification_scores": {"spark_area": area}
-                    })
         return candidates
 
     def detect_video_stream(
@@ -1318,7 +1304,7 @@ class DetectionLayer:
         return results
 
     def annotate_frame(self, frame: np.ndarray, detections: List[Dict[str, Any]]) -> np.ndarray:
-        """Annotates frame with bounding boxes, labels, and tracking IDs."""
+        """Annotates frame with clean, modern bounding boxes and badges."""
         out = frame.copy()
         colors = {
             "fire": (0, 30, 255),      # BGR Red
@@ -1332,26 +1318,20 @@ class DetectionLayer:
             cv2.rectangle(out, (bb["x1"], bb["y1"]), (bb["x2"], bb["y2"]), color, 2)
             
             tid_str = f" #{d['track_id']}" if "track_id" in d else ""
-            cat_tag = ""
-            if d.get("candidate_category") == "far_fire_candidate":
-                cat_tag = " [FAR]"
-            elif d.get("candidate_category") == "spark_occluded":
-                cat_tag = " [SPARK]"
+            label = f"{d['detection_type'].upper()}{tid_str} {d['confidence']:.0%}"
+            (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
 
-            label = f"{d['detection_type'].upper()}{cat_tag}{tid_str} {d['confidence']:.0%}"
-            (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
-
-            if bb["y1"] - th - 8 >= 0:
-                rect_y1 = bb["y1"] - th - 8
+            if bb["y1"] - th - 10 >= 0:
+                rect_y1 = bb["y1"] - th - 10
                 rect_y2 = bb["y1"]
                 text_y = bb["y1"] - 4
             else:
                 rect_y1 = bb["y1"]
-                rect_y2 = bb["y1"] + th + 8
-                text_y = bb["y1"] + th + 4
+                rect_y2 = bb["y1"] + th + 10
+                text_y = bb["y1"] + th + 6
 
-            cv2.rectangle(out, (bb["x1"], rect_y1), (bb["x1"] + tw + 6, rect_y2), color, -1)
-            cv2.putText(out, label, (bb["x1"] + 3, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+            cv2.rectangle(out, (bb["x1"], rect_y1), (bb["x1"] + tw + 10, rect_y2), color, -1)
+            cv2.putText(out, label, (bb["x1"] + 5, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
         return out
 
     def _print_pipeline_debug_logs(
