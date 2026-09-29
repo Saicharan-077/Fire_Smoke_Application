@@ -168,6 +168,7 @@ export const getVideoJobStatus = (jobId: string) =>
     job_id: string;
     filename: string;
     status: string;
+    metadata?: any;
     progress_pct: number;
     fps: number;
     inference_fps?: number;

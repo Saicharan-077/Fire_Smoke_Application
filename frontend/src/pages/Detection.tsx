@@ -11,7 +11,7 @@ import {
   UploadCloud, FileVideo, Camera, MonitorPlay,
   RefreshCw, Download, XCircle, Activity, Cpu, Zap, Sliders,
   Volume2, VolumeX, Image as ImageIcon, Film, AlertTriangle,
-  CheckCircle, Wifi, WifiOff
+  CheckCircle, Wifi, WifiOff, Play, RotateCcw, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 const fadeUp = {
@@ -168,8 +168,21 @@ const Detection = () => {
     setVidTimelineEvents([]);
   };
 
-  const [videoMode, setVideoMode] = useState<'Real-Time' | 'Accuracy' | 'Debug'>('Real-Time');
   const [videoMeta, setVideoMeta] = useState<any>(null);
+
+  const handleVidDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file && (file.type.startsWith('video/') || /\.(mp4|avi|mov|mkv|webm)$/i.test(file.name))) {
+      setVidFile(file);
+      setVidResult(null);
+      setVidProgress(0);
+      setVidLivePreviewB64(null);
+      setVidTimelineEvents([]);
+      setVideoMeta(null);
+      runVideoInference(file);
+    }
+  };
 
   const handleStepFrame = (delta: number) => {
     if (!playerRef.current) return;
@@ -184,8 +197,10 @@ const Detection = () => {
     playerRef.current.play().catch(() => {});
   };
 
-  const runVideoInference = async () => {
-    if (!vidFile) return;
+  const runVideoInference = async (selectedFile?: File) => {
+    const fileToUse = (selectedFile instanceof File) ? selectedFile : vidFile;
+    if (!fileToUse) return;
+    setVidFile(fileToUse);
     setVidLoading(true);
     setVidProgress(1);
     setVidTimelineEvents([]);
@@ -196,7 +211,7 @@ const Detection = () => {
     const t0 = performance.now();
 
     try {
-      const init = await uploadVideoAsync(vidFile, videoMode);
+      const init = await uploadVideoAsync(fileToUse, 'Real-Time');
       const jobId = init.job_id;
       setVidJobId(jobId);
       if (init.metadata) setVideoMeta(init.metadata);
@@ -222,7 +237,7 @@ const Detection = () => {
               setVidResult(status);
               const computedLatency = Math.round(performance.now() - t0);
               setVidLatency(computedLatency);
-              saveVideoCache(status, vidTelemetry, vidTimelineEvents, computedLatency, vidLivePreviewB64, vidFile.name);
+              saveVideoCache(status, vidTelemetry, vidTimelineEvents, computedLatency, vidLivePreviewB64, fileToUse.name);
               setVidLoading(false);
             } else if (status.status === 'cancelled' || status.status === 'failed') {
               clearInterval(pollTimer);
@@ -302,7 +317,7 @@ const Detection = () => {
           } else {
             toast('✓ Video analysis complete — no threats detected', 'success');
           }
-          saveVideoCache(msg, vidTelemetry, vidTimelineEvents, computedLatency, vidLivePreviewB64, vidFile.name);
+          saveVideoCache(msg, vidTelemetry, vidTimelineEvents, computedLatency, vidLivePreviewB64, fileToUse.name || 'video.mp4');
           setVidLoading(false);
           ws.close();
         } else if (msg.event === 'cancelled' || msg.type === 'cancelled') {
@@ -690,37 +705,10 @@ const Detection = () => {
             {/* VIDEO */}
             {activeTab === 'video' && (
               <div className="space-y-5">
-                {/* Mode Selector & Strategy */}
-                <div className="flex flex-wrap items-center justify-between gap-3 bg-[var(--surface-2)] p-3 rounded-xl border border-[var(--border)]">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-3)]">Processing Mode:</span>
-                    <div className="flex rounded-lg bg-[var(--surface)] p-0.5 border border-[var(--border)]">
-                      {(['Real-Time', 'Accuracy', 'Debug'] as const).map(mode => (
-                        <button
-                          key={mode}
-                          onClick={() => setVideoMode(mode)}
-                          className={`px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
-                            videoMode === mode
-                              ? 'bg-[var(--primary)] text-white shadow-xs'
-                              : 'text-[var(--text-2)] hover:text-[var(--text)]'
-                          }`}
-                        >
-                          {mode === 'Real-Time' && '⚡ Real-Time'}
-                          {mode === 'Accuracy' && '🎯 Accuracy (960p)'}
-                          {mode === 'Debug' && '🛠 Debug HUD'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="text-[10px] text-[var(--text-3)] font-mono">
-                    {videoMode === 'Real-Time' && 'Optimized 640p letterbox with low latency'}
-                    {videoMode === 'Accuracy' && 'High-res 960p inference for small/distant fire & smoke'}
-                    {videoMode === 'Debug' && 'Full CV telemetry + bounding box inspector'}
-                  </div>
-                </div>
-
                 <div
                   onClick={() => !vidLoading && vidInputRef.current?.click()}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={handleVidDrop}
                   className={`border-2 border-dashed rounded-2xl p-6 transition-all duration-300 cursor-pointer text-center ${
                     vidFile 
                       ? 'border-slate-200 bg-white dark:bg-slate-900/60 dark:border-slate-800' 
@@ -729,7 +717,15 @@ const Detection = () => {
                 >
                   <input type="file" ref={vidInputRef} className="hidden" accept="video/*" onChange={e => {
                     const f = e.target.files?.[0];
-                    if (f) { setVidFile(f); setVidResult(null); setVidProgress(0); setVidLivePreviewB64(null); setVidTimelineEvents([]); setVideoMeta(null); }
+                    if (f) {
+                      setVidFile(f);
+                      setVidResult(null);
+                      setVidProgress(0);
+                      setVidLivePreviewB64(null);
+                      setVidTimelineEvents([]);
+                      setVideoMeta(null);
+                      runVideoInference(f);
+                    }
                   }} />
                   {vidFile ? (
                     <div className="py-4 flex flex-col items-center gap-2">
@@ -777,9 +773,9 @@ const Detection = () => {
                     <button onClick={() => { setVidFile(null); setVidResult(null); setVidProgress(0); setVidLivePreviewB64(null); setVideoMeta(null); }} className="px-3 py-2 border border-[var(--border)] rounded-lg text-[12px] font-bold text-[var(--text-2)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer">
                       Clear
                     </button>
-                    <button onClick={runVideoInference} className="px-4 py-2 bg-[var(--primary)] text-white text-[12px] font-bold rounded-lg hover:bg-[var(--primary-hover)] transition-colors cursor-pointer shadow-sm flex items-center gap-1.5">
+                    <button onClick={() => runVideoInference(vidFile)} className="px-4 py-2 bg-[var(--primary)] text-white text-[12px] font-bold rounded-lg hover:bg-[var(--primary-hover)] transition-colors cursor-pointer shadow-sm flex items-center gap-1.5">
                       <Play size={13} />
-                      Start {videoMode} Analysis
+                      Analyze Video
                     </button>
                   </div>
                 )}
@@ -792,7 +788,7 @@ const Detection = () => {
                         {vidLoading ? (
                           <>
                             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-                            <span className="font-bold text-emerald-400">ByteTrack AI Stream Processing ({videoMode})</span>
+                            <span className="font-bold text-emerald-400">ByteTrack AI Stream Processing</span>
                           </>
                         ) : (
                           <>
@@ -826,10 +822,6 @@ const Detection = () => {
                       const displayCurrent = (vidProgress === 100 || vidJobStatus === 'completed' || !vidLoading)
                         ? displayTotal
                         : (vidTelemetry.current_frame || 1);
-                      const displaySkipped = vidTelemetry.skipped_frames !== undefined && vidTelemetry.skipped_frames > 0
-                        ? vidTelemetry.skipped_frames
-                        : (vidResult ? vidResult.skipped_frames || 0 : 0);
-
                       const completedVideoUrl = vidResult?.annotated_video_path ? evidenceUrl(vidResult.annotated_video_path) : null;
                       const hasActiveAlarm = vidTelemetry.active_tracks > 0;
 
@@ -915,7 +907,7 @@ const Detection = () => {
                           ) : (
                             <div className="relative rounded-lg overflow-hidden border border-slate-800 bg-slate-900 aspect-video flex flex-col items-center justify-center p-6 text-center text-slate-400">
                               <Film size={32} className="text-sky-500 mb-2 animate-bounce" />
-                              <p className="text-xs font-bold text-slate-200">Initializing Live AI Stream ({videoMode})...</p>
+                              <p className="text-xs font-bold text-slate-200">Initializing Live AI Stream...</p>
                               <p className="text-[10px] text-slate-500 mt-1">Video is being extracted and sequential inference is beginning...</p>
                             </div>
                           )}

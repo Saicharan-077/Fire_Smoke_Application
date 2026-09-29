@@ -76,7 +76,7 @@ interface CctvCanvasProps {
   location: string;
   zone: string;
   status: 'online' | 'offline' | 'maintenance';
-  threat: 'fire' | 'smoke' | null;
+  threat: 'fire' | 'smoke' | 'sparks' | null | string;
   confidence: number;
   fps: number;
   latency: number;
@@ -255,7 +255,7 @@ interface CustomCameraState {
   zone: string;
   status: 'online' | 'offline' | 'maintenance';
   priority: 'green' | 'yellow' | 'red';
-  threat: 'fire' | 'smoke' | null;
+  threat: 'fire' | 'smoke' | 'sparks' | null | string;
   confidence: number;
   fps: number;
   latency: number;

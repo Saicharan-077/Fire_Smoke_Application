@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 export interface Alert {
   id: string;
-  detection_type: 'fire' | 'smoke';
+  detection_type: 'fire' | 'smoke' | 'sparks' | string;
   confidence: number;
   status: 'active' | 'resolved';
   source_type: string;
