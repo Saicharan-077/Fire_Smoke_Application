@@ -6,7 +6,7 @@ import logging
 import numpy as np
 import tempfile
 import os
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -369,7 +369,7 @@ async def notify_job_subscribers(job_id: str, message: dict):
                 unregister_job_subscriber(job_id, ws)
 
 
-async def _run_video_job_task(job_id: str, tmp_path: str, filename: str):
+async def _run_video_job_task(job_id: str, tmp_path: str, filename: str, mode: str = "Real-Time"):
     from ..database import SessionLocal
     db = SessionLocal()
     
@@ -399,6 +399,7 @@ async def _run_video_job_task(job_id: str, tmp_path: str, filename: str):
             mjpeg_queues[job_id] = mjpeg_q
 
             job["status"] = "processing"
+            job["mode"] = mode
             all_detections = []
             best_confidence = 0.0
             best_frame_b64 = None
@@ -417,6 +418,7 @@ async def _run_video_job_task(job_id: str, tmp_path: str, filename: str):
                         db_settings=svc._load_db_settings(),
                         output_video_path=out_video_path,
                         cancel_check_func=is_cancelled,
+                        mode=mode,
                     ):
                         if is_cancelled():
                             break
@@ -441,6 +443,7 @@ async def _run_video_job_task(job_id: str, tmp_path: str, filename: str):
 
                 job["progress_pct"] = update["progress_pct"]
                 job["fps"] = update["fps"]
+                job["source_fps"] = update.get("source_fps", 25.0)
                 job["inference_fps"] = update.get("inference_fps", update["fps"])
                 job["avg_latency_ms"] = update.get("avg_latency_ms", 0.0)
                 job["skipped_frames"] = update.get("skipped_frames", 0)
@@ -451,11 +454,12 @@ async def _run_video_job_task(job_id: str, tmp_path: str, filename: str):
                 job["latest_preview"] = update["preview_b64"]
 
                 # Enqueue annotated JPEG frame for MJPEG stream (non-blocking, drop if queue full)
-                if update.get("annotated_jpeg"):
+                raw_jpeg = update.pop("annotated_jpeg", None)
+                if raw_jpeg:
                     try:
-                        mjpeg_q.put_nowait(update["annotated_jpeg"])
+                        mjpeg_q.put_nowait(raw_jpeg)
                     except asyncio.QueueFull:
-                        pass  # Drop frame if consumer is slow — CCTV streams drop frames gracefully
+                        pass  # Drop frame if consumer is slow
 
                 dets = update["detections"]
                 if dets:
@@ -463,7 +467,6 @@ async def _run_video_job_task(job_id: str, tmp_path: str, filename: str):
                     cls_type = dets[0]["detection_type"]
                     max_conf = max(d["confidence"] for d in dets)
 
-                    # High-confidence thumbnail tracking
                     if max_conf > best_confidence and update.get("preview_b64"):
                         best_confidence = max_conf
                         best_frame_b64 = update["preview_b64"]
@@ -539,7 +542,6 @@ async def _run_video_job_task(job_id: str, tmp_path: str, filename: str):
                 active_video_jobs[job_id]["error"] = str(exc)
             await notify_job_subscribers(job_id, {"event": "error", "type": "error", "job_id": job_id, "error": str(exc)})
         finally:
-            # Signal MJPEG stream end with None sentinel
             q = mjpeg_queues.get(job_id)
             if q:
                 try:
@@ -556,10 +558,11 @@ async def _run_video_job_task(job_id: str, tmp_path: str, filename: str):
 @router.post("/video_async", dependencies=[Depends(require_operator)])
 async def upload_video_async(
     file: UploadFile = File(...),
+    mode: str = Query("Real-Time", description="Processing mode: Real-Time | Accuracy | Debug"),
     svc: DetectionService = Depends(get_detection_svc),
 ):
-    """Starts immediate background video prediction job and returns Job ID immediately."""
-    logger.info(f"Async Video Upload received: {file.filename}")
+    """Starts immediate background video prediction job and returns Job ID and Video Metadata immediately."""
+    logger.info(f"Async Video Upload received: {file.filename} (mode={mode})")
 
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in [".mp4", ".avi", ".mov", ".mkv", ".webm"]:
@@ -576,19 +579,25 @@ async def upload_video_async(
         tmp.write(video_data)
         tmp_path = tmp.name
 
+    # Extract deterministic video metadata immediately
+    meta = svc.layer.extract_video_metadata(tmp_path)
+
     active_video_jobs[job_id] = {
         "job_id": job_id,
         "filename": file.filename,
         "status": "pending",
+        "mode": mode,
+        "metadata": meta,
         "progress_pct": 0.0,
         "fps": 0.0,
+        "source_fps": meta.get("fps", 25.0),
         "inference_fps": 0.0,
         "avg_latency_ms": 0.0,
         "skipped_frames": 0,
         "active_tracks_count": 0,
         "eta_sec": 0.0,
         "current_frame": 0,
-        "total_frames": 0,
+        "total_frames": meta.get("total_frames", 0),
         "has_detections": False,
         "cancelled": False,
         "events": [],
@@ -600,13 +609,15 @@ async def upload_video_async(
     }
 
     # Launch background task
-    asyncio.create_task(_run_video_job_task(job_id, tmp_path, file.filename))
+    asyncio.create_task(_run_video_job_task(job_id, tmp_path, file.filename, mode=mode))
 
     return {
         "job_id": job_id,
         "status": "processing",
         "file_name": file.filename,
-        "message": "Video analysis started immediately.",
+        "mode": mode,
+        "metadata": meta,
+        "message": f"Video analysis started ({meta.get('width', 0)}x{meta.get('height', 0)} @ {meta.get('fps', 0)} FPS, {meta.get('total_frames', 0)} frames).",
     }
 
 

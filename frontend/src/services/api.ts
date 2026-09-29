@@ -139,16 +139,26 @@ export const uploadVideo = (file: File) => {
   );
 };
 
-export const uploadVideoAsync = (file: File) => {
+export const uploadVideoAsync = (file: File, mode: string = 'Real-Time') => {
   const fd = new FormData();
   fd.append('file', file);
   return api<{
     job_id: string;
     status: string;
     file_name: string;
+    mode: string;
+    metadata?: {
+      width: number;
+      height: number;
+      fps: number;
+      total_frames: number;
+      duration_sec: number;
+      codec: string;
+      file_size_mb: number;
+    };
     message: string;
   }>(
-    '/api/v1/upload/video_async',
+    `/api/v1/upload/video_async?mode=${encodeURIComponent(mode)}`,
     { method: 'POST', body: fd }
   );
 };

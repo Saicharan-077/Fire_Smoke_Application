@@ -64,38 +64,53 @@ class DetectionConfig(BaseModel):
 
 def get_mode_presets(mode: str) -> dict:
     """Returns overrides for the specified operating mode."""
-    mode_lower = mode.lower().strip().replace(" ", "_")
+    mode_lower = mode.lower().strip().replace(" ", "_").replace("-", "_")
     if mode_lower in ("high_precision", "precision"):
         return {
-            "conf_threshold": 0.55,
+            "conf_threshold": 0.45,
+            "imgsz": 640,
             "fire": {
-                "min_pixel_ratio": 0.06,
-                "min_brightness": 125.0,
-                "min_saturation": 125.0,
-                "min_component_size": 6,
+                "min_pixel_ratio": 0.02,
+                "min_brightness": 60.0,
+                "min_saturation": 30.0,
+                "min_component_size": 4,
             },
             "smoke": {
-                "max_saturation": 80.0,
-                "max_edge_density": 0.12,
+                "max_saturation": 100.0,
+                "max_edge_density": 0.20,
                 "max_laplacian_var": 400.0,
-                "max_chroma": 25.0,
+                "max_chroma": 40.0,
             }
         }
-    elif mode_lower in ("high_recall", "recall"):
+    elif mode_lower in ("accuracy", "high_recall", "recall"):
         return {
-            "conf_threshold": 0.30,
+            "conf_threshold": 0.15,
+            "iou_threshold": 0.40,
+            "imgsz": 960,
             "fire": {
-                "min_pixel_ratio": 0.01,
-                "min_brightness": 80.0,
-                "min_saturation": 80.0,
-                "min_component_size": 2,
+                "min_pixel_ratio": 0.003,
+                "min_brightness": 30.0,
+                "min_saturation": 10.0,
+                "min_component_size": 1,
             },
             "smoke": {
-                "max_saturation": 130.0,
-                "max_edge_density": 0.24,
-                "max_laplacian_var": 1200.0,
-                "max_chroma": 50.0,
+                "max_saturation": 150.0,
+                "max_edge_density": 0.40,
+                "max_laplacian_var": 700.0,
+                "max_chroma": 80.0,
             }
         }
-    else:  # Balanced
+    elif mode_lower in ("debug",):
+        return {
+            "conf_threshold": 0.15,
+            "iou_threshold": 0.40,
+            "imgsz": 640,
+        }
+    elif mode_lower in ("real_time", "realtime", "balanced"):
+        return {
+            "conf_threshold": 0.18,
+            "iou_threshold": 0.45,
+            "imgsz": 640,
+        }
+    else:  # Default Balanced
         return {}

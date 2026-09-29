@@ -939,28 +939,107 @@ class DetectionLayer:
             writer.release()
         logger.info(f"[VideoInference] Processed {total_frames} frames in {t_elapsed:.1f}s — {detected_frames} detection event(s)")
 
+    @staticmethod
+    def extract_video_metadata(video_path: str) -> dict:
+        """Extracts deterministic video metadata (width, height, fps, total_frames, duration, codec)."""
+        if not os.path.exists(video_path):
+            return {"error": "File not found", "width": 0, "height": 0, "fps": 0, "frame_count": 0, "duration": 0}
+        
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            return {"error": "Could not decode video file", "width": 0, "height": 0, "fps": 0, "frame_count": 0, "duration": 0}
+            
+        w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = float(cap.get(cv2.CAP_PROP_FPS))
+        if fps <= 0 or np.isnan(fps):
+            fps = 25.0
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        duration = round(float(total_frames / fps), 2) if total_frames > 0 else 0.0
+        fourcc_int = int(cap.get(cv2.CAP_PROP_FOURCC))
+        codec = "".join([chr((fourcc_int >> 8 * i) & 0xFF) for i in range(4)])
+        file_size_mb = round(os.path.getsize(video_path) / (1024 * 1024), 2)
+        cap.release()
+        
+        return {
+            "width": w,
+            "height": h,
+            "fps": round(fps, 2),
+            "frame_count": total_frames,
+            "total_frames": total_frames,
+            "duration": duration,
+            "duration_sec": duration,
+            "codec": codec.strip() or "mp4",
+            "file_size_mb": file_size_mb,
+        }
+
+    def detect_cv_candidates(self, frame: np.ndarray, prev_gray: np.ndarray | None = None) -> List[Dict[str, Any]]:
+        """Lightweight CV layer to detect micro-sparks and small distant flame candidates."""
+        candidates = []
+        h, w = frame.shape[:2]
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        
+        # 1. Micro-sparks detector: ultra-bright hotspot pixels
+        spark_mask = cv2.inRange(hsv, np.array([0, 0, 190]), np.array([180, 255, 255]))
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(spark_mask)
+        for i in range(1, min(num_labels, 15)):
+            area = int(stats[i, cv2.CC_STAT_AREA])
+            if 2 <= area <= 60:
+                sx = int(stats[i, cv2.CC_STAT_LEFT])
+                sy = int(stats[i, cv2.CC_STAT_TOP])
+                sw = int(stats[i, cv2.CC_STAT_WIDTH])
+                sh = int(stats[i, cv2.CC_STAT_HEIGHT])
+                pad = 4
+                bx1, by1 = max(0, sx - pad), max(0, sy - pad)
+                bx2, by2 = min(w, sx + sw + pad), min(h, sy + sh + pad)
+                
+                flicker_score = 0.5
+                if prev_gray is not None and prev_gray.shape == gray.shape:
+                    diff_val = float(np.mean(cv2.absdiff(gray[by1:by2, bx1:bx2], prev_gray[by1:by2, bx1:bx2])))
+                    flicker_score = min(1.0, diff_val / 20.0)
+                
+                candidates.append({
+                    "detection_type": "sparks",
+                    "confidence": round(0.45 + 0.35 * flicker_score, 4),
+                    "bbox": {"x1": bx1, "y1": by1, "x2": bx2, "y2": by2},
+                    "source": "cv",
+                    "candidate_category": "spark_occluded",
+                    "alert_level": "YELLOW",
+                    "verified": True,
+                    "verification_scores": {"spark_area": area, "flicker": round(flicker_score, 2)}
+                })
+        return candidates
+
     def detect_video_stream(
         self,
         video_path: str,
         db_settings: dict | None = None,
         output_video_path: str | None = None,
         cancel_check_func = None,
+        mode: str = "Real-Time",
     ) -> Generator[Dict[str, Any], None, None]:
         """Real-time streaming video decoder & detector.
-        Supports ByteTrack IoU persistence, motion-based adaptive frame sampling, early threat alerts, live preview encoding, and Telemetry HUD metrics.
+        Supports sequential frame extraction, ByteTrack IoU persistence, CV small-object enhancement,
+        deterministic timestamps, telemetry profiling, and MJPEG + preview encoding.
         """
         active_cfg = self._merge_db_settings(db_settings)
-        tracker = ByteTracker(high_thresh=0.35, low_thresh=0.15, iou_thresh=0.25, max_age=25)
+        mode_lower = str(mode or active_cfg.operating_mode or "Real-Time").lower()
+        is_accuracy_mode = "accuracy" in mode_lower or "precision" in mode_lower
+        is_debug_mode = "debug" in mode_lower
+
+        tracker = ByteTracker(high_thresh=0.30, low_thresh=0.15, iou_thresh=0.20, max_age=30)
+
+        meta = self.extract_video_metadata(video_path)
+        fps = meta.get("fps", 25.0) or 25.0
+        total_frames = meta.get("total_frames", 1) or 1
+        w = meta.get("width", 640) or 640
+        h = meta.get("height", 480) or 480
 
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
             logger.error(f"[VideoStream] Could not open video file: {video_path}")
             return
-
-        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 1
-        fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
-        w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
         writer = None
         if output_video_path:
@@ -977,73 +1056,64 @@ class DetectionLayer:
         frame_num = 0
         processed_count = 0
         skipped_frames_count = 0
-        consecutive_threats = {"fire": 0, "smoke": 0}
-        early_alert_sent = {"fire": False, "smoke": False}
+        consecutive_threats = {"fire": 0, "smoke": 0, "sparks": 0}
+        early_alert_sent = {"fire": False, "smoke": False, "sparks": False}
         prev_gray = None
         t_start = time.perf_counter()
         user_frame_skip = int(db_settings.get("frame_skip", 0)) if db_settings else 0
         base_skip = max(1, user_frame_skip + 1)
 
         frame_latencies: list = []
-        carried_dets: list = []  # Last known detections for box persistence on skipped frames
+        carried_dets: list = []
 
-        # Decide sampling strides:
-        # Idle/Normal: ~15 FPS sampling
-        # Active Threat: 1:1 frame processing (stride 1) for uninterrupted tracking & alert accumulation
-        normal_stride = max(1, int(round(fps / 15.0)))
-        static_stride = max(2, normal_stride * 2)
-
+        # Real-time sampling strategy:
+        # In Accuracy mode: process every frame (stride 1)
+        # In Real-Time mode: process 1:1 on active threat, or ~15 FPS during normal scene
+        normal_stride = 1 if is_accuracy_mode else max(1, int(round(fps / 15.0)))
 
         while cap.isOpened():
             if cancel_check_func and cancel_check_func():
                 logger.info(f"[VideoStream] Stream job cancelled by user at frame {frame_num}")
                 break
 
+            t_dec_start = time.perf_counter()
             ret, frame = cap.read()
             if not ret:
                 break
 
             frame_num += 1
+            t_decode_ms = (time.perf_counter() - t_dec_start) * 1000.0
 
-            # 1. Fast Motion-based adaptive skipping on 320x180 thumbnail
             curr_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            curr_small = cv2.resize(curr_gray, (320, 180), interpolation=cv2.INTER_NEAREST)
-            is_static = False
-            has_active_threat = (consecutive_threats["fire"] > 0 or consecutive_threats["smoke"] > 0)
+            has_active_threat = any(c > 0 for c in consecutive_threats.values())
 
-            if prev_gray is not None and prev_gray.shape == curr_small.shape:
-                diff = cv2.absdiff(curr_small, prev_gray)
-                mad = float(np.mean(diff))
-                if mad < 1.0 and not has_active_threat:
-                    is_static = True
-
-            prev_gray = curr_small
-
-            # Decide adaptive skip stride
-            # During active threat: process every frame (stride 1)
-            # During normal scene: process ~15 FPS
-            # During static scene: process ~7.5 FPS
-            current_stride = 1 if has_active_threat else (static_stride if is_static else normal_stride)
+            # Decide stride
+            current_stride = 1 if (has_active_threat or is_accuracy_mode) else normal_stride
             if user_frame_skip > 0:
                 current_stride = max(current_stride, base_skip)
 
-            run_inference = (frame_num % current_stride == 1)
+            run_inference = (frame_num % current_stride == 1) or (frame_num == 1)
+
+            t_infer_ms = 0.0
+            t_cv_ms = 0.0
 
             if run_inference:
                 processed_count += 1
                 t_frame_start = time.perf_counter()
 
-                # Pre-scale high-res input frames (e.g. 4K 3840x2160) to max 1280 width for fast CPU YOLO inference
+                # Pre-scale high-res input frames (e.g. 4K) if needed, but preserve aspect ratio
                 infer_frame = frame
                 h_f, w_f = frame.shape[:2]
                 if max(h_f, w_f) > 1280:
                     scale_f = 1280.0 / float(max(h_f, w_f))
                     infer_frame = cv2.resize(frame, (int(w_f * scale_f), int(h_f * scale_f)), interpolation=cv2.INTER_AREA)
 
-                # 2. Stage 1 YOLO + Stage 2 Verification
+                # 1. Stage 1 YOLO Inference
+                t_yolo_start = time.perf_counter()
                 raw_dets = self._run_stage1_ai(infer_frame, active_cfg)
+                t_infer_ms = (time.perf_counter() - t_yolo_start) * 1000.0
+
                 if raw_dets and max(h_f, w_f) > 1280:
-                    # Scale bounding boxes back to original full resolution frame coordinates
                     inv_scale = float(max(h_f, w_f)) / 1280.0
                     for d in raw_dets:
                         bb = d["bbox"]
@@ -1052,29 +1122,44 @@ class DetectionLayer:
                         bb["x2"] = int(bb["x2"] * inv_scale)
                         bb["y2"] = int(bb["y2"] * inv_scale)
 
-                if raw_dets:
-                    verified_dets = self._run_stage2_verification(frame, raw_dets, active_cfg, camera_id="VIDEO-STREAM")
+                # 2. CV Enhancement Layer (Sparks & Distant Fire)
+                t_cv_start = time.perf_counter()
+                cv_candidates = self.detect_cv_candidates(frame, prev_gray)
+                t_cv_ms = (time.perf_counter() - t_cv_start) * 1000.0
+
+                # Merge CV candidates if not covered by YOLO
+                all_raw = list(raw_dets)
+                for cv_c in cv_candidates:
+                    c_bb = cv_c["bbox"]
+                    overlap = any(
+                        ByteTracker._compute_iou(c_bb, yd["bbox"]) > 0.15
+                        for yd in raw_dets
+                    )
+                    if not overlap and cv_c["confidence"] >= 0.50:
+                        all_raw.append(cv_c)
+
+                # 3. Stage 2 Verification & Fusion
+                if all_raw:
+                    verified_dets = self._run_stage2_verification(frame, all_raw, active_cfg, camera_id="VIDEO-STREAM")
                 else:
                     verified_dets = []
 
-                # 3. ByteTrack Multi-Object Association
-                tracked_dets = tracker.update(verified_dets) if (raw_dets or tracker.tracks) else []
+                # 4. ByteTrack Multi-Object Association
+                tracked_dets = tracker.update(verified_dets) if (all_raw or tracker.tracks) else []
 
-                # 4. Check Early Threat Alerts
+                # 5. Check Early Threat Alerts
                 detected_types = {d["detection_type"] for d in tracked_dets}
                 early_threat_triggered = None
 
-                for cls in ("fire", "smoke"):
+                for cls in ("fire", "smoke", "sparks"):
                     if cls in detected_types:
                         consecutive_threats[cls] += 1
                         if consecutive_threats[cls] >= 3 and not early_alert_sent[cls]:
                             early_alert_sent[cls] = True
                             early_threat_triggered = cls
                     else:
-                        # Gracefully decay count over 3 frames to avoid dropping state on 1 flickering frame
                         consecutive_threats[cls] = max(0, consecutive_threats[cls] - 1)
 
-                # Update carried detections for all subsequent skipped frames
                 carried_dets = tracked_dets
 
                 t_frame_ms = (time.perf_counter() - t_frame_start) * 1000.0
@@ -1082,25 +1167,34 @@ class DetectionLayer:
                 if len(frame_latencies) > 50:
                     frame_latencies.pop(0)
             else:
-                # SKIPPED frame: reuse last known detections for smooth box persistence
                 skipped_frames_count += 1
                 tracked_dets = carried_dets
                 early_threat_triggered = None
 
-            # 5. Annotate EVERY frame (whether inference ran or carried over)
+            prev_gray = curr_gray
+
+            # 6. Annotate EVERY frame for smooth playback
+            t_ren_start = time.perf_counter()
             annotated = self.annotate_frame(frame, tracked_dets) if tracked_dets else frame.copy()
 
-            # 6. Encode annotated frame as raw JPEG bytes for MJPEG streaming
-            encode_params = [cv2.IMWRITE_JPEG_QUALITY, 70]
+            # In Debug mode, add HUD overlay
+            if is_debug_mode:
+                hud_text = f"F:{frame_num}/{total_frames} | T:{frame_num/fps:.2f}s | Dets:{len(tracked_dets)} | Inf:{t_infer_ms:.0f}ms | Mode:{mode}"
+                cv2.putText(annotated, hud_text, (12, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255), 2)
+
+            t_render_ms = (time.perf_counter() - t_ren_start) * 1000.0
+
+            # 7. Encode annotated frame as raw JPEG bytes for MJPEG streaming
+            encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), 75]
             ok, jpeg_buf = cv2.imencode(".jpg", annotated, encode_params)
             annotated_jpeg = jpeg_buf.tobytes() if ok else None
 
-            # 7. Write annotated frame to output video
+            # 8. Write annotated frame to output video
             if writer:
                 writer.write(annotated)
 
-            # 8. Telemetry
-            avg_latency = round(float(np.mean(frame_latencies)), 1) if frame_latencies else 0.0
+            # 9. Telemetry & Progress
+            avg_latency = round(float(np.mean(frame_latencies)), 1) if frame_latencies else round(t_infer_ms, 1)
             t_elapsed = time.perf_counter() - t_start
             proc_fps = processed_count / t_elapsed if t_elapsed > 0 else 0.0
             overall_fps = frame_num / t_elapsed if t_elapsed > 0 else 0.0
@@ -1108,8 +1202,8 @@ class DetectionLayer:
             eta_sec = (remaining_frames / proc_fps) if proc_fps > 0 else 0.0
             progress_pct = round(min(100.0, (frame_num / total_frames) * 100.0), 1)
 
-            # 9. Generate lightweight preview thumbnail base64 for WS telemetry panel
-            preview_b64 = _frame_to_base64(annotated, max_dim=320, quality=50)
+            # 10. Lightweight preview thumbnail base64 for WS telemetry panel
+            preview_b64 = _frame_to_base64(annotated, max_dim=360, quality=55)
 
             yield {
                 "event": "frame_update",
@@ -1117,21 +1211,28 @@ class DetectionLayer:
                 "frame_number": frame_num,
                 "total_frames": total_frames,
                 "progress_pct": progress_pct,
-                "timestamp_sec": round(frame_num / fps, 2),
+                "timestamp_sec": round((frame_num - 1) / fps, 3),
                 "fps": round(proc_fps, 1),
+                "source_fps": round(fps, 1),
                 "inference_fps": round(overall_fps, 1),
                 "avg_latency_ms": avg_latency,
+                "decode_time_ms": round(t_decode_ms, 1),
+                "inference_time_ms": round(t_infer_ms, 1),
+                "cv_time_ms": round(t_cv_ms, 1),
+                "render_time_ms": round(t_render_ms, 1),
                 "skipped_frames": skipped_frames_count,
                 "active_tracks_count": len(tracker.tracks),
                 "eta_sec": round(eta_sec, 1),
-                "detections": tracked_dets if run_inference else [],
+                "detections": tracked_dets if run_inference else carried_dets,
                 "early_threat": early_threat_triggered,
-                "consecutive_threat_frames": max(consecutive_threats["fire"], consecutive_threats["smoke"]),
-                "continuous_alarm": (consecutive_threats["fire"] >= 15 or consecutive_threats["smoke"] >= 20),
+                "consecutive_threat_frames": max(consecutive_threats.values()),
+                "continuous_alarm": (consecutive_threats["fire"] >= 12 or consecutive_threats["smoke"] >= 15 or consecutive_threats["sparks"] >= 15),
                 "preview_b64": preview_b64,
                 "annotated_jpeg": annotated_jpeg,
                 "has_detections": len(tracked_dets) > 0,
                 "run_inference": run_inference,
+                "mode": mode,
+                "metadata": meta,
             }
 
         cap.release()

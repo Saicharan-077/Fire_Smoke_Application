@@ -168,6 +168,22 @@ const Detection = () => {
     setVidTimelineEvents([]);
   };
 
+  const [videoMode, setVideoMode] = useState<'Real-Time' | 'Accuracy' | 'Debug'>('Real-Time');
+  const [videoMeta, setVideoMeta] = useState<any>(null);
+
+  const handleStepFrame = (delta: number) => {
+    if (!playerRef.current) return;
+    const fps = vidTelemetry.fps || videoMeta?.fps || 25.0;
+    playerRef.current.pause();
+    playerRef.current.currentTime = Math.max(0, playerRef.current.currentTime + (delta / fps));
+  };
+
+  const handleRestartVideo = () => {
+    if (!playerRef.current) return;
+    playerRef.current.currentTime = 0;
+    playerRef.current.play().catch(() => {});
+  };
+
   const runVideoInference = async () => {
     if (!vidFile) return;
     setVidLoading(true);
@@ -180,9 +196,10 @@ const Detection = () => {
     const t0 = performance.now();
 
     try {
-      const init = await uploadVideoAsync(vidFile);
+      const init = await uploadVideoAsync(vidFile, videoMode);
       const jobId = init.job_id;
       setVidJobId(jobId);
+      if (init.metadata) setVideoMeta(init.metadata);
 
       // Immediately set MJPEG stream URL — browser starts receiving frames as they are processed
       const mjpegUrl = getVideoMjpegStreamUrl(jobId);
@@ -193,6 +210,7 @@ const Detection = () => {
           const status = await getVideoJobStatus(jobId);
           if (status) {
             setVidProgress(status.progress_pct || 0);
+            if (status.metadata) setVideoMeta(status.metadata);
             if (status.latest_preview) {
               setVidLivePreviewB64(`data:image/jpeg;base64,${status.latest_preview}`);
             }
@@ -218,6 +236,7 @@ const Detection = () => {
       const ws = connectVideoStreamSocket(jobId, (msg: any) => {
         if (msg.event === 'frame_update' || msg.type === 'frame') {
           setVidProgress(msg.progress_pct || 0);
+          if (msg.metadata) setVideoMeta(msg.metadata);
           if (msg.preview_b64) {
             setVidLivePreviewB64(`data:image/jpeg;base64,${msg.preview_b64}`);
           }
@@ -234,7 +253,7 @@ const Detection = () => {
 
           if (msg.detections && msg.detections.length > 0) {
             setVidTimelineEvents(prev => {
-              if (prev.some((e) => Math.abs(e.timestamp_sec - msg.timestamp_sec) < 1.0)) return prev;
+              if (prev.some((e) => Math.abs(e.timestamp_sec - msg.timestamp_sec) < 0.8)) return prev;
               return [
                 ...prev,
                 {
@@ -253,7 +272,7 @@ const Detection = () => {
           const now = Date.now();
           if ((msg.continuous_alarm || msg.early_threat || (msg.consecutive_threat_frames && msg.consecutive_threat_frames >= 10)) && (now - lastPopupTimeRef.current > 2500)) {
             lastPopupTimeRef.current = now;
-            toast(`🚨 CRITICAL FIRE ALERT: Fire detected continuously!`, 'error');
+            toast(`🚨 CRITICAL THREAT: ${msg.early_threat?.toUpperCase() || 'FIRE'} detected continuously!`, 'error');
             const alertItem = {
               id: `vid-threat-${now}`,
               alertType: msg.early_threat || 'fire',
@@ -274,6 +293,7 @@ const Detection = () => {
           setVidProgress(100);
           setVidJobStatus('completed');
           setVidResult(msg);
+          if (msg.metadata) setVideoMeta(msg.metadata);
           const computedLatency = Math.round(performance.now() - t0);
           setVidLatency(computedLatency);
           if (msg.has_detections) {
@@ -670,6 +690,35 @@ const Detection = () => {
             {/* VIDEO */}
             {activeTab === 'video' && (
               <div className="space-y-5">
+                {/* Mode Selector & Strategy */}
+                <div className="flex flex-wrap items-center justify-between gap-3 bg-[var(--surface-2)] p-3 rounded-xl border border-[var(--border)]">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-3)]">Processing Mode:</span>
+                    <div className="flex rounded-lg bg-[var(--surface)] p-0.5 border border-[var(--border)]">
+                      {(['Real-Time', 'Accuracy', 'Debug'] as const).map(mode => (
+                        <button
+                          key={mode}
+                          onClick={() => setVideoMode(mode)}
+                          className={`px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                            videoMode === mode
+                              ? 'bg-[var(--primary)] text-white shadow-xs'
+                              : 'text-[var(--text-2)] hover:text-[var(--text)]'
+                          }`}
+                        >
+                          {mode === 'Real-Time' && '⚡ Real-Time'}
+                          {mode === 'Accuracy' && '🎯 Accuracy (960p)'}
+                          {mode === 'Debug' && '🛠 Debug HUD'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-[var(--text-3)] font-mono">
+                    {videoMode === 'Real-Time' && 'Optimized 640p letterbox with low latency'}
+                    {videoMode === 'Accuracy' && 'High-res 960p inference for small/distant fire & smoke'}
+                    {videoMode === 'Debug' && 'Full CV telemetry + bounding box inspector'}
+                  </div>
+                </div>
+
                 <div
                   onClick={() => !vidLoading && vidInputRef.current?.click()}
                   className={`border-2 border-dashed rounded-2xl p-6 transition-all duration-300 cursor-pointer text-center ${
@@ -680,17 +729,35 @@ const Detection = () => {
                 >
                   <input type="file" ref={vidInputRef} className="hidden" accept="video/*" onChange={e => {
                     const f = e.target.files?.[0];
-                    if (f) { setVidFile(f); setVidResult(null); setVidProgress(0); setVidLivePreviewB64(null); setVidTimelineEvents([]); }
+                    if (f) { setVidFile(f); setVidResult(null); setVidProgress(0); setVidLivePreviewB64(null); setVidTimelineEvents([]); setVideoMeta(null); }
                   }} />
                   {vidFile ? (
-                    <div className="py-6 flex flex-col items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-sky-50 dark:bg-sky-950/30 flex items-center justify-center text-sky-600 dark:text-sky-400 mb-2 shadow-xs">
+                    <div className="py-4 flex flex-col items-center gap-2">
+                      <div className="w-12 h-12 rounded-full bg-sky-50 dark:bg-sky-950/30 flex items-center justify-center text-sky-600 dark:text-sky-400 mb-1 shadow-xs">
                         <FileVideo size={20} />
                       </div>
                       <div className="text-center">
                         <p className="text-[13px] font-bold text-[var(--text)] truncate max-w-xs">{vidFile.name}</p>
-                        <p className="text-[11px] text-[var(--text-3)] font-medium mt-1">{(vidFile.size / 1048576).toFixed(2)} MB</p>
+                        <p className="text-[11px] text-[var(--text-3)] font-medium mt-0.5">{(vidFile.size / 1048576).toFixed(2)} MB</p>
                       </div>
+                      {videoMeta && (
+                        <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
+                          <span className="text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-[var(--text-2)] border border-[var(--border)]">
+                            {videoMeta.width}x{videoMeta.height}
+                          </span>
+                          <span className="text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-[var(--text-2)] border border-[var(--border)]">
+                            {videoMeta.fps} FPS
+                          </span>
+                          <span className="text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-[var(--text-2)] border border-[var(--border)]">
+                            {videoMeta.total_frames || videoMeta.frame_count} Frames ({videoMeta.duration_sec?.toFixed(1) || videoMeta.duration?.toFixed(1)}s)
+                          </span>
+                          {videoMeta.codec && (
+                            <span className="text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-[var(--text-2)] border border-[var(--border)]">
+                              Codec: {videoMeta.codec}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="py-12 flex flex-col items-center gap-3 select-none">
@@ -707,11 +774,12 @@ const Detection = () => {
 
                 {vidFile && !vidLoading && vidJobStatus !== 'processing' && (
                   <div className="flex gap-2 justify-end">
-                    <button onClick={() => { setVidFile(null); setVidResult(null); setVidProgress(0); setVidLivePreviewB64(null); }} className="px-3 py-2 border border-[var(--border)] rounded-lg text-[12px] font-bold text-[var(--text-2)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer">
+                    <button onClick={() => { setVidFile(null); setVidResult(null); setVidProgress(0); setVidLivePreviewB64(null); setVideoMeta(null); }} className="px-3 py-2 border border-[var(--border)] rounded-lg text-[12px] font-bold text-[var(--text-2)] hover:bg-[var(--surface-hover)] transition-colors cursor-pointer">
                       Clear
                     </button>
-                    <button onClick={runVideoInference} className="px-4 py-2 bg-[var(--primary)] text-white text-[12px] font-bold rounded-lg hover:bg-[var(--primary-hover)] transition-colors cursor-pointer shadow-sm">
-                      Analyze Video Stream
+                    <button onClick={runVideoInference} className="px-4 py-2 bg-[var(--primary)] text-white text-[12px] font-bold rounded-lg hover:bg-[var(--primary-hover)] transition-colors cursor-pointer shadow-sm flex items-center gap-1.5">
+                      <Play size={13} />
+                      Start {videoMode} Analysis
                     </button>
                   </div>
                 )}
@@ -724,7 +792,7 @@ const Detection = () => {
                         {vidLoading ? (
                           <>
                             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-                            <span className="font-bold text-emerald-400">ByteTrack AI Stream Processing</span>
+                            <span className="font-bold text-emerald-400">ByteTrack AI Stream Processing ({videoMode})</span>
                           </>
                         ) : (
                           <>
@@ -754,7 +822,7 @@ const Detection = () => {
 
                     {/* LIVE CCTV STREAM OR COMPLETED ANNOTATED VIDEO PLAYER */}
                     {(() => {
-                      const displayTotal = vidTelemetry.total_frames || vidResult?.total_frames || vidResult?.events?.length || 100;
+                      const displayTotal = vidTelemetry.total_frames || videoMeta?.total_frames || videoMeta?.frame_count || vidResult?.total_frames || vidResult?.events?.length || 100;
                       const displayCurrent = (vidProgress === 100 || vidJobStatus === 'completed' || !vidLoading)
                         ? displayTotal
                         : (vidTelemetry.current_frame || 1);
@@ -767,19 +835,51 @@ const Detection = () => {
 
                       return (
                         <>
-                          {/* COMPLETED: Show H.264 annotated video with bounding boxes */}
+                          {/* COMPLETED: Show H.264 annotated video with bounding boxes & frame controls */}
                           {completedVideoUrl && !vidLoading ? (
-                            <div className="relative rounded-lg overflow-hidden border border-slate-800 bg-black aspect-video flex items-center justify-center shadow-2xl">
-                              <video
-                                ref={playerRef}
-                                src={completedVideoUrl}
-                                controls
-                                autoPlay
-                                playsInline
-                                className="w-full h-full object-contain"
-                              />
-                              <div className="absolute top-2 left-2 bg-black/70 backdrop-blur text-white text-[10px] font-mono px-2.5 py-1 rounded border border-white/10 pointer-events-none z-10">
-                                🎬 ANNOTATED AI STREAM ({displayTotal} FRAMES)
+                            <div className="space-y-2">
+                              <div className="relative rounded-lg overflow-hidden border border-slate-800 bg-black aspect-video flex items-center justify-center shadow-2xl">
+                                <video
+                                  ref={playerRef}
+                                  src={completedVideoUrl}
+                                  controls
+                                  autoPlay
+                                  playsInline
+                                  className="w-full h-full object-contain"
+                                />
+                                <div className="absolute top-2 left-2 bg-black/70 backdrop-blur text-white text-[10px] font-mono px-2.5 py-1 rounded border border-white/10 pointer-events-none z-10">
+                                  🎬 ANNOTATED AI STREAM ({displayTotal} FRAMES)
+                                </div>
+                              </div>
+
+                              {/* Interactive Precision Controls (Restart, Step Back, Step Forward) */}
+                              <div className="flex items-center justify-between bg-slate-900/90 border border-slate-800 px-3 py-2 rounded-lg text-xs">
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    onClick={handleRestartVideo}
+                                    title="Restart video"
+                                    className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                                  >
+                                    <RotateCcw size={11} /> Restart
+                                  </button>
+                                  <button
+                                    onClick={() => handleStepFrame(-1)}
+                                    title="Step backward 1 frame"
+                                    className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                                  >
+                                    <ChevronLeft size={12} /> -1 Frame
+                                  </button>
+                                  <button
+                                    onClick={() => handleStepFrame(1)}
+                                    title="Step forward 1 frame"
+                                    className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                                  >
+                                    +1 Frame <ChevronRight size={12} />
+                                  </button>
+                                </div>
+                                <span className="text-[11px] text-slate-400 font-mono">
+                                  Frame Stepping Active (1 / {vidTelemetry.fps || videoMeta?.fps || 25}s)
+                                </span>
                               </div>
                             </div>
                           ) : vidMjpegUrl ? (
@@ -807,7 +907,7 @@ const Detection = () => {
                                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-red-900/90 to-transparent py-3 px-4 pointer-events-none z-10">
                                   <div className="flex items-center gap-2 text-red-300 text-[11px] font-bold">
                                     <span className="text-red-400 text-lg">⚠</span>
-                                    FIRE / SMOKE DETECTED — AI BOUNDING BOX ACTIVE
+                                    FIRE / SMOKE / SPARK DETECTED — AI BOUNDING BOX ACTIVE
                                   </div>
                                 </div>
                               )}
@@ -815,8 +915,8 @@ const Detection = () => {
                           ) : (
                             <div className="relative rounded-lg overflow-hidden border border-slate-800 bg-slate-900 aspect-video flex flex-col items-center justify-center p-6 text-center text-slate-400">
                               <Film size={32} className="text-sky-500 mb-2 animate-bounce" />
-                              <p className="text-xs font-bold text-slate-200">Initializing Live AI Stream...</p>
-                              <p className="text-[10px] text-slate-500 mt-1">Video is being uploaded and analysis is starting...</p>
+                              <p className="text-xs font-bold text-slate-200">Initializing Live AI Stream ({videoMode})...</p>
+                              <p className="text-[10px] text-slate-500 mt-1">Video is being extracted and sequential inference is beginning...</p>
                             </div>
                           )}
 
@@ -840,10 +940,10 @@ const Detection = () => {
                             </div>
                             <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 text-center">
                               <div className="text-[10px] text-slate-400 uppercase font-semibold flex items-center justify-center gap-1">
-                                <Sliders size={12} className="text-emerald-400" /> Skipped Frames
+                                <Sliders size={12} className="text-emerald-400" /> Source FPS
                               </div>
                               <div className="text-sm font-bold text-slate-100 font-mono mt-0.5">
-                                {displaySkipped}
+                                {videoMeta?.fps || 25} FPS
                               </div>
                             </div>
                             <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 text-center">
@@ -877,26 +977,33 @@ const Detection = () => {
                           <span className="text-[10px] text-slate-400">{vidTimelineEvents.length} Threat Timestamp(s)</span>
                         </div>
                         <div className="flex gap-2 overflow-x-auto py-1 custom-scrollbar">
-                          {vidTimelineEvents.map((evt, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => {
-                                if (playerRef.current) {
-                                  playerRef.current.currentTime = evt.timestamp_sec;
-                                  playerRef.current.play();
-                                }
-                              }}
-                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap ${
-                                evt.type === 'fire'
-                                  ? 'bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30'
-                                  : 'bg-purple-500/20 text-purple-400 border-purple-500/30 hover:bg-purple-500/30'
-                              }`}
-                            >
-                              <span>{evt.type === 'fire' ? '🔥' : '💨'}</span>
-                              <span>{Math.floor(evt.timestamp_sec / 60)}:{(evt.timestamp_sec % 60).toFixed(0).padStart(2, '0')}</span>
-                              <span className="text-[10px] opacity-75 font-mono">({(evt.confidence * 100).toFixed(0)}%)</span>
-                            </button>
-                          ))}
+                          {vidTimelineEvents.map((evt, idx) => {
+                            const isSpark = evt.type === 'sparks' || evt.type === 'spark';
+                            const isFire = evt.type === 'fire';
+                            return (
+                              <button
+                                key={idx}
+                                onClick={() => {
+                                  if (playerRef.current) {
+                                    playerRef.current.currentTime = evt.timestamp_sec;
+                                    playerRef.current.play().catch(() => {});
+                                  }
+                                }}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap ${
+                                  isFire
+                                    ? 'bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30'
+                                    : (isSpark
+                                      ? 'bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-amber-500/30'
+                                      : 'bg-purple-500/20 text-purple-400 border-purple-500/30 hover:bg-purple-500/30')
+                                }`}
+                              >
+                                <span>{isFire ? '🔥' : (isSpark ? '✨' : '💨')}</span>
+                                <span className="capitalize">{evt.type}</span>
+                                <span>{Math.floor(evt.timestamp_sec / 60)}:{(evt.timestamp_sec % 60).toFixed(0).padStart(2, '0')}</span>
+                                <span className="text-[10px] opacity-75 font-mono">({(evt.confidence * 100).toFixed(0)}%)</span>
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -906,7 +1013,7 @@ const Detection = () => {
                       <div className="flex flex-wrap gap-3 items-center justify-between pt-2 border-t border-slate-800">
                         {vidResult.annotated_video_path && (
                           <a
-                            href={vidResult.annotated_video_path}
+                            href={evidenceUrl(vidResult.annotated_video_path) || vidResult.annotated_video_path}
                             download="sentinelos_annotated.mp4"
                             target="_blank"
                             rel="noopener noreferrer"
@@ -932,6 +1039,7 @@ const Detection = () => {
                                 <button
                                   onClick={() => setLightboxImg(evidenceUrl(vidResult.thumbnail_path))}
                                   className="text-[10px] text-sky-400 hover:underline font-semibold cursor-pointer"
+                                  type="button"
                                 >
                                   View Fullscreen
                                 </button>
