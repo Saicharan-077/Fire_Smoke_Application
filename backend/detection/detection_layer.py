@@ -387,21 +387,42 @@ class DetectionLayer:
         return True, "passed", scores
 
     def verify_sparks(self, roi_bgr: np.ndarray, roi_hsv: np.ndarray) -> Tuple[bool, str, dict]:
-        """Sparks verification checking high-intensity hotspot pixels or bright core."""
+        """Sparks verification checking high-intensity hotspot pixels and rejecting uniform sky/daylight."""
         if roi_bgr.size == 0 or roi_bgr.shape[0] == 0 or roi_bgr.shape[1] == 0:
             return False, "empty_roi", {}
+
+        roi_gray = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2GRAY)
         v_channel = roi_hsv[:, :, 2]
         max_val = float(np.max(v_channel))
         avg_val = float(np.mean(v_channel))
-        spark_mask = cv2.inRange(roi_hsv, np.array([0, 0, 150]), np.array([180, 255, 255]))
+        std_val = float(np.std(roi_gray))
+        total_pixels = roi_bgr.shape[0] * roi_bgr.shape[1]
+
+        # 1. Reject smooth daylight sky, clouds, and uniform walls
+        if avg_val > 150.0 and std_val < 18.0:
+            return False, f"uniform_daylight_or_sky (avg={avg_val:.1f}, std={std_val:.1f})", {"avg_brightness": avg_val, "std": std_val}
+
+        # 2. Spark particles mask (high brightness and distinct contrast)
+        spark_mask = cv2.inRange(roi_hsv, np.array([0, 20, 200]), np.array([180, 255, 255]))
         spark_pixels = int(np.count_nonzero(spark_mask))
+        spark_ratio = spark_pixels / float(total_pixels) if total_pixels > 0 else 0.0
+
         scores = {
             "max_brightness": round(max_val, 1),
             "avg_brightness": round(avg_val, 1),
-            "spark_pixels": spark_pixels
+            "std_brightness": round(std_val, 1),
+            "spark_pixels": spark_pixels,
+            "spark_ratio": round(spark_ratio, 4)
         }
-        if max_val < 80.0 and spark_pixels == 0:
-            return False, f"low_spark_intensity (max_val={max_val:.1f})", scores
+
+        # Sparks should have intense local brightness
+        if max_val < 185.0:
+            return False, f"low_spark_intensity (max_val={max_val:.1f} < 185)", scores
+
+        # If it's a solid uniform field of high brightness (like sun or bright sky patch)
+        if spark_ratio > 0.70 and std_val < 25.0:
+            return False, f"broad_light_field (spark_ratio={spark_ratio:.2f})", scores
+
         return True, "passed", scores
 
     def verify_smoke(self, roi_bgr: np.ndarray, roi_hsv: np.ndarray, roi_gray: np.ndarray, config: SmokeVerificationConfig) -> Tuple[bool, str, dict]:
@@ -621,33 +642,33 @@ class DetectionLayer:
                     sparks = scores.get("sparks_count", 0)
                     components = scores.get("components_count", 0)
                     flicker = scores.get("flicker_index", 0.0)
-                    color_score = min(1.0, flame_ratio / 0.10)
-                    cv_score = 0.5 * color_score + 0.3 * brightness + 0.2 * flicker
+                    color_score = min(1.0, flame_ratio / 0.08)
 
-                    # Check if ROI is actually a spark burst / ember shower
-                    is_spark_burst = (
-                        sparks >= 3 or
-                        components >= 5 or
-                        (flame_ratio < 0.20 and brightness > 0.40 and sparks >= 1)
+                    # Only reclassify to sparks if there is zero flame body AND high isolated point sparks
+                    is_pure_sparkler = (
+                        raw_yolo_conf < 0.40 and
+                        flame_ratio < 0.02 and
+                        sparks >= 15 and
+                        area_ratio < 0.05
                     )
 
-                    if is_spark_burst:
+                    if is_pure_sparkler:
                         det_type = "sparks"
                         det["detection_type"] = "sparks"
                         candidate_cat = "spark_occluded"
                         spark_score = min(0.99, max(0.60, 0.45 * raw_yolo_conf + 0.35 * brightness + 0.20 * min(1.0, sparks / 10.0)))
                         fusion_score = spark_score
                     else:
-                        # Fusion Weights for continuous flame fire
-                        spark_boost = min(0.15, sparks * 0.03)
-                        fusion_score = (0.50 * raw_yolo_conf) + (0.25 * color_score) + (0.15 * brightness) + (0.10 * flicker) + spark_boost
-                        fusion_score = min(0.99, max(0.05, fusion_score))
+                        # Fusion Weights for continuous flame / wildfire / gas fire
+                        spark_boost = min(0.08, sparks * 0.02)
+                        fusion_score = (0.55 * raw_yolo_conf) + (0.25 * color_score) + (0.12 * brightness) + (0.08 * flicker) + spark_boost
+                        fusion_score = min(0.99, max(0.20, fusion_score))
 
                         # Sub-categorization
                         if area_ratio < 0.015 or box_area < 1800:
                             candidate_cat = "far_fire_candidate"
-                        elif sparks >= 2 or flicker > 0.65:
-                            candidate_cat = "spark_occluded"
+                        elif flicker > 0.65:
+                            candidate_cat = "flickering_fire"
                         else:
                             candidate_cat = "normal_fire"
 
@@ -938,8 +959,11 @@ class DetectionLayer:
             fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
             w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+            fourcc = cv2.VideoWriter_fourcc(*"avc1")
             writer = cv2.VideoWriter(output_video_path, fourcc, fps, (w, h))
+            if not writer.isOpened():
+                fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+                writer = cv2.VideoWriter(output_video_path, fourcc, fps, (w, h))
 
         total_frames = 0
         detected_frames = 0
@@ -958,7 +982,7 @@ class DetectionLayer:
             total_frames += 1
             raw_dets = self._run_stage1_ai(frame, active_cfg)
             if not raw_dets:
-                for cls in ("fire", "smoke"):
+                for cls in ("fire", "smoke", "sparks"):
                     counters[cls] = 0
                     triggered[cls] = False
                 if writer:
@@ -972,14 +996,14 @@ class DetectionLayer:
             if writer:
                 writer.write(annotated)
 
-            for cls in ("fire", "smoke"):
+            for cls in ("fire", "smoke", "sparks"):
                 if cls in detected_types:
-                    counters[cls] += 1
+                    counters[cls] = counters.get(cls, 0) + 1
                 else:
                     counters[cls] = 0
                     triggered[cls] = False
 
-                if counters[cls] >= consecutive and not triggered[cls]:
+                if counters[cls] >= consecutive and not triggered.get(cls, False):
                     triggered[cls] = True
                     detected_frames += 1
                     cls_dets = [d for d in verified_dets if d["detection_type"] == cls]
@@ -1027,31 +1051,43 @@ class DetectionLayer:
         }
 
     def detect_cv_candidates(self, frame: np.ndarray, prev_gray: np.ndarray | None = None) -> List[Dict[str, Any]]:
-        """Lightweight CV layer to detect cohesive spark burst envelopes without clutter."""
+        """Lightweight CV layer to detect cohesive spark burst envelopes without false positives on sky/daylight."""
         candidates = []
         h, w = frame.shape[:2]
+        frame_area = max(1, h * w)
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         
-        # 1. Spark mask: ultra-bright hotspot pixels
-        spark_mask = cv2.inRange(hsv, np.array([0, 0, 180]), np.array([180, 255, 255]))
+        # 1. Spark mask: ultra-bright hotspot pixels with saturation or incandescent white core
+        spark_mask_colored = cv2.inRange(hsv, np.array([0, 50, 215]), np.array([180, 255, 255]))
+        spark_mask_white = cv2.inRange(hsv, np.array([0, 0, 248]), np.array([180, 50, 255]))
+        spark_mask = cv2.bitwise_or(spark_mask_colored, spark_mask_white)
         
-        # 2. Cohesive Spark Envelopes (morphological close to link all radiating embers into clean burst regions)
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (31, 31))
+        # 2. Cohesive Spark Envelopes
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (25, 25))
         connected = cv2.morphologyEx(spark_mask, cv2.MORPH_CLOSE, kernel)
         dilated = cv2.dilate(connected, kernel, iterations=1)
         contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
         for c in contours:
             x, y, cw, ch = cv2.boundingRect(c)
             area = cw * ch
-            if area >= 600:
-                pad = 6
+            # Spark clusters are localized: reject whole-screen blobs (like sky or horizon)
+            if 300 <= area <= int(frame_area * 0.12) and cw <= int(w * 0.40) and ch <= int(h * 0.40):
+                pad = 4
                 bx1, by1 = max(0, x - pad), max(0, y - pad)
                 bx2, by2 = min(w, x + cw + pad), min(h, y + ch + pad)
                 roi_gray = gray[by1:by2, bx1:bx2]
-                bright_val = float(np.mean(roi_gray)) if roi_gray.size > 0 else 120.0
-                conf = round(min(0.96, max(0.65, 0.50 + (bright_val / 255.0) * 0.45)), 4)
+                if roi_gray.size == 0:
+                    continue
+                std_val = float(np.std(roi_gray))
+                avg_val = float(np.mean(roi_gray))
                 
+                # Reject smooth sky or uniform lighting
+                if avg_val > 150.0 and std_val < 18.0:
+                    continue
+                
+                conf = round(min(0.92, max(0.60, 0.50 + (std_val / 64.0) * 0.35)), 4)
                 candidates.append({
                     "detection_type": "sparks",
                     "confidence": conf,
@@ -1060,7 +1096,7 @@ class DetectionLayer:
                     "candidate_category": "spark_occluded",
                     "alert_level": "YELLOW",
                     "verified": True,
-                    "verification_scores": {"spark_area": area, "brightness": round(bright_val, 1)}
+                    "verification_scores": {"spark_area": area, "std": round(std_val, 1)}
                 })
         return candidates
 
@@ -1250,7 +1286,12 @@ class DetectionLayer:
             avg_latency = round(float(np.mean(frame_latencies)), 1) if frame_latencies else round(t_infer_ms, 1)
             t_elapsed = time.perf_counter() - t_start
             proc_fps = processed_count / t_elapsed if t_elapsed > 0 else 0.0
-                       # 10. High-quality preview frame base64 for real-time visualization
+            overall_fps = frame_num / t_elapsed if t_elapsed > 0 else 0.0
+            progress_pct = round(min(100.0, (frame_num / float(total_frames)) * 100.0), 1) if total_frames > 0 else 0.0
+            remaining_frames = max(0, total_frames - frame_num)
+            eta_sec = (remaining_frames / overall_fps) if overall_fps > 0 else 0.0
+
+            # 10. High-quality preview frame base64 for real-time visualization
             preview_b64 = _frame_to_base64(annotated, max_dim=720, quality=75)
 
             if run_inference or frame_num == total_frames:
