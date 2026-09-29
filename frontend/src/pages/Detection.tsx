@@ -874,14 +874,13 @@ const Detection = () => {
                                 </span>
                               </div>
                             </div>
-                          ) : vidMjpegUrl ? (
-                            /* PROCESSING: MJPEG live stream — frames arrive frame-by-frame as AI processes them */
+                          ) : (vidLivePreviewB64 || vidResult?.thumbnail_path) ? (
+                            /* PROCESSING: Real-Time base64 frame stream with clear bounding boxes & telemetry */
                             <div className="relative rounded-lg overflow-hidden border border-slate-800 bg-black aspect-video flex items-center justify-center shadow-2xl">
                               <img
-                                src={vidMjpegUrl}
+                                src={vidLivePreviewB64 || (vidResult?.thumbnail_path ? (evidenceUrl(vidResult.thumbnail_path) || '') : '')}
                                 alt="Live AI Detection Stream"
                                 className="w-full h-full object-contain"
-                                style={{ imageRendering: 'auto' }}
                               />
                               {/* LIVE BADGE */}
                               <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-black/70 backdrop-blur text-white text-[10px] font-mono px-2.5 py-1 rounded border border-white/10 pointer-events-none z-10">

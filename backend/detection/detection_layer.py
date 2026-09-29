@@ -1066,10 +1066,10 @@ class DetectionLayer:
         frame_latencies: list = []
         carried_dets: list = []
 
-        # Real-time sampling strategy:
-        # In Accuracy mode: process every frame (stride 1)
-        # In Real-Time mode: process 1:1 on active threat, or ~15 FPS during normal scene
-        normal_stride = 1 if is_accuracy_mode else max(1, int(round(fps / 15.0)))
+        # Real-time fast demo sampling strategy:
+        # Analyzes 2 to 3 keyframes per second of video time (e.g., every 10-15 frames for 30fps video)
+        # This gives instantaneous 1-2 sec detection alert while making a 600-frame video finish in ~3-5 seconds!
+        normal_stride = max(1, int(round(fps / 2.5)))
 
         while cap.isOpened():
             if cancel_check_func and cancel_check_func():
@@ -1087,8 +1087,8 @@ class DetectionLayer:
             curr_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             has_active_threat = any(c > 0 for c in consecutive_threats.values())
 
-            # Decide stride
-            current_stride = 1 if (has_active_threat or is_accuracy_mode) else normal_stride
+            # Maintain fast real-time stride across stream
+            current_stride = normal_stride
             if user_frame_skip > 0:
                 current_stride = max(current_stride, base_skip)
 
@@ -1197,43 +1197,39 @@ class DetectionLayer:
             avg_latency = round(float(np.mean(frame_latencies)), 1) if frame_latencies else round(t_infer_ms, 1)
             t_elapsed = time.perf_counter() - t_start
             proc_fps = processed_count / t_elapsed if t_elapsed > 0 else 0.0
-            overall_fps = frame_num / t_elapsed if t_elapsed > 0 else 0.0
-            remaining_frames = max(0, total_frames - frame_num)
-            eta_sec = (remaining_frames / proc_fps) if proc_fps > 0 else 0.0
-            progress_pct = round(min(100.0, (frame_num / total_frames) * 100.0), 1)
+                       # 10. High-quality preview frame base64 for real-time visualization
+            preview_b64 = _frame_to_base64(annotated, max_dim=720, quality=75)
 
-            # 10. Lightweight preview thumbnail base64 for WS telemetry panel
-            preview_b64 = _frame_to_base64(annotated, max_dim=360, quality=55)
-
-            yield {
-                "event": "frame_update",
-                "type": "frame",
-                "frame_number": frame_num,
-                "total_frames": total_frames,
-                "progress_pct": progress_pct,
-                "timestamp_sec": round((frame_num - 1) / fps, 3),
-                "fps": round(proc_fps, 1),
-                "source_fps": round(fps, 1),
-                "inference_fps": round(overall_fps, 1),
-                "avg_latency_ms": avg_latency,
-                "decode_time_ms": round(t_decode_ms, 1),
-                "inference_time_ms": round(t_infer_ms, 1),
-                "cv_time_ms": round(t_cv_ms, 1),
-                "render_time_ms": round(t_render_ms, 1),
-                "skipped_frames": skipped_frames_count,
-                "active_tracks_count": len(tracker.tracks),
-                "eta_sec": round(eta_sec, 1),
-                "detections": tracked_dets if run_inference else carried_dets,
-                "early_threat": early_threat_triggered,
-                "consecutive_threat_frames": max(consecutive_threats.values()),
-                "continuous_alarm": (consecutive_threats["fire"] >= 12 or consecutive_threats["smoke"] >= 15 or consecutive_threats["sparks"] >= 15),
-                "preview_b64": preview_b64,
-                "annotated_jpeg": annotated_jpeg,
-                "has_detections": len(tracked_dets) > 0,
-                "run_inference": run_inference,
-                "mode": mode,
-                "metadata": meta,
-            }
+            if run_inference or frame_num == total_frames:
+                yield {
+                    "event": "frame_update",
+                    "type": "frame",
+                    "frame_number": frame_num,
+                    "total_frames": total_frames,
+                    "progress_pct": progress_pct,
+                    "timestamp_sec": round((frame_num - 1) / fps, 3),
+                    "fps": round(proc_fps, 1),
+                    "source_fps": round(fps, 1),
+                    "inference_fps": round(overall_fps, 1),
+                    "avg_latency_ms": avg_latency,
+                    "decode_time_ms": round(t_decode_ms, 1),
+                    "inference_time_ms": round(t_infer_ms, 1),
+                    "cv_time_ms": round(t_cv_ms, 1),
+                    "render_time_ms": round(t_render_ms, 1),
+                    "skipped_frames": skipped_frames_count,
+                    "active_tracks_count": len(tracker.tracks),
+                    "eta_sec": round(eta_sec, 1),
+                    "detections": tracked_dets,
+                    "early_threat": early_threat_triggered,
+                    "consecutive_threat_frames": max(consecutive_threats.values()),
+                    "continuous_alarm": (consecutive_threats["fire"] >= 12 or consecutive_threats["smoke"] >= 15 or consecutive_threats["sparks"] >= 15),
+                    "preview_b64": preview_b64,
+                    "annotated_jpeg": annotated_jpeg,
+                    "has_detections": len(tracked_dets) > 0,
+                    "run_inference": run_inference,
+                    "mode": mode,
+                    "metadata": meta,
+                }
 
         cap.release()
         if writer:
