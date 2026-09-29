@@ -8,7 +8,7 @@
 **Entry point**: `backend/app/main.py`
 
 Key behaviors:
-- Loads YOLOv8 model once at startup via `DetectionService()` in FastAPI `lifespan()`.
+- Loads YOLO26m model once at startup via `DetectionService()` in FastAPI `lifespan()`.
 - Exposes API under `/api/v1/*`.
 - Hosts evidence images at `/evidence/*` via `StaticFiles`.
 - WebSocket endpoint: `/ws/alerts` with a simple in-memory connection manager.

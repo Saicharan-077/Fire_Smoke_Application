@@ -38,7 +38,7 @@ Complete reference for every folder and major module in the repository.
 
 | Path | Purpose |
 |------|---------|
-| `inference_service.py` | YOLOv8 model loading, inference, class validation, NMS |
+| `inference_service.py` | YOLO26m model loading, inference, class validation, NMS |
 
 ### `backend/app/middleware/`
 
@@ -81,7 +81,7 @@ Complete reference for every folder and major module in the repository.
 
 | Path | Purpose |
 |------|---------|
-| `models/best.pt` | YOLOv8 trained weights |
+| `models/best.pt` | YOLO26m trained weights |
 | `evidence/` | Runtime annotated detection images |
 | `sentinelos.db` | SQLite database (auto-generated) |
 | `alembic/` | Database migrations |

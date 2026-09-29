@@ -69,7 +69,7 @@ Use this guide for college presentations, hackathons, portfolio demos, and clien
 
 ## Demo Script (Elevator Pitch)
 
-> "SentinelOS transforms any CCTV network into an intelligent fire and smoke detection system. Our custom YOLOv8 model analyzes images, videos, and live streams in real time. When a threat is detected, alerts are pushed instantly via WebSocket to the Security Operations Center. Operators can manage incidents, export compliance reports, and monitor camera health — all from a single premium dashboard. Role-based access control ensures admins, operators, and viewers see exactly what they need."
+> "SentinelOS transforms any CCTV network into an intelligent fire and smoke detection system. Our custom YOLO26m model analyzes images, videos, and live streams in real time. When a threat is detected, alerts are pushed instantly via WebSocket to the Security Operations Center. Operators can manage incidents, export compliance reports, and monitor camera health — all from a single premium dashboard. Role-based access control ensures admins, operators, and viewers see exactly what they need."
 
 ---
 

@@ -153,7 +153,7 @@ def get_live_webcam_details(current_user: models.User = Depends(get_current_user
     return {
         "status": "active",
         "webcam_feed": "client_side",
-        "inference_engine": "YOLOv8",
+        "inference_engine": "YOLO26m",
         "model_ready": bool(svc and svc.ready),
         "device": svc.device if svc else "cpu",
         "description": "Client-side webcam capture with server-side inference on uploaded frames.",

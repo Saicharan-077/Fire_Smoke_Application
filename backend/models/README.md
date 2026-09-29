@@ -1,6 +1,6 @@
 # YOLO Model Weights
 
-Place your custom-trained fire/smoke YOLOv8 weights here:
+Place your custom-trained fire/smoke YOLO26m weights here:
 
 ```
 backend/models/best.pt

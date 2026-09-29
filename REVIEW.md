@@ -24,7 +24,7 @@ Official Technical Project Review & Evaluation Dossier (Friday Review Edition)
 * **Prepared Date:** August 27, 2026
 * **Academic Evaluation Period:** Academic Year 2025–2026 / Semester VII
 * **Target Compute Architectures:** NVIDIA TensorRT (CUDA), Embedded Edge (Jetson Orin Nano/Xavier), Enterprise Cloud CPU/GPU
-* **Core Technologies:** PyTorch, Ultralytics YOLO26s (Custom Trained Deep Architecture), FastAPI (Asynchronous Python 3.11+), React 19, TypeScript, OpenCV 4.9+, PostgreSQL / SQLite, SQLAlchemy ORM, WebSockets, ByteTrack Association Tracker.
+* **Core Technologies:** PyTorch, Ultralytics YOLO26m (Custom Trained Deep Architecture), FastAPI (Asynchronous Python 3.11+), React 19, TypeScript, OpenCV 4.9+, PostgreSQL / SQLite, SQLAlchemy ORM, WebSockets, ByteTrack Association Tracker.
 
 ---
 
@@ -94,7 +94,7 @@ Official Technical Project Review & Evaluation Dossier (Friday Review Edition)
     * 10.2 Mosaic Augmentation & MixUp Scheduling
     * 10.3 Letterbox Padding & Normalized Coordinate Representation
 11. [AI Model Architecture & Neural Network Internals](#11-ai-model-architecture--neural-network-internals)
-    * 11.1 YOLO26s Network Architecture: Backbone, Neck, and Detection Head
+    * 11.1 YOLO26m Network Architecture: Backbone, Neck, and Detection Head
     * 11.2 Mathematical Formulation of Loss Functions (CIoU / DFL / Task-Aligned Focal Loss)
     * 11.3 Multi-Scale Feature Fusion (PAN-FPN)
     * 11.4 Anchor-Free Bounding Box Regression & Decoupled Prediction Heads
@@ -186,7 +186,7 @@ Fire remains one of the most destructive threats in chemical plants, manufacturi
 Modern facilities maintain hundreds of passive CCTV cameras connected to Network Video Recorders (NVRs). However, human security operators monitoring video walls suffer from severe **cognitive vigilance fatigue**: visual attention drops by up to **80% after just 20 minutes** of continuous multi-screen monitoring. A computer vision system that runs continuous inference across all streams simultaneously provides an unblinking, mathematically deterministic safety layer.
 
 ### 1.5 Proposed AI-Powered Solution
-FireGuard AI deploys a custom-trained **YOLO26s** (You Only Look Once 26 Small) deep neural network tightly coupled with an adaptive OpenCV video pipeline, a high-throughput asynchronous FastAPI backend, and a reactive React 19 SOC dashboard. The system features:
+FireGuard AI deploys a custom-trained **YOLO26m** (You Only Look Once 26 Small) deep neural network tightly coupled with an adaptive OpenCV video pipeline, a high-throughput asynchronous FastAPI backend, and a reactive React 19 SOC dashboard. The system features:
 * **ByteTrack multi-object tracking** with Exponential Moving Average (EMA) confidence smoothing to eliminate bounding box flickering during turbulent flame bursts.
 * **Dynamic Adaptive FPS Scheduling**, which throttles idle camera streams to 1–3 FPS (saving up to 85% of GPU compute) and instantaneously ramps up to 20 FPS upon optical motion or suspicious thermal chromatic shifts.
 * **Secondary PIN Protection** and complete audit logging to prevent rogue alert dismissals.
@@ -408,7 +408,7 @@ Commercial facilities often silence or disable fire alarm systems because false 
 | **FR-01** | Authentication | PBKDF2 Password Hashing with unique 16-byte cryptographic salt | **Fully Implemented** | `backend/app/routes/auth_routes.py` |
 | **FR-02** | Authentication | Stateless session token generation with 24-hour expiry validation | **Fully Implemented** | `backend/app/routes/auth_routes.py` |
 | **FR-03** | Authorization | Role-Based Access Control enforcing `administrator`, `operator`, `viewer` | **Fully Implemented** | `backend/app/routes/auth_routes.py`, `frontend/src/utils/permissions.ts` |
-| **FR-04** | Detection AI | Stage 1 YOLO26s deep inference with letterbox aspect preservation | **Fully Implemented** | `backend/detection/detection_layer.py` |
+| **FR-04** | Detection AI | Stage 1 YOLO26m deep inference with letterbox aspect preservation | **Fully Implemented** | `backend/detection/detection_layer.py` |
 | **FR-05** | Detection AI | Multi-target class mapping (`fire` $\rightarrow$ Red, `smoke` $\rightarrow$ Orange, `sparks` $\rightarrow$ Yellow) | **Fully Implemented** | `backend/detection/detection_layer.py` |
 | **FR-06** | Verification | Stage 2 HSV chromatic band filtering for flame verification | **Fully Implemented** | `backend/detection/detection_layer.py` |
 | **FR-07** | Verification | Stage 2 Shannon entropy and Laplacian variance filter for smoke | **Fully Implemented** | `backend/detection/detection_layer.py` |
@@ -484,7 +484,7 @@ graph TB
     end
 
     subgraph Core AI Detection & Verification Engine
-        S1[Stage 1: YOLO26s Deep Neural Network]
+        S1[Stage 1: YOLO26m Deep Neural Network]
         BT[ByteTrack Multi-Object Tracker]
         S2[Stage 2: Deterministic Physical Verification]
         TV[Temporal Consistency & MAD Background Filter]
@@ -548,7 +548,7 @@ The FireGuard AI platform is structured across five decoupled, highly cohesive a
    * Continuously populates a thread-safe single-slot frame buffer, ensuring the inference engine always processes the freshest real-time frame.
 
 2. **AI Inference & Verification Tier (`backend/detection/detection_layer.py`):**
-   * Houses the PyTorch/Ultralytics **YOLO26s** deep model weights.
+   * Houses the PyTorch/Ultralytics **YOLO26m** deep model weights.
    * Executes GPU-accelerated Stage 1 feature extraction.
    * Feeds bounding box candidate slices into the CPU/GPU vectorized Stage 2 physical verification filters.
    * Implements the ByteTrack tracking algorithm for continuous object persistence across turbulent fire cycles.
@@ -574,7 +574,7 @@ sequenceDiagram
     actor Cam as RTSP Camera
     participant Ingest as CameraStreamProcessor (Thread)
     participant Sched as Adaptive Scheduler
-    participant YOLO as YOLO26s (Stage 1 AI)
+    participant YOLO as YOLO26m (Stage 1 AI)
     participant Verif as Physical Verifier (Stage 2)
     participant Track as ByteTracker (Kalman)
     participant Back as FastAPI Backend
@@ -618,7 +618,7 @@ flowchart TD
     B --> C[Stage 3: Single-Slot Frame Buffer Lock]
     C --> D[Stage 4: Motion & Difference Analysis]
     D -->|Motion / Periodic Interval| E[Stage 5: Image Resize & Letterbox 640x640]
-    E --> F[Stage 6: YOLO26s Deep Inference]
+    E --> F[Stage 6: YOLO26m Deep Inference]
     F --> G[Stage 7: Non-Maximum Suppression IoU 0.45]
     G --> H[Stage 8: Confidence Threshold Filtering >0.20]
     H --> I[Stage 9: ROI Extraction & Pre-scaling]
@@ -643,7 +643,7 @@ flowchart TD
 * **Stage 3: Single-Slot Frame Buffer Lock:** Dedicated reader thread stores only the newest frame in `self._latest_frame` guarded by `threading.Lock()`. When inference runs, it reads the immediate latest frame, completely avoiding RTSP queue lag.
 * **Stage 4: Motion & Difference Analysis:** Evaluates the Mean Absolute Difference (MAD) between consecutive downscaled frames ($320 \times 180$). If MAD $< 1.0\%$ and no active threat is tracked, dynamic scheduling reduces sampling rate.
 * **Stage 5: Image Resize & Letterbox:** Preserves aspect ratio by scaling maximum dimension to 640 pixels and padding remaining dimensions with neutral gray $(114, 114, 114)$.
-* **Stage 6: YOLO26s Deep Inference:** Passes tensor $\mathbf{X} \in \mathbb{R}^{1 \times 3 \times 640 \times 640}$ through the convolutional backbone and decoupled anchor-free detection head.
+* **Stage 6: YOLO26m Deep Inference:** Passes tensor $\mathbf{X} \in \mathbb{R}^{1 \times 3 \times 640 \times 640}$ through the convolutional backbone and decoupled anchor-free detection head.
 * **Stage 7: Non-Maximum Suppression (NMS):** Eliminates overlapping spatial candidate boxes using an Intersection-over-Union (IoU) threshold of $0.45$.
 * **Stage 8: Confidence Threshold Filtering:** Initial candidate filter selects detections where class probability $P(\text{class}) \ge 0.20$.
 * **Stage 9: ROI Extraction & Pre-scaling:** Extracts bounding box sub-images from the original full-resolution frame $[y_1:y_2, x_1:x_2]$, resizing to max 256px for vectorized CPU/GPU verification.
@@ -676,7 +676,7 @@ The model is trained across a standardized target ontology:
 * **Class 2 (`sparks`):** High-velocity incandescent electrical embers, arcing transients, welding discharge.
 
 ### 8.3 Physical Directory Hierarchy & Partition Splits
-The dataset follows the strict YOLOv8/YOLO26 directory layout:
+The dataset follows the strict YOLO26m/YOLO26 directory layout:
 
 ```
 dataset_root/
@@ -797,7 +797,7 @@ graph TB
     style NMS_OUT fill:#10b981,stroke:#047857,stroke-width:2px,color:#ffffff
 ```
 
-### 11.1 YOLO26s Network Architecture: Backbone, Neck, and Detection Head
+### 11.1 YOLO26m Network Architecture: Backbone, Neck, and Detection Head
 * **Backbone (CSPDarknet with C2f Modules):** Uses cross-stage partial connections with split convolutional channels to maximize gradient flow while minimizing parameter redundancy. Spatial Pyramid Pooling Fast (SPPF) pools multi-scale contextual features at the bottleneck layer ($P_5$).
 * **Neck (PAN-FPN Bi-directional Feature Fusion):** Combines top-down semantic features with bottom-up localization features across three distinct spatial strides:
   * $P_3$ (Stride 8, $80 \times 80$ grid): Dedicated to tiny sparks and distant early flame points.
@@ -827,7 +827,7 @@ $$\mathcal{L}_{\text{total}} = \lambda_{\text{cls}} \mathcal{L}_{\text{cls}} + \
 * **Host Platform:** Dedicated AI Training Workstation.
 * **GPU:** NVIDIA GeForce RTX 3060 (12GB GDDR6 VRAM) / CUDA 12.2.
 * **Deep Learning Framework:** PyTorch 2.3.1 + TorchVision 0.18.1.
-* **Model Engine:** Ultralytics YOLOv8/YOLO26 Framework.
+* **Model Engine:** Ultralytics YOLO26m/YOLO26 Framework.
 * **Precision:** Mixed Precision Training (`torch.cuda.amp.autocast(fp16)`).
 
 ### 12.2 Training Hyperparameters Table
@@ -1309,7 +1309,7 @@ Fire_Smoke_Application/
 │   ├── Dockerfile                   # Python 3.11 FastAPI backend container definition
 │   ├── requirements.txt             # Python dependency manifest
 │   ├── models/
-│   │   └── best.pt                  # Trained YOLO26s PyTorch model weights (20.3 MB)
+│   │   └── best.pt                  # Trained YOLO26m PyTorch model weights (20.3 MB)
 │   ├── detection/
 │   │   ├── config.py                # Detection, verification & mode preset schemas
 │   │   └── detection_layer.py       # Two-Stage AI inference, ByteTracker, HSV/Texture filters
@@ -1412,7 +1412,7 @@ gantt
     title FireGuard AI Engineering Evolution Roadmap
     dateFormat  YYYY-MM-DD
     section Phase 1 - Current Delivery
-    Dual-Stage YOLO26s + Verification Engine   :done, 2026-01-01, 2026-08-27
+    Dual-Stage YOLO26m + Verification Engine   :done, 2026-01-01, 2026-08-27
     Dynamic Adaptive FPS Scheduler             :done, 2026-03-01, 2026-08-27
     React 19 SOC Dashboard & WebSockets        :done, 2026-05-01, 2026-08-27
     section Phase 2 - Near-Term Enhancements
@@ -1437,7 +1437,7 @@ gantt
 
 | Evaluation Criterion | Faculty Review Requirement | Demonstrated Implementation in FireGuard AI | Verification Status |
 | :--- | :--- | :--- | :--- |
-| **Deep Learning Innovation** | Custom trained vision architecture with domain loss functions | YOLO26s trained on 11,150 curated images; CIoU + DFL + Task-Aligned Focal Loss | **VERIFIED (100%)** |
+| **Deep Learning Innovation** | Custom trained vision architecture with domain loss functions | YOLO26m trained on 11,150 curated images; CIoU + DFL + Task-Aligned Focal Loss | **VERIFIED (100%)** |
 | **False Positive Mitigation** | Proven mechanism preventing spurious alarms | Two-Stage deterministic HSV, Shannon entropy, and Laplacian variance verification | **VERIFIED (100%)** |
 | **Real-Time Video Pipeline** | Live stream ingestion without memory leaks or frame lag | Dedicated background reader threads, single-slot buffer locks, adaptive FPS scheduling | **VERIFIED (100%)** |
 | **Asynchronous Architecture** | High-concurrency backend supporting WebSockets | FastAPI async routes, Uvicorn ASGI, WebSockets `/ws/alerts`, SSE telemetry | **VERIFIED (100%)** |
@@ -1450,10 +1450,10 @@ gantt
 
 # 30. Faculty Technical Viva Voce Master Questionnaire
 
-### Q1: Why did you choose YOLO26s over two-stage detectors like Faster R-CNN or Mask R-CNN?
-* **Answer:** While Faster R-CNN offers high accuracy, its two-stage region proposal network (RPN) incurs significant latency ($80\text{ms} - 150\text{ms}$ per frame), making it unsuitable for multi-stream real-time surveillance. YOLO26s is a single-stage, anchor-free detector that performs bounding box regression and classification in a single forward pass, executing in just **$14.2\text{ms}$** on an RTX 3060.
+### Q1: Why did you choose YOLO26m over two-stage detectors like Faster R-CNN or Mask R-CNN?
+* **Answer:** While Faster R-CNN offers high accuracy, its two-stage region proposal network (RPN) incurs significant latency ($80\text{ms} - 150\text{ms}$ per frame), making it unsuitable for multi-stream real-time surveillance. YOLO26m is a single-stage, anchor-free detector that performs bounding box regression and classification in a single forward pass, executing in just **$14.2\text{ms}$** on an RTX 3060.
 * **Code Reference:** `backend/detection/detection_layer.py: line 611-620`.
-* **Design Rationale:** Safety systems demand sub-second alerting; YOLO26s provides the optimal Pareto frontier between real-time FPS and mAP ($92.8\% \text{ mAP@50}$).
+* **Design Rationale:** Safety systems demand sub-second alerting; YOLO26m provides the optimal Pareto frontier between real-time FPS and mAP ($92.8\% \text{ mAP@50}$).
 
 ### Q2: How does the system prevent false alarms caused by red/yellow shirts, sunsets, or halogen floodlights?
 * **Answer:** Through our **Two-Stage Hybrid Verification Architecture**. If Stage 1 YOLO proposes a bounding box, Stage 2 extracts the ROI slice and executes deterministic checks: multi-band HSV color masking, connected component size filtering, Shannon histogram entropy, and Mean Absolute Difference (MAD) temporal background suppression. A static yellow light or red shirt fails the chromatic ratio or temporal motion check and is rejected.

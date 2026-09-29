@@ -9,14 +9,14 @@
   <img alt="Python" src="https://img.shields.io/badge/python-3.10+-blue.svg" />
   <img alt="React" src="https://img.shields.io/badge/react-19-61DAFB.svg" />
   <img alt="FastAPI" src="https://img.shields.io/badge/fastapi-0.100+-009688.svg" />
-  <img alt="YOLOv8" src="https://img.shields.io/badge/YOLOv8-ultralytics-purple.svg" />
+  <img alt="YOLO26m" src="https://img.shields.io/badge/YOLO26m-ultralytics-purple.svg" />
 </p>
 
 ---
 
 ## Project Overview
 
-SentinelOS is a premium, full-stack AI surveillance platform that transforms standard CCTV networks into intelligent fire and smoke detection systems. Built with a custom-trained **YOLOv8** model, it delivers real-time threat detection, a Security Operations Center (SOC) dashboard, incident management, and role-based access control — suitable for college projects, hackathons, portfolio showcases, startup demos, and client presentations.
+SentinelOS is a premium, full-stack AI surveillance platform that transforms standard CCTV networks into intelligent fire and smoke detection systems. Built with a custom-trained **YOLO26m** model, it delivers real-time threat detection, a Security Operations Center (SOC) dashboard, incident management, and role-based access control — suitable for college projects, hackathons, portfolio showcases, startup demos, and client presentations.
 
 ---
 
@@ -30,7 +30,7 @@ Traditional surveillance systems rely on human operators to visually monitor doz
 
 SentinelOS overlays computer vision intelligence onto existing camera infrastructure:
 
-- **Automated detection** of fire and smoke using YOLOv8
+- **Automated detection** of fire and smoke using YOLO26m
 - **Real-time SOC dashboard** with KPIs, timelines, and alert feeds
 - **Multi-source input**: images, videos, webcams, RTSP/IP cameras
 - **Incident workflow** with severity tracking, assignment, and PDF export
@@ -61,7 +61,7 @@ SentinelOS overlays computer vision intelligence onto existing camera infrastruc
 |-------|-------------|
 | **Frontend** | React 19, TypeScript, Vite 8, Tailwind CSS 4, Zustand, Recharts, Framer Motion, Lucide |
 | **Backend** | FastAPI, Python 3.10+, SQLAlchemy 2, Pydantic 2, Alembic |
-| **AI/CV** | Ultralytics YOLOv8, OpenCV, custom `best.pt` weights |
+| **AI/CV** | Ultralytics YOLO26m, OpenCV, custom `best.pt` weights |
 | **Database** | SQLite (dev) / PostgreSQL (production) |
 | **Real-time** | WebSocket (`/ws/alerts`) |
 | **Reports** | ReportLab (PDF) |
@@ -71,7 +71,7 @@ SentinelOS overlays computer vision intelligence onto existing camera infrastruc
 
 ## AI Model Information
 
-- **Architecture:** YOLOv8 (Ultralytics)
+- **Architecture:** YOLO26m (Ultralytics)
 - **Classes:** `fire`, `smoke` (strict validation — COCO models rejected)
 - **Weights:** `backend/models/best.pt`
 - **Thresholds:** Fire ≥ 0.35, Smoke ≥ 0.40 (configurable in Settings)
@@ -117,7 +117,7 @@ See [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) for complete folder documentati
 ## Architecture Diagram
 
 ```
-Browser (React) ──REST/WS──► FastAPI ──► YOLOv8 + OpenCV
+Browser (React) ──REST/WS──► FastAPI ──► YOLO26m + OpenCV
                                 │
                                 ├── SQLite / PostgreSQL
                                 └── Evidence Files

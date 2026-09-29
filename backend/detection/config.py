@@ -35,7 +35,7 @@ class SmokeVerificationConfig(BaseModel):
     min_gradient_mag: float = Field(0.3, description="Minimum average gradient magnitude (rejects flat gradient drift).")
 
 class DetectionConfig(BaseModel):
-    model_path: str = Field(default_factory=lambda: os.getenv("MODEL_PATH", "models/best.pt"), description="Path to fire/smoke YOLOv8 weights file.")
+    model_path: str = Field(default_factory=lambda: os.getenv("MODEL_PATH", "models/best.pt"), description="Path to fire/smoke YOLO26m weights file.")
     device: str = Field("cuda", description="Preferred compute device ('cuda' or 'cpu').")
     imgsz: int = Field(640, description="Inference image resolution.")
     conf_threshold: float = Field(0.20, description="Initial Stage 1 YOLO confidence threshold.")

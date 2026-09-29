@@ -152,7 +152,7 @@ npm run dev`}
                          │
               ┌──────────┴──────────┐
               │                     │
-           YOLOv8                 OpenCV CV
+           YOLO26m                OpenCV CV
               │                     │
        Fire / Smoke          Color + Motion
        normal objects        + Flicker + Sparks

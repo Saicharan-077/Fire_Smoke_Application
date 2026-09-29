@@ -39,7 +39,7 @@ All notable changes to SentinelOS.
 ## [1.0.0] — Initial Release
 
 ### Added
-- YOLOv8 fire/smoke detection (image + video upload)
+- YOLO26m fire/smoke detection (image + video upload)
 - Security Operations Center dashboard
 - Live Monitoring with webcam and RTSP support
 - Alerts & Reports with incident management

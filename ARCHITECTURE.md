@@ -43,7 +43,7 @@
 3. Role dependencies (`require_admin`, `require_operator`) enforce RBAC
 4. Business logic in route handlers + services
 5. SQLAlchemy ORM queries SQLite/PostgreSQL
-6. Detection requests invoke `DetectionService` (YOLOv8)
+6. Detection requests invoke `DetectionService` (YOLO26m)
 7. New alerts broadcast via WebSocket `ConnectionManager`
 
 ---
@@ -90,7 +90,7 @@ system_logs         │
 
 ## YOLO Integration
 
-1. On startup, `DetectionService` loads `backend/models/best.pt`
+1. On startup, `DetectionService` loads `backend/models/best.pt` (YOLO26m)
 2. Model classes validated — must contain `fire` and/or `smoke`
 3. Image/video bytes decoded via OpenCV
 4. YOLO inference with configurable confidence thresholds
@@ -123,7 +123,7 @@ Client                    Server
                          │
               ┌──────────┴──────────┐
               │                     │
-           YOLOv8                 OpenCV CV
+           YOLO26m                OpenCV CV
               │                     │
        Fire / Smoke          Color + Motion
        normal objects        + Flicker + Sparks
@@ -149,7 +149,7 @@ Client                    Server
 ### Pipeline Flow Breakdown
 
 1. **Dual Stream Ingestion**:
-   - **YOLOv8 Deep Learning Stream**: Neural object localization, predicting bounding boxes and confidence for `fire`, `smoke`, and contextual scene objects.
+   - **YOLO26m Deep Learning Stream**: Neural object localization, predicting bounding boxes and confidence for `fire`, `smoke`, and contextual scene objects.
    - **OpenCV Computer Vision Stream**: Deterministic optical verification analyzing multi-range HSV color masks, texture variance, optical flow / motion differential, high-temperature sparks, and flicker frequency (8–12 Hz).
 
 2. **Evidence Fusion (Phase 4)**:

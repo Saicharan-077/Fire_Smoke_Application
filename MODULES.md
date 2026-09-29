@@ -36,7 +36,7 @@ Security Operations Center command center:
 **Backend:** `backend/app/routes/upload_routes.py`, `detect_routes.py`, `ai/inference_service.py`  
 **Frontend:** `frontend/src/pages/Detection.tsx`
 
-- **Image upload:** YOLOv8 inference, bounding boxes, evidence storage, alert creation
+- **Image upload:** YOLO26m inference, bounding boxes, evidence storage, alert creation
 - **Video upload:** Frame-by-frame processing with progress
 - **Webcam:** Client-side capture with simulated/real-time overlay
 - **RTSP/CCTV:** Stream connectivity test via OpenCV

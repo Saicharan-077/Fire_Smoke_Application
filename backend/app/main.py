@@ -282,7 +282,7 @@ def seed_database():
                 db.add(log)
 
             sys_logs = [
-                ("INFO", "system", "YOLOv8 best.pt weights loaded successfully on CUDA/CPU GPU device"),
+                ("INFO", "system", "YOLO26m best.pt weights loaded successfully on CUDA/CPU GPU device"),
                 ("INFO", "database", "SQLite DB tables successfully checked and initialized"),
                 ("WARNING", "cctv", "RTSP link on camera CAM-03 did not return active feed, retrying..."),
                 ("ERROR", "ai.inference", "Memory buffer warning: Frame queue size exceeded, clearing cache"),

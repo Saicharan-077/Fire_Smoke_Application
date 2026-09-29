@@ -181,7 +181,7 @@ export const InteractiveArchitectureFlow: React.FC = () => {
             <span className="px-2.5 py-0.5 rounded-full text-xs font-bold tracking-wide uppercase bg-red-500/10 text-red-400 border border-red-500/20 flex items-center gap-1.5">
               <Activity className="w-3.5 h-3.5 animate-pulse" /> Dual-Stream Pipeline
             </span>
-            <span className="text-xs text-gray-400 font-mono">YOLOv8 + OpenCV Fusion</span>
+            <span className="text-xs text-gray-400 font-mono">YOLO26m + OpenCV Fusion</span>
           </div>
           <h2 className="text-2xl font-black tracking-tight text-white flex items-center gap-2">
             Interactive Architecture Visualizer
@@ -262,7 +262,7 @@ export const InteractiveArchitectureFlow: React.FC = () => {
           {/* Level 2: Dual Stream Parallel Nodes */}
           <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
             
-            {/* YOLOv8 Node */}
+            {/* YOLO26m Node */}
             <motion.div
               onClick={() => setActiveNode('yolo')}
               whileHover={{ scale: 1.02 }}
@@ -274,7 +274,7 @@ export const InteractiveArchitectureFlow: React.FC = () => {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-indigo-400 font-bold text-sm">
-                  <Cpu className="w-4 h-4" /> YOLOv8 Vision AI
+                  <Cpu className="w-4 h-4" /> YOLO26m Vision AI
                 </div>
                 <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-indigo-500/20 text-indigo-300">
                   {Math.round(liveMetrics.yolo * 100)}% Conf
@@ -495,10 +495,10 @@ export const InteractiveArchitectureFlow: React.FC = () => {
             {activeNode === 'yolo' && (
               <div className="space-y-3 text-sm text-gray-300 leading-relaxed">
                 <p>
-                  <strong className="text-white">YOLOv8 Vision AI:</strong> Ultralytics neural network inferring bounding boxes, class logits (<code className="text-indigo-300">fire</code>, <code className="text-indigo-300">smoke</code>), and Non-Maximum Suppression (NMS).
+                  <strong className="text-white">YOLO26m Vision AI:</strong> Ultralytics neural network inferring bounding boxes, class logits (<code className="text-indigo-300">fire</code>, <code className="text-indigo-300">smoke</code>), and Non-Maximum Suppression (NMS).
                 </p>
                 <div className="p-3 rounded-xl bg-black/40 font-mono text-xs text-gray-400 space-y-1">
-                  <div>• Model: YOLOv8 PyTorch Container (`best.pt`)</div>
+                  <div>• Model: YOLO26m PyTorch Container (`best.pt`)</div>
                   <div>• Current Raw Confidence: {(liveMetrics.yolo * 100).toFixed(1)}%</div>
                   <div>• Target Classes: [0: Fire, 1: Smoke]</div>
                 </div>

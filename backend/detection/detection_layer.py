@@ -203,7 +203,7 @@ class DetectionLayer:
         sub_best = os.path.join(target_dir, "best")
         source_folder = sub_best if os.path.exists(sub_best) else target_dir
 
-        container_pt = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "models", "yolo26s_auto.pt"))
+        container_pt = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "models", "yolo26m_auto.pt"))
         os.makedirs(os.path.dirname(container_pt), exist_ok=True)
 
         logger.info(f"[DetectionLayer] Packaging PyTorch directory package '{source_folder}' into container file '{container_pt}'...")
