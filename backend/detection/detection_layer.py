@@ -298,7 +298,12 @@ class DetectionLayer:
         
         # Merge individual parameters
         if "fire_min_confidence" in db_settings:
-            cfg_dict["conf_threshold"] = float(db_settings["fire_min_confidence"])
+            # Stage 1 proposal generator threshold should not starve candidate extraction (allows faint smoke & fire)
+            user_conf = float(db_settings["fire_min_confidence"])
+            cfg_dict["conf_threshold"] = min(0.14, user_conf)
+        if "smoke_min_confidence" in db_settings:
+            user_s_conf = float(db_settings["smoke_min_confidence"])
+            cfg_dict["conf_threshold"] = min(cfg_dict["conf_threshold"], min(0.14, user_s_conf))
         if "iou_threshold" in db_settings:
             cfg_dict["iou_threshold"] = float(db_settings["iou_threshold"])
         if "imgsz" in db_settings:
@@ -407,6 +412,29 @@ class DetectionLayer:
         if avg_val > 140.0 and std_val < 20.0:
             return False, f"uniform_daylight_or_sky (avg={avg_val:.1f}, std={std_val:.1f})", {"avg_brightness": avg_val, "std": std_val}
 
+        # 1b. Reject sky blue / cyan background in or around spark ROI
+        blue_mask = cv2.inRange(roi_hsv, np.array([85, 15, 40]), np.array([140, 255, 255]))
+        blue_ratio = float(np.count_nonzero(blue_mask) / float(total_pixels)) if total_pixels > 0 else 0.0
+        if blue_ratio > 0.02:
+            return False, f"sky_blue_in_roi (blue_ratio={blue_ratio:.2f})", {"blue_ratio": round(blue_ratio, 3)}
+
+        # 1c. Reject daylight white/gray cloud patches (high brightness + low saturation without golden spark core)
+        gold_mask = cv2.inRange(roi_hsv, np.array([10, 100, 200]), np.array([35, 255, 255]))
+        gold_ratio = float(np.count_nonzero(gold_mask) / float(total_pixels)) if total_pixels > 0 else 0.0
+        avg_sat = float(np.mean(roi_hsv[:, :, 1]))
+        if avg_val > 150.0 and gold_ratio < 0.005 and avg_sat < 45.0:
+            return False, f"daylight_cloud_patch (avg_b={avg_val:.1f}, avg_sat={avg_sat:.1f})", {"avg_brightness": avg_val, "avg_sat": avg_sat}
+
+        # 1d. Reject stationary artificial lamps, LED light bulbs, and housing fixtures at night
+        aspect_ratio = float(roi_bgr.shape[1]) / float(roi_bgr.shape[0]) if roi_bgr.shape[0] > 0 else 1.0
+        if 0.55 <= aspect_ratio <= 1.75 and total_pixels > 120:
+            spark_mask_temp = cv2.inRange(roi_hsv, np.array([0, 0, 220]), np.array([180, 255, 255]))
+            num_spk_labels, _, spk_stats, _ = cv2.connectedComponentsWithStats(spark_mask_temp)
+            if len(spk_stats) > 1:
+                max_comp_area = int(np.max(spk_stats[1:, cv2.CC_STAT_AREA]))
+                if max_comp_area > 80 and avg_sat < 75.0:
+                    return False, f"lamp_or_light_fixture (comp_area={max_comp_area}, sat={avg_sat:.1f})", {"comp_area": max_comp_area}
+
         # 2. Spark particles mask (high brightness and distinct contrast)
         spark_mask = cv2.inRange(roi_hsv, np.array([0, 20, 220]), np.array([180, 255, 255]))
         spark_pixels = int(np.count_nonzero(spark_mask))
@@ -464,24 +492,36 @@ class DetectionLayer:
             if avg_val_full > 195.0 and laplacian_var_full < 30.0 and (blue_ratio > 0.05 or avg_sat_full < 15.0):
                 return False, f"daylight_sky_cloud (brightness={avg_val_full:.1f}, laplacian_var={laplacian_var_full:.1f})", {"avg_brightness": round(avg_val_full, 1), "laplacian_var": round(laplacian_var_full, 1)}
 
-        # 1. Saturation distribution (smoke is desaturated gray/neutral)
+        # 1. Saturation distribution (smoke is typically desaturated gray/neutral, but illuminated wildfire smoke can be saturated orange/red)
         avg_sat = float(np.mean(roi_hsv[:, :, 1]))
-        if avg_sat > config.max_saturation:
-            return False, f"highly_saturated (sat={avg_sat:.1f} > max={config.max_saturation})", {"avg_saturation": round(avg_sat, 2)}
+        max_sat_limit = config.max_saturation
+        if raw_conf >= 0.35 or avg_val_full > 100.0:
+            max_sat_limit = max(max_sat_limit, 185.0)
 
-        # 2. Brightness minimum: Allow dark/black smoke (oil/tire fires) if desaturated
+        if avg_sat > max_sat_limit:
+            return False, f"highly_saturated (sat={avg_sat:.1f} > max={max_sat_limit:.1f})", {"avg_saturation": round(avg_sat, 2)}
+
+        # 2. Brightness minimum: Allow dark/black smoke and low-light night forest smoke if desaturated
         avg_val = float(np.mean(roi_hsv[:, :, 2]))
-        if avg_val < config.min_brightness:
+        min_b_limit = config.min_brightness
+        if raw_conf >= 0.12 or avg_sat < 40.0:
+            min_b_limit = 3.0
+
+        if avg_val < min_b_limit:
             # If it has neutral chroma and low saturation, it is legitimate dark smoke
-            if avg_sat > 50.0 or avg_val < 5.0:
-                return False, f"too_dark (brightness={avg_val:.1f} < min={config.min_brightness})", {"avg_brightness": round(avg_val, 2)}
+            if avg_sat > 50.0 or avg_val < 3.0:
+                return False, f"too_dark (brightness={avg_val:.1f} < min={min_b_limit:.1f})", {"avg_brightness": round(avg_val, 2)}
 
         # 3. Gray/White dominance (Neutral chroma check: max(BGR) - min(BGR) should be low)
         b, g, r = cv2.split(roi_bgr)
         chroma_diff = cv2.absdiff(cv2.max(cv2.max(b, g), r), cv2.min(cv2.min(b, g), r))
         avg_chroma = float(np.mean(chroma_diff))
-        if avg_chroma > config.max_chroma:
-            return False, f"high_chroma (chroma={avg_chroma:.1f} > max={config.max_chroma})", {"avg_chroma": round(avg_chroma, 2)}
+        max_chroma_limit = config.max_chroma
+        if raw_conf >= 0.35:
+            max_chroma_limit = max(max_chroma_limit, 110.0)
+
+        if avg_chroma > max_chroma_limit:
+            return False, f"high_chroma (chroma={avg_chroma:.1f} > max={max_chroma_limit:.1f})", {"avg_chroma": round(avg_chroma, 2)}
 
         # 4. Local texture variance (std dev)
         texture_std = float(np.std(roi_gray))
@@ -845,7 +885,7 @@ class DetectionLayer:
             
             if not is_enclosed:
                 final_dets.append(d)
-            if len(final_dets) >= 4:
+            if len(final_dets) >= 20:
                 break
 
         # Sort by confidence for display
@@ -1111,6 +1151,25 @@ class DetectionLayer:
                 
                 # Sparks must have intense local peak and sharp contrast over local ambient
                 if max_val >= 245.0 and (max_val - avg_val) >= 40.0:
+                    roi_hsv = hsv[by1:by2, bx1:bx2]
+                    # Check if candidate ROI touches blue sky or cyan background
+                    roi_blue = cv2.inRange(roi_hsv, np.array([85, 15, 40]), np.array([140, 255, 255]))
+                    if np.count_nonzero(roi_blue) > 0.02 * roi_gray.size:
+                        continue # Skip! It's in the sky or next to sky!
+
+                    # Check if candidate ROI is a white cloud patch (low saturation + high brightness, lacking golden spark core)
+                    roi_gold = cv2.inRange(roi_hsv, np.array([10, 100, 200]), np.array([35, 255, 255]))
+                    roi_sat = float(np.mean(roi_hsv[:, :, 1]))
+                    if roi_sat < 45.0 and np.count_nonzero(roi_gold) < 2:
+                        continue # Skip white cloud patch!
+
+                    # Check if candidate ROI is a solid artificial lamp / LED light bulb housing at night
+                    aspect_ratio = float(cw) / float(ch) if ch > 0 else 1.0
+                    c_area = cv2.contourArea(c)
+                    solidity = c_area / float(area) if area > 0 else 0.0
+                    if 0.55 <= aspect_ratio <= 1.75 and solidity > 0.55 and area > 100 and roi_sat < 75.0:
+                        continue # Skip outdoor garden lamp fixture / LED light bulb!
+
                     conf = round(min(0.90, max(0.55, 0.50 + (std_val / 50.0) * 0.30)), 4)
                     candidates.append({
                         "detection_type": "sparks",
@@ -1278,6 +1337,16 @@ class DetectionLayer:
                     else:
                         consecutive_threats[cls] = max(0, consecutive_threats[cls] - 1)
 
+                active_threat_type = None
+                if "fire" in detected_types:
+                    active_threat_type = "fire"
+                elif "smoke" in detected_types:
+                    active_threat_type = "smoke"
+                elif "sparks" in detected_types or "spark" in detected_types:
+                    active_threat_type = "sparks"
+                elif max(consecutive_threats.values()) > 0:
+                    active_threat_type = max(consecutive_threats, key=consecutive_threats.get)
+
                 carried_dets = tracked_dets
 
                 t_frame_ms = (time.perf_counter() - t_frame_start) * 1000.0
@@ -1288,6 +1357,13 @@ class DetectionLayer:
                 skipped_frames_count += 1
                 tracked_dets = carried_dets
                 early_threat_triggered = None
+                active_threat_type = None
+                if carried_dets:
+                    c_types = {d["detection_type"] for d in carried_dets}
+                    for priority_cls in ("fire", "smoke", "sparks"):
+                        if priority_cls in c_types:
+                            active_threat_type = priority_cls
+                            break
 
             prev_gray = curr_gray
 
@@ -1344,6 +1420,7 @@ class DetectionLayer:
                     "eta_sec": round(eta_sec, 1),
                     "detections": tracked_dets,
                     "early_threat": early_threat_triggered,
+                    "active_threat": active_threat_type,
                     "consecutive_threat_frames": max(consecutive_threats.values()),
                     "continuous_alarm": (consecutive_threats["fire"] >= 12 or consecutive_threats["smoke"] >= 15 or consecutive_threats["sparks"] >= 15),
                     "preview_b64": preview_b64,
@@ -1401,7 +1478,7 @@ class DetectionLayer:
                 text_y = bb["y1"] + th + 6
 
             cv2.rectangle(out, (bb["x1"], rect_y1), (bb["x1"] + tw + 10, rect_y2), color, -1)
-            cv2.putText(out, label, (bb["x1"] + 5, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+            cv2.putText(out, label, (bb["x1"] + 5, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
         return out
 
     def _print_pipeline_debug_logs(

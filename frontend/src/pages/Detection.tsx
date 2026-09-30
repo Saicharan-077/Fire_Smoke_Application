@@ -297,18 +297,24 @@ const Detection = () => {
           }
 
           const now = Date.now();
-          if ((msg.continuous_alarm || msg.early_threat || (msg.consecutive_threat_frames && msg.consecutive_threat_frames >= 10)) && (now - lastPopupTimeRef.current > 2500)) {
+          const activeThreat = msg.early_threat || msg.active_threat || (msg.detections && msg.detections.length > 0 ? msg.detections[0].detection_type : null);
+
+          if ((msg.continuous_alarm || msg.early_threat || (msg.consecutive_threat_frames && msg.consecutive_threat_frames >= 10)) && (now - lastPopupTimeRef.current > 2500) && activeThreat) {
             lastPopupTimeRef.current = now;
-            toast(`🚨 CRITICAL THREAT: ${msg.early_threat?.toUpperCase() || 'FIRE'} detected continuously!`, 'error');
+            const highestConf = (msg.detections && msg.detections.length > 0)
+              ? Math.max(...msg.detections.map((d: any) => d.confidence))
+              : 0.85;
+
+            toast(`🚨 THREAT WARNING: ${activeThreat.toUpperCase()} detected continuously!`, 'error');
             const alertItem = {
               id: `vid-threat-${now}`,
-              alertType: msg.early_threat || 'fire',
+              alertType: activeThreat,
               cameraId: 'CAM-VIDEO',
               cameraName: 'Video Stream Analysis',
               zone: 'Upload Feed',
-              confidence: 0.95,
+              confidence: Math.round(highestConf * 100) / 100,
               timestamp: new Date().toISOString(),
-              severity: 'critical',
+              severity: activeThreat === 'fire' ? 'critical' : 'warning',
               isRead: false,
             } as any;
             addNotification(alertItem);
@@ -854,10 +860,17 @@ const Detection = () => {
                                 <div className="absolute top-2 left-2 bg-black/70 backdrop-blur text-white text-[10px] font-mono px-2.5 py-1 rounded border border-white/10 pointer-events-none z-10">
                                   🎬 ANNOTATED AI STREAM ({displayTotal} FRAMES)
                                 </div>
+                                <a
+                                  href={completedVideoUrl}
+                                  download={`annotated_${vidFile?.name || 'video.mp4'}`}
+                                  className="absolute top-2 right-2 flex items-center gap-1.5 bg-sky-600/90 hover:bg-sky-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg backdrop-blur border border-sky-400/30 transition-all cursor-pointer z-10"
+                                >
+                                  <Download size={13} /> Download Video
+                                </a>
                               </div>
 
-                              {/* Interactive Precision Controls (Restart, Step Back, Step Forward) */}
-                              <div className="flex items-center justify-between bg-slate-900/90 border border-slate-800 px-3 py-2 rounded-lg text-xs">
+                              {/* Interactive Precision Controls (Restart, Step Back, Step Forward, Download Video) */}
+                              <div className="flex flex-wrap items-center justify-between bg-slate-900/90 border border-slate-800 px-3 py-2 rounded-lg text-xs gap-2">
                                 <div className="flex items-center gap-1.5">
                                   <button
                                     onClick={handleRestartVideo}
@@ -881,9 +894,20 @@ const Detection = () => {
                                     +1 Frame <ChevronRight size={12} />
                                   </button>
                                 </div>
-                                <span className="text-[11px] text-slate-400 font-mono">
-                                  Frame Stepping Active (1 / {vidTelemetry.fps || videoMeta?.fps || 25}s)
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[11px] text-slate-400 font-mono hidden sm:inline">
+                                    Frame Stepping Active (1 / {vidTelemetry.fps || videoMeta?.fps || 25}s)
+                                  </span>
+                                  {completedVideoUrl && (
+                                    <a
+                                      href={completedVideoUrl}
+                                      download={`annotated_${vidFile?.name || 'video.mp4'}`}
+                                      className="px-3 py-1 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                    >
+                                      <Download size={13} /> Download Annotated Video
+                                    </a>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           ) : (vidLivePreviewB64 || vidResult?.thumbnail_path || vidMjpegUrl) ? (

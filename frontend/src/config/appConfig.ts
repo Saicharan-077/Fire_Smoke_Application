@@ -2,18 +2,18 @@ const getDynamicHost = () => {
   if (typeof window !== 'undefined' && window.location) {
     const protocol = window.location.protocol;
     const hostname = window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname;
-    return `${protocol}//${hostname}:8000`;
+    return `${protocol}//${hostname}:8001`;
   }
-  return 'http://127.0.0.1:8000';
+  return 'http://127.0.0.1:8001';
 };
 
 const getDynamicWsHost = () => {
   if (typeof window !== 'undefined' && window.location) {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const hostname = window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname;
-    return `${wsProtocol}//${hostname}:8000/ws/alerts`;
+    return `${wsProtocol}//${hostname}:8001/ws/alerts`;
   }
-  return 'ws://127.0.0.1:8000/ws/alerts';
+  return 'ws://127.0.0.1:8001/ws/alerts';
 };
 
 const defaultBase = getDynamicHost();
