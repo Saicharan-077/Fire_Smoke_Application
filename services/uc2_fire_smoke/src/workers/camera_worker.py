@@ -190,8 +190,14 @@ class CameraWorker:
         h, w = vis.shape[:2]
 
         # Draw confirmed detections
+        colors = {
+            "fire": (0, 30, 255),
+            "smoke": (0, 140, 255),
+            "sparks": (0, 215, 255),
+            "spark": (0, 215, 255),
+        }
         for det in result.confirmed_detections:
-            color = (0, 0, 255) if det.detection_type == "fire" else (128, 128, 128)
+            color = colors.get(det.detection_type, (0, 255, 255))
             bx = det.bbox
             x1, y1, x2, y2 = bx["x1"], bx["y1"], bx["x2"], bx["y2"]
             cv2.rectangle(vis, (x1, y1), (x2, y2), color, 2)
@@ -221,7 +227,7 @@ class CameraWorker:
         for det in result.confirmed_detections:
             if det.detection_type == "fire":
                 FIRE_DETECTIONS.labels(camera_id=self.camera_id, zone_id=det.zone.zone_id).inc()
-            else:
+            elif det.detection_type == "smoke":
                 SMOKE_DETECTIONS.labels(camera_id=self.camera_id, zone_id=det.zone.zone_id).inc()
 
             cooldown_key = f"{det.detection_type}:{det.zone.zone_id}"

@@ -119,20 +119,22 @@ class FalseAlarmSuppressor:
         if is_sunlight:
             return FalseAlarmDecision(suppressed=True, reason=reason, category="reflection")
 
-        # Check fog / cloud
-        is_fog, reason = _is_fog_or_cloud(roi_gray, roi_hsv)
-        if is_fog:
-            return FalseAlarmDecision(suppressed=True, reason=reason, category="fog")
+        # Do not suppress high confidence YOLO predictions unless severe sunlight flare occurs
+        if yolo_confidence < 0.40:
+            # Check fog / cloud
+            is_fog, reason = _is_fog_or_cloud(roi_gray, roi_hsv)
+            if is_fog:
+                return FalseAlarmDecision(suppressed=True, reason=reason, category="fog")
 
-        # Check dust / steam
-        is_dust, reason = _is_dust_or_steam(roi_gray, roi_hsv)
-        if is_dust:
-            return FalseAlarmDecision(suppressed=True, reason=reason, category="dust_steam")
+            # Check dust / steam
+            is_dust, reason = _is_dust_or_steam(roi_gray, roi_hsv)
+            if is_dust:
+                return FalseAlarmDecision(suppressed=True, reason=reason, category="dust_steam")
 
-        # Check LED reflection
-        is_led, reason = _is_led_reflection(roi_gray, roi_hsv)
-        if is_led:
-            return FalseAlarmDecision(suppressed=True, reason=reason, category="led")
+            # Check LED reflection
+            is_led, reason = _is_led_reflection(roi_gray, roi_hsv)
+            if is_led:
+                return FalseAlarmDecision(suppressed=True, reason=reason, category="led")
 
         # Check for static false alarms using motion if previous frame ROI is available
         if prev_frame_roi is not None and prev_frame_roi.shape == roi.shape:

@@ -42,28 +42,29 @@ class ConfidenceFusion:
         det_type: str,
         motion_score: float = 0.5,
     ) -> FusionResult:
-        w = self.weights
-        total_weight = w.yolo + w.hsv + w.texture + w.temporal + w.motion
-
-        if total_weight <= 0:
-            fused = yolo_conf
-            v_score = (hsv_score + texture_score) / 2.0
+        if det_type == "fire":
+            # Fire fusion: strong weight on YOLO + flame color/brightness + temporal
+            fused = 0.55 * yolo_conf + 0.25 * hsv_score + 0.20 * temporal_score
+            v_score = 0.6 * hsv_score + 0.4 * temporal_score
+        elif det_type == "smoke":
+            # Smoke fusion: strong weight on YOLO + desaturation/texture dispersion + temporal
+            fused = 0.60 * yolo_conf + 0.25 * texture_score + 0.15 * temporal_score
+            v_score = 0.6 * texture_score + 0.4 * temporal_score
+        elif det_type in ("sparks", "spark"):
+            # Sparks fusion: strong weight on YOLO + particle brightness/contrast + temporal
+            fused = 0.55 * yolo_conf + 0.30 * hsv_score + 0.15 * temporal_score
+            v_score = 0.7 * hsv_score + 0.3 * temporal_score
         else:
+            w = self.weights
+            total_weight = w.yolo + w.hsv + w.texture + w.temporal + w.motion
             fused = (
                 w.yolo * yolo_conf
                 + w.hsv * hsv_score
                 + w.texture * texture_score
                 + w.temporal * temporal_score
                 + w.motion * motion_score
-            ) / total_weight
-
-            v_weight = w.hsv + w.texture + w.temporal + w.motion
-            v_score = (
-                (w.hsv * hsv_score + w.texture * texture_score + w.temporal * temporal_score + w.motion * motion_score)
-                / v_weight
-                if v_weight > 0
-                else 0.5
-            )
+            ) / max(total_weight, 1.0)
+            v_score = (hsv_score + texture_score) / 2.0
 
         fused = round(max(0.0, min(1.0, fused)), 4)
         v_score = round(max(0.0, min(1.0, v_score)), 4)
@@ -93,6 +94,13 @@ class ConfidenceFusion:
             if confidence >= 0.85:
                 return AlertSeverity.high
             if confidence >= 0.50:
+                return AlertSeverity.medium
+            return AlertSeverity.low
+
+        if detection_type in ("sparks", "spark"):
+            if confidence >= 0.85:
+                return AlertSeverity.high
+            if confidence >= 0.55:
                 return AlertSeverity.medium
             return AlertSeverity.low
 

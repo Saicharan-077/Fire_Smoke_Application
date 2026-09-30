@@ -122,7 +122,7 @@ def test_distractor_wall_rejection():
     gray_img = cv2.cvtColor(wall_img, cv2.COLOR_BGR2GRAY)
     is_valid, reason, scores = layer.verify_smoke(wall_img, hsv_img, gray_img, layer.config.smoke)
     assert is_valid is False
-    assert "bad_texture_variance" in reason or "bad_entropy" in reason
+    assert any(k in reason for k in ["bad_texture_variance", "bad_entropy", "bright_overcast_sky", "daylight_sky_cloud"])
 
 def test_distractor_steam_rejection():
     """Verify that steam is rejected as smoke due to low texture std/laplacian variance."""
@@ -133,7 +133,7 @@ def test_distractor_steam_rejection():
     is_valid, reason, scores = layer.verify_smoke(steam_img, hsv_img, gray_img, layer.config.smoke)
     # Steam is too uniform and blurry
     assert is_valid is False
-    assert any(key in reason for key in ["bad_texture_variance", "bad_entropy", "too_blurry_or_uniform", "flat_gradient"])
+    assert any(key in reason for key in ["bad_texture_variance", "bad_entropy", "too_blurry_or_uniform", "flat_gradient", "bright_overcast_sky", "daylight_sky_cloud"])
 
 def test_distractor_reflection_rejection():
     """Verify that bright specular reflections are rejected as smoke (sharp boundaries, high chroma/saturation/laplacian)."""
@@ -153,7 +153,7 @@ def test_distractor_sky_cloud_rejection():
     gray_img = cv2.cvtColor(sky_img, cv2.COLOR_BGR2GRAY)
     is_valid, reason, scores = layer.verify_smoke(sky_img, hsv_img, gray_img, layer.config.smoke)
     assert is_valid is False
-    assert "high_chroma" in reason or "highly_saturated" in reason
+    assert any(k in reason for k in ["high_chroma", "highly_saturated", "sky_blue_background", "bright_overcast_sky", "daylight_sky_cloud"])
 
 
 # ── Run Evaluation & Report Generation ────────────────────────────────────────

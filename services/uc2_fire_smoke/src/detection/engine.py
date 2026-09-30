@@ -28,6 +28,7 @@ class YOLOEngine:
     CLASS_MAP = {
         "fire": "fire", "flame": "fire", "0": "fire",
         "smoke": "smoke", "1": "smoke",
+        "sparks": "sparks", "spark": "sparks", "2": "sparks",
     }
 
     def __init__(self) -> None:

@@ -60,10 +60,7 @@ const LiveMonitoring = () => {
   // Timeline scrubber simulation
   const [timelinePosition, setTimelinePosition] = useState(100);
   const [isPaused, setIsPaused] = useState(false);
-  const [snapshotGallery, setSnapshotGallery] = useState<{ id: string; time: string; url: string; label: string }[]>([
-    { id: '1', time: '21:20:10', url: '/evidence/test_red.jpg', label: 'CAM-01 Warehouse' },
-    { id: '2', time: '21:15:32', url: '/evidence/test_red.jpg', label: 'CAM-02 Server Room' }
-  ]);
+  const [snapshotGallery, setSnapshotGallery] = useState<{ id: string; time: string; url: string; label: string }[]>([]);
 
   // Tick clock for HUD
   useEffect(() => {
@@ -339,7 +336,7 @@ const LiveMonitoring = () => {
         if (detectionsRef.current && detectionsRef.current.length > 0) {
           detectionsRef.current.forEach((det: any) => {
             const isSparks = det.detection_type === 'sparks' || det.detection_type === 'spark';
-            const col = det.detection_type === 'fire' ? '#e5484d' : (isSparks ? '#f59e0b' : '#e79020');
+            const col = det.detection_type === 'fire' ? '#ef4444' : (isSparks ? '#f59e0b' : '#0ea5e9');
             ctx.strokeStyle = col;
             ctx.lineWidth = 3;
 

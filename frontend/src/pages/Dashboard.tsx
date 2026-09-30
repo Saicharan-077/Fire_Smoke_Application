@@ -325,7 +325,7 @@ const Dashboard = () => {
     return r === 'admin' || r === 'administrator' || r === 'operator';
   }, [currentUser]);
 
-  const [simulationMode] = useState(!isOperatorOrAdmin);
+  const [simulationMode] = useState(false);
 
   const { playEmergencySiren, stopSiren } = useAlertSound();
 
@@ -601,10 +601,11 @@ const Dashboard = () => {
           }, 'image/jpeg', 0.85);
         }
 
-        // Bounding box overlays (Red for Fire, Orange for Smoke)
+        // Bounding box overlays (Red for Fire, Sky-Blue for Smoke, Gold for Sparks)
         if (detectionsRef.current && detectionsRef.current.length > 0) {
           detectionsRef.current.forEach((det) => {
-            const col = det.detection_type === 'fire' ? '#ef4444' : '#f59e0b';
+            const isSparks = det.detection_type === 'sparks' || det.detection_type === 'spark';
+            const col = det.detection_type === 'fire' ? '#ef4444' : (isSparks ? '#f59e0b' : '#0ea5e9');
             ctx.strokeStyle = col; 
             ctx.lineWidth = 2.5;
             

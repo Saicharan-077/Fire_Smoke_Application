@@ -149,11 +149,15 @@ class DeterministicVerifier:
             "avg_gradient_mag": round(avg_grad, 2),
         }
 
-        # Texture probability score
-        desat_score = max(0.0, 1.0 - (avg_sat / max(cfg.max_saturation, 1)))
-        blur_score = max(0.0, 1.0 - (laplacian_var / max(cfg.max_laplacian_var, 1)))
-        texture_score = round(0.4 * desat_score + 0.3 * blur_score + 0.3 * min(1.0, entropy / 7.0), 4)
-        hsv_score = round(desat_score, 4)
+        # Class-specific continuous smoke scoring (tolerant of thin, dense, gray, white, dark, low-contrast smoke)
+        desat_score = max(0.0, min(1.0, 1.0 - (avg_sat / 180.0)))
+        chroma_score = max(0.0, min(1.0, 1.0 - (avg_chroma / 70.0)))
+        entropy_score = min(1.0, entropy / 6.5)
+        # Continuous laplacian variance scoring without hard rejection
+        lap_score = min(1.0, max(0.2, 1.0 - abs(laplacian_var - 150.0) / 1200.0))
+
+        texture_score = round(0.35 * desat_score + 0.25 * chroma_score + 0.20 * entropy_score + 0.20 * lap_score, 4)
+        hsv_score = round(0.6 * desat_score + 0.4 * chroma_score, 4)
         combined_score = round(0.5 * hsv_score + 0.5 * texture_score, 4)
 
         return VerificationResult(
@@ -163,6 +167,56 @@ class DeterministicVerifier:
             combined_score=combined_score,
             entropy=round(entropy, 2),
             laplacian_var=round(laplacian_var, 2),
+            scores=scores,
+        )
+
+    # ── Sparks HSV / Spatial Verification ─────────────────────────────────────
+
+    def verify_sparks(self, roi_bgr: np.ndarray) -> VerificationResult:
+        if roi_bgr.size == 0 or roi_bgr.shape[0] < 4 or roi_bgr.shape[1] < 4:
+            return VerificationResult(passed=False, rejection_reason="empty_roi")
+
+        roi_hsv = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2HSV)
+        roi_gray = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2GRAY)
+        v_channel = roi_hsv[:, :, 2]
+        max_val = float(np.max(v_channel))
+        avg_val = float(np.mean(v_channel))
+        std_val = float(np.std(roi_gray))
+        total_px = roi_bgr.shape[0] * roi_bgr.shape[1]
+
+        # Reject smooth daylight sky, clouds, and uniform walls
+        if avg_val > 150.0 and std_val < 18.0:
+            return VerificationResult(
+                passed=False,
+                rejection_reason=f"uniform_daylight_or_sky (avg={avg_val:.1f}, std={std_val:.1f})",
+                scores={"avg_brightness": avg_val, "std": std_val},
+            )
+
+        # Spark particles mask (high brightness and distinct contrast)
+        spark_mask = cv2.inRange(roi_hsv, np.array([0, 20, 180]), np.array([180, 255, 255]))
+        spark_pixels = int(np.count_nonzero(spark_mask))
+        spark_ratio = spark_pixels / float(total_px) if total_px > 0 else 0.0
+
+        scores = {
+            "max_brightness": round(max_val, 1),
+            "avg_brightness": round(avg_val, 1),
+            "std_brightness": round(std_val, 1),
+            "spark_pixels": spark_pixels,
+            "spark_ratio": round(spark_ratio, 4),
+        }
+
+        # Sparks particle characteristics (high peak brightness, small spatial area relative to frame)
+        area_score = 1.0 if total_px < 15000 else max(0.2, 1.0 - (total_px - 15000) / 50000.0)
+        brightness_score = min(1.0, max_val / 255.0)
+        contrast_score = min(1.0, std_val / 50.0)
+
+        spark_score = round(0.4 * brightness_score + 0.3 * contrast_score + 0.3 * area_score, 4)
+
+        return VerificationResult(
+            passed=max_val >= 160.0,
+            hsv_score=spark_score,
+            texture_score=spark_score,
+            combined_score=spark_score,
             scores=scores,
         )
 
@@ -185,6 +239,8 @@ class DeterministicVerifier:
             return self.verify_fire(roi_bgr)
         elif det_type == "smoke":
             return self.verify_smoke(roi_bgr)
+        elif det_type in ("sparks", "spark"):
+            return self.verify_sparks(roi_bgr)
         return VerificationResult(passed=True, hsv_score=0.5, texture_score=0.5, combined_score=0.5)
 
 

@@ -387,23 +387,28 @@ class DetectionLayer:
         return True, "passed", scores
 
     def verify_sparks(self, roi_bgr: np.ndarray, roi_hsv: np.ndarray) -> Tuple[bool, str, dict]:
-        """Sparks verification checking high-intensity hotspot pixels and rejecting uniform sky/daylight."""
+        """Sparks verification checking high-intensity hotspot particles and rejecting uniform sky/daylight."""
         if roi_bgr.size == 0 or roi_bgr.shape[0] == 0 or roi_bgr.shape[1] == 0:
             return False, "empty_roi", {}
+
+        total_pixels = roi_bgr.shape[0] * roi_bgr.shape[1]
+
+        # 0. Particle Size Check: Sparks are small localized particles, never huge bounding boxes
+        if total_pixels > 15000 or roi_bgr.shape[0] > 180 or roi_bgr.shape[1] > 180:
+            return False, f"spark_box_too_large ({roi_bgr.shape[1]}x{roi_bgr.shape[0]}, area={total_pixels} > 15000)", {"area": total_pixels}
 
         roi_gray = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2GRAY)
         v_channel = roi_hsv[:, :, 2]
         max_val = float(np.max(v_channel))
         avg_val = float(np.mean(v_channel))
         std_val = float(np.std(roi_gray))
-        total_pixels = roi_bgr.shape[0] * roi_bgr.shape[1]
 
         # 1. Reject smooth daylight sky, clouds, and uniform walls
-        if avg_val > 150.0 and std_val < 18.0:
+        if avg_val > 140.0 and std_val < 20.0:
             return False, f"uniform_daylight_or_sky (avg={avg_val:.1f}, std={std_val:.1f})", {"avg_brightness": avg_val, "std": std_val}
 
         # 2. Spark particles mask (high brightness and distinct contrast)
-        spark_mask = cv2.inRange(roi_hsv, np.array([0, 20, 200]), np.array([180, 255, 255]))
+        spark_mask = cv2.inRange(roi_hsv, np.array([0, 20, 220]), np.array([180, 255, 255]))
         spark_pixels = int(np.count_nonzero(spark_mask))
         spark_ratio = spark_pixels / float(total_pixels) if total_pixels > 0 else 0.0
 
@@ -415,32 +420,61 @@ class DetectionLayer:
             "spark_ratio": round(spark_ratio, 4)
         }
 
-        # Sparks should have intense local brightness
-        if max_val < 185.0:
-            return False, f"low_spark_intensity (max_val={max_val:.1f} < 185)", scores
+        # Sparks must have intense local brightness and point contrast over background
+        if max_val < 220.0:
+            return False, f"low_spark_intensity (max_val={max_val:.1f} < 220)", scores
+
+        if (max_val - avg_val) < 35.0:
+            return False, f"low_local_contrast (max={max_val:.1f}, avg={avg_val:.1f})", scores
 
         # If it's a solid uniform field of high brightness (like sun or bright sky patch)
-        if spark_ratio > 0.70 and std_val < 25.0:
+        if spark_ratio > 0.60:
             return False, f"broad_light_field (spark_ratio={spark_ratio:.2f})", scores
 
         return True, "passed", scores
 
-    def verify_smoke(self, roi_bgr: np.ndarray, roi_hsv: np.ndarray, roi_gray: np.ndarray, config: SmokeVerificationConfig) -> Tuple[bool, str, dict]:
-        """Smoke verification checking texture, desaturation, edges, entropy, and blur."""
+    def verify_smoke(self, roi_bgr: np.ndarray, roi_hsv: np.ndarray, roi_gray: np.ndarray, config: SmokeVerificationConfig, raw_conf: float = 0.0) -> Tuple[bool, str, dict]:
+        """Smoke verification checking texture, desaturation, edges, entropy, and blur.
+        Tolerant of thin, dense, gray, white, dark, turbulent, and low-contrast smoke.
+        """
         if roi_bgr.size == 0 or roi_bgr.shape[0] == 0 or roi_bgr.shape[1] == 0:
             return False, "empty_roi", {}
 
         total_pixels = roi_gray.size
 
-        # 1. Saturation distribution (smoke is desaturated gray)
+        # 0. Sky & Cloud Background Rejection
+        blue_mask = cv2.inRange(roi_hsv, np.array([85, 25, 40]), np.array([140, 255, 255]))
+        blue_ratio = float(np.count_nonzero(blue_mask) / total_pixels) if total_pixels > 0 else 0.0
+        avg_val_full = float(np.mean(roi_hsv[:, :, 2]))
+        avg_sat_full = float(np.mean(roi_hsv[:, :, 1]))
+        texture_std_full = float(np.std(roi_gray))
+
+        # A. Blue Sky Rejection (Cyan/Blue/Sky Blue saturated background)
+        # Protect genuine YOLO smoke detections (raw_conf >= 0.35) from being rejected by sky in the background of smoke plumes.
+        if raw_conf < 0.35:
+            if blue_ratio > 0.75 and avg_sat_full > 50.0 and texture_std_full < 12.0:
+                return False, f"sky_blue_background (blue_ratio={blue_ratio:.2f} > 0.75)", {"blue_ratio": round(blue_ratio, 2)}
+
+            # B. Bright Overcast Daylight Sky / Cloud Rejection (high brightness + low saturation / blue tint)
+            if avg_val_full > 175.0 and texture_std_full < 8.0 and (blue_ratio > 0.05 or avg_sat_full < 20.0):
+                return False, f"bright_overcast_sky (brightness={avg_val_full:.1f}, texture_std={texture_std_full:.1f})", {"avg_brightness": round(avg_val_full, 1), "texture_std": round(texture_std_full, 1)}
+
+            # C. High Brightness Uniform Gradient (Daylight Sky Horizon)
+            laplacian_var_full = float(cv2.Laplacian(roi_gray, cv2.CV_64F).var())
+            if avg_val_full > 195.0 and laplacian_var_full < 30.0 and (blue_ratio > 0.05 or avg_sat_full < 15.0):
+                return False, f"daylight_sky_cloud (brightness={avg_val_full:.1f}, laplacian_var={laplacian_var_full:.1f})", {"avg_brightness": round(avg_val_full, 1), "laplacian_var": round(laplacian_var_full, 1)}
+
+        # 1. Saturation distribution (smoke is desaturated gray/neutral)
         avg_sat = float(np.mean(roi_hsv[:, :, 1]))
         if avg_sat > config.max_saturation:
             return False, f"highly_saturated (sat={avg_sat:.1f} > max={config.max_saturation})", {"avg_saturation": round(avg_sat, 2)}
 
-        # 2. Brightness minimum (smoke shouldn't be deep shadows/black)
+        # 2. Brightness minimum: Allow dark/black smoke (oil/tire fires) if desaturated
         avg_val = float(np.mean(roi_hsv[:, :, 2]))
         if avg_val < config.min_brightness:
-            return False, f"too_dark (brightness={avg_val:.1f} < min={config.min_brightness})", {"avg_brightness": round(avg_val, 2)}
+            # If it has neutral chroma and low saturation, it is legitimate dark smoke
+            if avg_sat > 50.0 or avg_val < 5.0:
+                return False, f"too_dark (brightness={avg_val:.1f} < min={config.min_brightness})", {"avg_brightness": round(avg_val, 2)}
 
         # 3. Gray/White dominance (Neutral chroma check: max(BGR) - min(BGR) should be low)
         b, g, r = cv2.split(roi_bgr)
@@ -451,42 +485,32 @@ class DetectionLayer:
 
         # 4. Local texture variance (std dev)
         texture_std = float(np.std(roi_gray))
-        if texture_std < config.min_texture_std or texture_std > config.max_texture_std:
-            return False, f"bad_texture_variance (std={texture_std:.2f} outside [{config.min_texture_std}, {config.max_texture_std}])", {"texture_std": round(texture_std, 2)}
+        if texture_std < config.min_texture_std:
+            return False, f"bad_texture_variance (std={texture_std:.2f} < {config.min_texture_std})", {"texture_std": round(texture_std, 2)}
 
-        # 5. Local contrast (max contrast check)
-        if texture_std > config.max_contrast:
-            return False, f"high_contrast (contrast={texture_std:.1f} > max={config.max_contrast})", {"texture_std": round(texture_std, 2)}
+        # 5. Local contrast (max contrast check - only reject extreme non-smoke anomalies)
+        if texture_std > 110.0:
+            return False, f"high_contrast (contrast={texture_std:.1f} > 110)", {"texture_std": round(texture_std, 2)}
 
-        # 6. Edge density (Canny edges ratio)
+        # 6. Edge density
         edges = cv2.Canny(roi_gray, 50, 150)
         edge_density = float(np.count_nonzero(edges) / total_pixels) if total_pixels > 0 else 0.0
-        if edge_density > config.max_edge_density:
-            return False, f"high_edge_density (edges={edge_density:.4f} > max={config.max_edge_density})", {"edge_density": round(edge_density, 4)}
 
         # 7. Color/grayscale entropy
         hist = cv2.calcHist([roi_gray], [0], None, [256], [0, 256])
         hist = hist.ravel() / (hist.sum() + 1e-7)
         entropy = float(-np.sum(hist * np.log2(hist + 1e-7)))
-        if entropy < config.min_entropy or entropy > config.max_entropy:
-            return False, f"bad_entropy (entropy={entropy:.2f} outside [{config.min_entropy}, {config.max_entropy}])", {"entropy": round(entropy, 2)}
+        if entropy < config.min_entropy:
+            return False, f"bad_entropy (entropy={entropy:.2f} < {config.min_entropy})", {"entropy": round(entropy, 2)}
 
-        # 8. Blur characteristics (Variance of Laplacian)
+        # 8. Blur characteristics (Variance of Laplacian) - supporting feature, not rigid blocker
         laplacian_var = float(cv2.Laplacian(roi_gray, cv2.CV_64F).var())
-        if laplacian_var > config.max_laplacian_var:
-            return False, f"sharp_structures (laplacian_var={laplacian_var:.1f} > max={config.max_laplacian_var})", {"laplacian_var": round(laplacian_var, 2)}
-        if laplacian_var < config.min_laplacian_var:
-            return False, f"too_blurry_or_uniform (laplacian_var={laplacian_var:.1f} < min={config.min_laplacian_var})", {"laplacian_var": round(laplacian_var, 2)}
 
         # 9. Diffusion patterns (Sobel magnitude check)
         sobelx = cv2.Sobel(roi_gray, cv2.CV_64F, 1, 0, ksize=3)
         sobely = cv2.Sobel(roi_gray, cv2.CV_64F, 0, 1, ksize=3)
         grad_mag = cv2.magnitude(sobelx, sobely)
         avg_grad = float(np.mean(grad_mag))
-        if avg_grad > config.max_gradient_mag:
-            return False, f"high_gradient (gradient={avg_grad:.1f} > max={config.max_gradient_mag})", {"avg_gradient_mag": round(avg_grad, 2)}
-        if avg_grad < config.min_gradient_mag:
-            return False, f"flat_gradient (gradient={avg_grad:.1f} < min={config.min_gradient_mag})", {"avg_gradient_mag": round(avg_grad, 2)}
 
         scores = {
             "avg_saturation": round(avg_sat, 2),
@@ -577,7 +601,7 @@ class DetectionLayer:
             if w_roi < 15 or h_roi < 15:
                 det["rejection_reason"] = "box_too_small"
                 det["verification_scores"] = {}
-                logger.info(f"[Stage 2 Reject] {det['detection_type']} conf={det['confidence']:.4f} rejected: box_too_small ({w_roi}x{h_roi})")
+                logger.debug(f"[Stage 2 Reject] {det['detection_type']} conf={det['confidence']:.4f} rejected: box_too_small ({w_roi}x{h_roi})")
                 self._log_rejection(det["confidence"], det["detection_type"], "box_too_small", {}, roi_bgr, camera_id)
                 continue
 
@@ -596,7 +620,7 @@ class DetectionLayer:
             if det_type == "fire":
                 is_valid, reason, scores = self.verify_fire(roi_bgr, roi_hsv, active_cfg.fire)
             elif det_type == "smoke":
-                is_valid, reason, scores = self.verify_smoke(roi_bgr, roi_hsv, roi_gray, active_cfg.smoke)
+                is_valid, reason, scores = self.verify_smoke(roi_bgr, roi_hsv, roi_gray, active_cfg.smoke, raw_conf=det.get("confidence", 0.0))
             elif det_type in ("sparks", "spark"):
                 is_valid, reason, scores = self.verify_sparks(roi_bgr, roi_hsv)
             else:
@@ -644,45 +668,35 @@ class DetectionLayer:
                     flicker = scores.get("flicker_index", 0.0)
                     color_score = min(1.0, flame_ratio / 0.08)
 
-                    # Only reclassify to sparks if there is zero flame body AND high isolated point sparks
-                    is_pure_sparkler = (
-                        raw_yolo_conf < 0.40 and
-                        flame_ratio < 0.02 and
-                        sparks >= 15 and
-                        area_ratio < 0.05
-                    )
+                    # Fusion Weights for continuous flame / wildfire / gas fire / bonfire
+                    spark_boost = min(0.08, sparks * 0.02)
+                    fusion_score = (0.55 * raw_yolo_conf) + (0.25 * color_score) + (0.12 * brightness) + (0.08 * flicker) + spark_boost
+                    fusion_score = min(0.99, max(0.20, fusion_score))
 
-                    if is_pure_sparkler:
-                        det_type = "sparks"
-                        det["detection_type"] = "sparks"
-                        candidate_cat = "spark_occluded"
-                        spark_score = min(0.99, max(0.60, 0.45 * raw_yolo_conf + 0.35 * brightness + 0.20 * min(1.0, sparks / 10.0)))
-                        fusion_score = spark_score
+                    # Sub-categorization
+                    if area_ratio < 0.015 or box_area < 1800:
+                        candidate_cat = "far_fire_candidate"
+                    elif flicker > 0.65:
+                        candidate_cat = "flickering_fire"
                     else:
-                        # Fusion Weights for continuous flame / wildfire / gas fire
-                        spark_boost = min(0.08, sparks * 0.02)
-                        fusion_score = (0.55 * raw_yolo_conf) + (0.25 * color_score) + (0.12 * brightness) + (0.08 * flicker) + spark_boost
-                        fusion_score = min(0.99, max(0.20, fusion_score))
-
-                        # Sub-categorization
-                        if area_ratio < 0.015 or box_area < 1800:
-                            candidate_cat = "far_fire_candidate"
-                        elif flicker > 0.65:
-                            candidate_cat = "flickering_fire"
-                        else:
-                            candidate_cat = "normal_fire"
+                        candidate_cat = "normal_fire"
 
                 elif det_type == "smoke":
                     sat = scores.get("avg_saturation", 0.0) / 255.0
-                    edge_dens = scores.get("edge_density", 0.0)
+                    chroma = scores.get("avg_chroma", 0.0) / 70.0
+                    entropy = scores.get("entropy", 0.0) / 6.5
                     desat_score = max(0.0, 1.0 - sat)
-                    edge_score = max(0.0, 1.0 - min(1.0, edge_dens / 0.15))
-                    fusion_score = (0.55 * raw_yolo_conf) + (0.30 * desat_score) + (0.15 * edge_score)
+                    chroma_score = max(0.0, 1.0 - min(1.0, chroma))
+                    entropy_score = min(1.0, entropy)
+                    lap_score = min(1.0, max(0.2, 1.0 - abs(scores.get("laplacian_var", 150.0) - 150.0) / 1200.0))
+                    cv_score = (0.35 * desat_score) + (0.25 * chroma_score) + (0.20 * entropy_score) + (0.20 * lap_score)
+                    fusion_score = (0.60 * raw_yolo_conf) + (0.40 * cv_score)
                     candidate_cat = "normal_smoke"
 
                 elif det_type in ("sparks", "spark"):
-                    max_b = scores.get("max_brightness", 120.0) / 255.0
-                    fusion_score = (0.60 * raw_yolo_conf) + (0.40 * max_b)
+                    max_b = scores.get("max_brightness", 160.0) / 255.0
+                    std_b = scores.get("std_brightness", 20.0) / 50.0
+                    fusion_score = min(0.99, max(0.30, (0.55 * raw_yolo_conf) + (0.30 * min(1.0, max_b)) + (0.15 * min(1.0, std_b))))
                     candidate_cat = "spark_occluded"
 
                 # Phase 5 - Alert Engine Severity Mapping
@@ -719,7 +733,7 @@ class DetectionLayer:
         # Background/neutral class - explicitly skip
         if low in ("other", "background", "neutral", "none", "negative"):
             return None
-        # Legacy numeric class codes (some custom datasets: 0=fire, 1=smoke, 2=sparks)
+        # Legacy numeric class codes (0=fire, 1=smoke, 2=sparks)
         if low.isdigit():
             if int(low) == 0: return "fire"
             if int(low) == 1: return "smoke"
@@ -786,11 +800,15 @@ class DetectionLayer:
 
         all_candidates = list(raw_dets)
         for cv_c in cv_candidates:
-            overlap = any(
-                ByteTracker._compute_iou(cv_c["bbox"], yd["bbox"]) > 0.40
+            c_bb = cv_c["bbox"]
+            c_area = max(1, (c_bb["x2"] - c_bb["x1"]) * (c_bb["y2"] - c_bb["y1"]))
+            # Reject CV sparks that are inside or overlap with any real YOLO detection (e.g. smoke plume or flame)
+            inside_yolo = any(
+                (max(0, min(c_bb["x2"], yd["bbox"]["x2"]) - max(c_bb["x1"], yd["bbox"]["x1"])) *
+                 max(0, min(c_bb["y2"], yd["bbox"]["y2"]) - max(c_bb["y1"], yd["bbox"]["y1"]))) / float(c_area) > 0.15
                 for yd in raw_dets
             )
-            if not overlap:
+            if not inside_yolo and cv_c["confidence"] >= 0.60:
                 all_candidates.append(cv_c)
 
         if not all_candidates:
@@ -815,7 +833,13 @@ class DetectionLayer:
                 ix2, iy2 = min(bb["x2"], kbb["x2"]), min(bb["y2"], kbb["y2"])
                 if ix2 > ix1 and iy2 > iy1:
                     inter_area = (ix2 - ix1) * (iy2 - iy1)
-                    if (inter_area / float(box_area)) > 0.35:
+                    # If this box is sparks and inside/overlapping a larger fire box, suppress it to prevent bonfire clutter
+                    if d["detection_type"] in ("sparks", "spark") and kept["detection_type"] == "fire" and (inter_area / float(box_area)) > 0.15:
+                        is_enclosed = True
+                        break
+                    # Only suppress redundant sub-boxes of the SAME class (e.g. smaller flame inside larger flame)
+                    # Never allow smoke to suppress fire or fire to suppress smoke!
+                    if d["detection_type"] == kept["detection_type"] and (inter_area / float(box_area)) > 0.35:
                         is_enclosed = True
                         break
             
@@ -1051,29 +1075,30 @@ class DetectionLayer:
         }
 
     def detect_cv_candidates(self, frame: np.ndarray, prev_gray: np.ndarray | None = None) -> List[Dict[str, Any]]:
-        """Lightweight CV layer to detect cohesive spark burst envelopes without false positives on sky/daylight."""
+        """Lightweight CV layer to detect cohesive spark burst envelopes (sparklers, fireworks, welding sparks)."""
         candidates = []
         h, w = frame.shape[:2]
         frame_area = max(1, h * w)
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         
-        # 1. Spark mask: ultra-bright hotspot pixels with saturation or incandescent white core
-        spark_mask_colored = cv2.inRange(hsv, np.array([0, 50, 215]), np.array([180, 255, 255]))
+        # 1. Spark mask: ultra-bright incandescent hotspot pixels (white incandescent core or golden spark lines)
         spark_mask_white = cv2.inRange(hsv, np.array([0, 0, 248]), np.array([180, 50, 255]))
-        spark_mask = cv2.bitwise_or(spark_mask_colored, spark_mask_white)
+        spark_mask_gold = cv2.inRange(hsv, np.array([10, 140, 235]), np.array([35, 255, 255]))
+        spark_mask = cv2.bitwise_or(spark_mask_white, spark_mask_gold)
         
         # 2. Cohesive Spark Envelopes
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (25, 25))
-        connected = cv2.morphologyEx(spark_mask, cv2.MORPH_CLOSE, kernel)
-        dilated = cv2.dilate(connected, kernel, iterations=1)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        dilated = cv2.dilate(spark_mask, kernel, iterations=1)
         contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         for c in contours:
             x, y, cw, ch = cv2.boundingRect(c)
             area = cw * ch
-            # Spark clusters are localized: reject whole-screen blobs (like sky or horizon)
-            if 300 <= area <= int(frame_area * 0.12) and cw <= int(w * 0.40) and ch <= int(h * 0.40):
+            # Sparks are small localized particles: area <= 5000 px, cw <= 120, ch <= 120
+            # Enforce minimum 15px width AND height to match Stage-2 box_too_small gate
+            # (avoids generating thin-sliver boxes that are guaranteed rejected)
+            if 25 <= area <= 5000 and cw >= 15 and ch >= 15 and cw <= 120 and ch <= 120:
                 pad = 4
                 bx1, by1 = max(0, x - pad), max(0, y - pad)
                 bx2, by2 = min(w, x + cw + pad), min(h, y + ch + pad)
@@ -1081,23 +1106,22 @@ class DetectionLayer:
                 if roi_gray.size == 0:
                     continue
                 std_val = float(np.std(roi_gray))
+                max_val = float(np.max(roi_gray))
                 avg_val = float(np.mean(roi_gray))
                 
-                # Reject smooth sky or uniform lighting
-                if avg_val > 150.0 and std_val < 18.0:
-                    continue
-                
-                conf = round(min(0.92, max(0.60, 0.50 + (std_val / 64.0) * 0.35)), 4)
-                candidates.append({
-                    "detection_type": "sparks",
-                    "confidence": conf,
-                    "bbox": {"x1": bx1, "y1": by1, "x2": bx2, "y2": by2},
-                    "source": "cv",
-                    "candidate_category": "spark_occluded",
-                    "alert_level": "YELLOW",
-                    "verified": True,
-                    "verification_scores": {"spark_area": area, "std": round(std_val, 1)}
-                })
+                # Sparks must have intense local peak and sharp contrast over local ambient
+                if max_val >= 245.0 and (max_val - avg_val) >= 40.0:
+                    conf = round(min(0.90, max(0.55, 0.50 + (std_val / 50.0) * 0.30)), 4)
+                    candidates.append({
+                        "detection_type": "sparks",
+                        "confidence": conf,
+                        "bbox": {"x1": bx1, "y1": by1, "x2": bx2, "y2": by2},
+                        "source": "cv",
+                        "candidate_category": "spark_occluded",
+                        "alert_level": "YELLOW",
+                        "verified": True,
+                        "verification_scores": {"spark_area": area, "std": round(std_val, 1), "max_b": max_val}
+                    })
         return candidates
 
     def detect_video_stream(
@@ -1155,10 +1179,12 @@ class DetectionLayer:
         frame_latencies: list = []
         carried_dets: list = []
 
-        # Real-time fast demo sampling strategy:
-        # Analyzes 2 to 3 keyframes per second of video time (e.g., every 10-15 frames for 30fps video)
-        # This gives instantaneous 1-2 sec detection alert while making a 600-frame video finish in ~3-5 seconds!
-        normal_stride = max(1, int(round(fps / 2.5)))
+        # In Accuracy mode, evaluate every single frame (stride=1) for exhaustive hazard capture.
+        # In Real-Time mode, sample 2-3 keyframes per second for low latency.
+        if is_accuracy_mode:
+            normal_stride = 1
+        else:
+            normal_stride = max(1, int(round(fps / 2.5)))
 
         while cap.isOpened():
             if cancel_check_func and cancel_check_func():
@@ -1216,15 +1242,18 @@ class DetectionLayer:
                 cv_candidates = self.detect_cv_candidates(frame, prev_gray)
                 t_cv_ms = (time.perf_counter() - t_cv_start) * 1000.0
 
-                # Merge CV candidates if not covered by YOLO
+                # Merge CV candidates if not covered by or inside ANY YOLO detection
                 all_raw = list(raw_dets)
                 for cv_c in cv_candidates:
                     c_bb = cv_c["bbox"]
-                    overlap = any(
-                        ByteTracker._compute_iou(c_bb, yd["bbox"]) > 0.15
+                    c_area = max(1, (c_bb["x2"] - c_bb["x1"]) * (c_bb["y2"] - c_bb["y1"]))
+                    # Candidate is inside or significantly overlapping ANY YOLO detection (smoke plume or fire flame)
+                    inside_yolo = any(
+                        (max(0, min(c_bb["x2"], yd["bbox"]["x2"]) - max(c_bb["x1"], yd["bbox"]["x1"])) *
+                         max(0, min(c_bb["y2"], yd["bbox"]["y2"]) - max(c_bb["y1"], yd["bbox"]["y1"]))) / float(c_area) > 0.15
                         for yd in raw_dets
                     )
-                    if not overlap and cv_c["confidence"] >= 0.50:
+                    if not inside_yolo and cv_c["confidence"] >= 0.60:
                         all_raw.append(cv_c)
 
                 # 3. Stage 2 Verification & Fusion
@@ -1348,10 +1377,10 @@ class DetectionLayer:
         """Annotates frame with clean, modern bounding boxes and badges."""
         out = frame.copy()
         colors = {
-            "fire": (0, 30, 255),      # BGR Red
-            "smoke": (0, 140, 255),    # BGR Orange
-            "sparks": (0, 215, 255),   # BGR Gold/Yellow
-            "spark": (0, 215, 255),    # BGR Gold/Yellow
+            "fire": (0, 30, 255),       # BGR Red
+            "smoke": (235, 160, 14),    # BGR Sky Blue / Cyan (distinct from Fire & Sparks)
+            "sparks": (0, 215, 255),    # BGR Gold / Amber
+            "spark": (0, 215, 255),     # BGR Gold / Amber
         }
         for d in detections:
             bb = d["bbox"]

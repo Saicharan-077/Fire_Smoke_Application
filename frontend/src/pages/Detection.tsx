@@ -249,7 +249,19 @@ const Detection = () => {
       }, 1000);
 
       const ws = connectVideoStreamSocket(jobId, (msg: any) => {
-        if (msg.event === 'frame_update' || msg.type === 'frame') {
+        if (msg.event === 'initial_state') {
+          if (msg.progress_pct) setVidProgress(msg.progress_pct);
+          if (msg.latest_preview) {
+            setVidLivePreviewB64(`data:image/jpeg;base64,${msg.latest_preview}`);
+          }
+          setVidTelemetry(prev => ({
+            ...prev,
+            fps: msg.fps || prev.fps,
+            current_frame: msg.current_frame || prev.current_frame,
+            total_frames: msg.total_frames || prev.total_frames,
+            eta_sec: msg.eta_sec || prev.eta_sec,
+          }));
+        } else if (msg.event === 'frame_update' || msg.type === 'frame') {
           setVidProgress(msg.progress_pct || 0);
           if (msg.metadata) setVideoMeta(msg.metadata);
           if (msg.preview_b64) {
@@ -509,11 +521,11 @@ const Detection = () => {
           }, 'image/jpeg', 0.85);
         }
 
-        // Draw bounding boxes (Red for fire, Orange for smoke, Gold for sparks)
+        // Draw bounding boxes (Red for fire, Sky-Blue for smoke, Amber/Gold for sparks)
         if (detectionsRef.current && detectionsRef.current.length > 0) {
           detectionsRef.current.forEach((det: any) => {
             const isSparks = det.detection_type === 'sparks' || det.detection_type === 'spark';
-            const col = det.detection_type === 'fire' ? '#e5484d' : (isSparks ? '#f59e0b' : '#e79020');
+            const col = det.detection_type === 'fire' ? '#ef4444' : (isSparks ? '#f59e0b' : '#0ea5e9');
             ctx.strokeStyle = col;
             ctx.lineWidth = 2.5;
 
@@ -874,11 +886,11 @@ const Detection = () => {
                                 </span>
                               </div>
                             </div>
-                          ) : (vidLivePreviewB64 || vidResult?.thumbnail_path) ? (
+                          ) : (vidLivePreviewB64 || vidResult?.thumbnail_path || vidMjpegUrl) ? (
                             /* PROCESSING: Real-Time base64 frame stream with clear bounding boxes & telemetry */
                             <div className="relative rounded-lg overflow-hidden border border-slate-800 bg-black aspect-video flex items-center justify-center shadow-2xl">
                               <img
-                                src={vidLivePreviewB64 || (vidResult?.thumbnail_path ? (evidenceUrl(vidResult.thumbnail_path) || '') : '')}
+                                src={vidLivePreviewB64 || (vidResult?.thumbnail_path ? (evidenceUrl(vidResult.thumbnail_path) || '') : (vidMjpegUrl || ''))}
                                 alt="Live AI Detection Stream"
                                 className="w-full h-full object-contain"
                               />
@@ -947,15 +959,21 @@ const Detection = () => {
                             </div>
                           </div>
 
-                          <div className="space-y-1.5 pt-1">
-                            <div className="flex justify-between text-[11px] font-bold text-slate-300">
-                              <span>Progress ({vidProgress}%)</span>
-                              <span className="font-mono">{displayCurrent} / {displayTotal} frames</span>
-                            </div>
-                            <div className="h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
-                              <div className="h-full bg-gradient-to-r from-sky-500 to-indigo-500 rounded-full transition-all duration-300" style={{ width: `${vidProgress}%` }} />
-                            </div>
-                          </div>
+                          {(() => {
+                            const calculatedPct = displayTotal > 0 ? Math.min(100, Math.round((displayCurrent / displayTotal) * 100)) : 0;
+                            const activePct = Math.max(vidProgress, calculatedPct);
+                            return (
+                              <div className="space-y-1.5 pt-1">
+                                <div className="flex justify-between text-[11px] font-bold text-slate-300">
+                                  <span>Progress ({activePct}%)</span>
+                                  <span className="font-mono">{displayCurrent} / {displayTotal} frames</span>
+                                </div>
+                                <div className="h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                                  <div className="h-full bg-gradient-to-r from-sky-500 to-indigo-500 rounded-full transition-all duration-300" style={{ width: `${activePct}%` }} />
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </>
                       );
                     })()}

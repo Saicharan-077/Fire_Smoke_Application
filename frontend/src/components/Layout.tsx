@@ -33,13 +33,11 @@ const Layout = () => {
     : 'SO';
 
   const navItems = [
-    { label: 'Dashboard',       path: '/dashboard',       icon: LayoutDashboard },
-    { label: 'Live Monitoring',  path: '/live-monitoring', icon: Video },
-    { label: 'Detection',       path: '/detection',       icon: Camera },
-    { label: 'History',         path: '/alerts-reports',  icon: History },
-    { label: 'Analytics',       path: '/analytics',       icon: BarChart3 },
-    { label: 'Calibration',     path: '/calibration',     icon: Target },
-    { label: 'Settings',        path: '/settings',        icon: Settings },
+    { label: 'Dashboard',         path: '/dashboard',       icon: LayoutDashboard },
+    { label: 'Live Monitoring',    path: '/live-monitoring', icon: Video },
+    { label: 'Detection',         path: '/detection',       icon: Camera },
+    { label: 'Alerts & Incidents', path: '/alerts-reports',  icon: AlertTriangle },
+    { label: 'Settings',          path: '/settings',        icon: Settings },
   ];
 
   const adminItems = can('admin')
@@ -362,13 +360,13 @@ const Layout = () => {
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard':       'Dashboard',
-  '/detection':       'Detection',
-  '/live-monitoring': 'Live Monitoring',
-  '/alerts-reports':  'History',
+  '/detection':       'Detection Engine',
+  '/live-monitoring': 'Live Camera Monitoring',
+  '/alerts-reports':  'Alerts & Incident Response',
   '/analytics':       'Analytics',
-  '/settings':        'Settings',
+  '/settings':        'System Settings',
   '/admin':           'Admin Console',
-  '/profile':         'Profile',
+  '/profile':         'User Profile',
 };
 
 export default Layout;
