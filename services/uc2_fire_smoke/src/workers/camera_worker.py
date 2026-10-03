@@ -41,9 +41,23 @@ from services.uc2_fire_smoke.src.storage.minio_client import MinIOClient
 logger = logging.getLogger("innovision.uc2.camera_worker")
 
 
+from collections import deque
+from enum import Enum
+
+
+class CameraHealthState(str, Enum):
+    """Production health state of a camera stream."""
+    ONLINE = "online"
+    DEGRADED = "degraded"
+    RECONNECTING = "reconnecting"
+    OFFLINE = "offline"
+    ERROR = "error"
+
+
 class CameraWorker:
     """
-    Independent worker instance for a single camera feed.
+    Independent worker instance for a single camera feed with
+    resilient state machine, evidence buffer, and metric telemetry.
     """
 
     def __init__(
@@ -79,6 +93,68 @@ class CameraWorker:
         self._fps_timer = time.time()
         self.current_fps = 0.0
         self.last_seen_timestamp = time.time()
+        self.last_successful_frame_ts = time.time()
+
+        # Production health & telemetry counters
+        self.state = CameraHealthState.ONLINE
+        self.received_frames = 0
+        self.processed_frames = 0
+        self.skipped_frames = 0
+        self.dropped_frames = 0
+        self.reconnect_count = 0
+        self.is_paused = False
+        self.last_error_message = ""
+
+        self.current_frame_age_ms = 0.0
+        self.active_hazards: List[str] = []
+        self._frame_buffer: deque = deque(maxlen=settings.evidence_buffer_size)
+
+    def pause(self) -> None:
+        """Pause worker processing on camera disconnect/maintenance."""
+        self.is_paused = True
+        self.state = CameraHealthState.RECONNECTING
+
+    def resume(self) -> None:
+        """Resume worker processing after reconnect."""
+        self.is_paused = False
+        self.state = CameraHealthState.ONLINE
+
+    def get_health_state(self) -> CameraHealthState:
+        """Determine real-time camera health state based on elapsed heartbeat."""
+        if not self._running:
+            return CameraHealthState.OFFLINE
+        if self.is_paused:
+            return CameraHealthState.RECONNECTING
+        if self.last_error_message:
+            return CameraHealthState.ERROR
+        elapsed = time.time() - self.last_seen_timestamp
+        if elapsed > settings.camera_stale_threshold_s:
+            return CameraHealthState.OFFLINE
+        if elapsed > settings.camera_degraded_threshold_s:
+            return CameraHealthState.DEGRADED
+        return CameraHealthState.ONLINE
+
+
+    def get_diagnostics(self) -> dict:
+        """Export comprehensive diagnostic metrics for dashboard and monitoring."""
+        now = time.time()
+        health = self.get_health_state()
+        return {
+            "camera_id": self.camera_id,
+            "camera_name": self.camera_name,
+            "camera_location": self.camera_location,
+            "status": health.value,
+            "fps": self.current_fps,
+            "received_frames": self.received_frames,
+            "processed_frames": self.processed_frames,
+            "skipped_frames": self.skipped_frames,
+            "dropped_frames": self.dropped_frames,
+            "reconnect_count": self.reconnect_count,
+            "frame_age_ms": round(self.current_frame_age_ms, 2),
+            "last_seen_s_ago": round(now - self.last_seen_timestamp, 1),
+            "active_hazards": list(self.active_hazards),
+            "last_error": self.last_error_message,
+        }
 
     def get_latest_preview_jpeg(self) -> Optional[bytes]:
         """Return the most recent annotated JPEG frame for MJPEG streaming."""
@@ -117,12 +193,27 @@ class CameraWorker:
                         break
 
                     t_event_start = time.perf_counter()
-                    self.last_seen_timestamp = time.time()
+                    now_ts = time.time()
+                    self.last_seen_timestamp = now_ts
+                    self.received_frames += 1
+                    self.last_error_message = None
+
+                    # Compute real-time frame age
+                    if getattr(frame_event, "timestamp", None):
+                        try:
+                            ts_sec = frame_event.timestamp.timestamp()
+                            self.current_frame_age_ms = max(0.0, (now_ts - ts_sec) * 1000.0)
+                        except Exception:
+                            self.current_frame_age_ms = 0.0
 
                     if frame_img is None:
+                        self.dropped_frames += 1
                         DROPPED_FRAMES.labels(camera_id=self.camera_id).inc()
                         await self.consumer.ack(msg_id)
                         continue
+
+                    # Maintain rolling frame buffer for pre-event evidence
+                    self._frame_buffer.append((frame_event.frame_seq, frame_img.copy()))
 
                     # Update FPS calculation
                     self._update_fps()
@@ -135,6 +226,10 @@ class CameraWorker:
                         prev_frame_bgr=self._prev_frame,
                     )
                     self._prev_frame = frame_img.copy()
+                    self.processed_frames += 1
+
+                    # Update active hazards for real-time camera status
+                    self.active_hazards = {det.detection_type for det in result.confirmed_detections}
 
                     # Record Prometheus metrics
                     FRAMES_PROCESSED.labels(camera_id=self.camera_id).inc()
@@ -172,6 +267,7 @@ class CameraWorker:
             except asyncio.CancelledError:
                 break
             except Exception as exc:
+                self.last_error_message = str(exc)
                 logger.error(f"Error in CameraWorker loop for {self.camera_id}: {exc}", exc_info=True)
                 await asyncio.sleep(1.0)
 
@@ -221,7 +317,7 @@ class CameraWorker:
         annotated_image: np.ndarray,
         t_start: float,
     ) -> None:
-        """Evaluate cooldown, upload evidence, and publish AlertEvent."""
+        """Evaluate cooldown, upload evidence with retry resilience, and publish AlertEvent."""
         now = time.time()
 
         for det in result.confirmed_detections:
@@ -242,13 +338,28 @@ class CameraWorker:
             # Generate unique alert UUID
             alert_uuid = uuid4()
 
-            # Upload evidence snapshot to MinIO
-            evidence_key = await self.minio.upload_evidence(
-                camera_id=self.camera_id,
-                alert_id=str(alert_uuid),
-                image_bgr=annotated_image,
-                jpeg_quality=settings.jpeg_quality,
-            )
+            # Upload evidence snapshot to MinIO with bounded retry resilience
+            evidence_key = None
+            evidence_error = None
+            for attempt in range(3):
+                try:
+                    evidence_key = await self.minio.upload_evidence(
+                        camera_id=self.camera_id,
+                        alert_id=str(alert_uuid),
+                        image_bgr=annotated_image,
+                        jpeg_quality=settings.jpeg_quality,
+                    )
+                    if evidence_key:
+                        break
+                except Exception as exc:
+                    evidence_error = str(exc)
+                    if attempt < 2:
+                        await asyncio.sleep(0.05 * (attempt + 1))
+
+            if not evidence_key:
+                logger.warning(
+                    f"MinIO evidence storage unavailable ({evidence_error}); falling back to source frame reference for alert {alert_uuid}"
+                )
 
             # Build enriched metadata dictionary
             metadata: Dict[str, Any] = {
@@ -269,6 +380,7 @@ class CameraWorker:
                 "verification_details": det.verification_details,
                 "false_alarm_reason": None,
                 "frame_seq": result.frame_seq,
+                "evidence_status": "stored" if evidence_key else "fallback",
             }
 
             # Title & description
@@ -305,3 +417,4 @@ class CameraWorker:
 
             e2e_lat = time.perf_counter() - t_start
             E2E_LATENCY.labels(camera_id=self.camera_id).observe(e2e_lat)
+

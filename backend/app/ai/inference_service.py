@@ -120,6 +120,7 @@ class DetectionService:
             low = raw.lower().strip()
             if low == "fire": return "fire"
             if low == "smoke": return "smoke"
+            if low in ("sparks", "spark"): return "sparks"
             return None
         return {
             str(cid): {"raw_name": raw, "mapped": _map_class(cid, raw)}

@@ -20,7 +20,7 @@ logger = logging.getLogger("fireguard.analytics")
 @router.get("/heatmap")
 def get_detection_heatmap(
     camera_id: Optional[str] = Query(None),
-    detection_type: Optional[str] = Query(None, regex="^(fire|smoke)$"),
+    detection_type: Optional[str] = Query(None, regex="^(fire|smoke|sparks)$"),
     limit: int = Query(500, ge=10, le=2000),
     db: Session = Depends(get_db),
 ):

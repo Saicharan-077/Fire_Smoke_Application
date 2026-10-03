@@ -1,0 +1,194 @@
+{
+  "phase_4_hardware": {
+    "execution_device": "cpu",
+    "cuda_available": false,
+    "gpu_name": "N/A (No CUDA GPU detected)",
+    "pytorch_version": "2.12.1+cpu",
+    "cpu_threads": 8,
+    "gpu_fabricated": false,
+    "status": "PASS"
+  },
+  "phase_5_fire": {
+    "real_fire_verified": true,
+    "flame_color_ratio": 0.6965,
+    "yellow_flame_verified": true,
+    "orange_flame_verified": true,
+    "red_flame_verified": true,
+    "four_frame_temporal_confirmed": true,
+    "single_frame_noise_suppressed": true,
+    "intermittent_noise_suppressed": true,
+    "status": "PASS"
+  },
+  "phase_6_sparks": {
+    "classes_isolated": true,
+    "glare_rejected": true,
+    "floodlight_rejected": true,
+    "real_sparks_verified": true,
+    "enclosure_suppression_working": true,
+    "status": "PASS"
+  },
+  "phase_7_smoke": {
+    "gray_smoke_verified": true,
+    "white_smoke_verified": true,
+    "dark_smoke_verified": true,
+    "real_smoke_verified": true,
+    "laplacian_not_hard_gate": true,
+    "smoke_isolated_from_sparks": true,
+    "status": "PASS"
+  },
+  "phase_8_small_objects": {
+    "matrix": [
+      {
+        "scene": "sample_fire.jpg",
+        "hazard": "SMOKE",
+        "scale": "Medium",
+        "bbox": [
+          543,
+          83,
+          796,
+          416
+        ],
+        "dim": "253x333",
+        "area_px": 84249,
+        "frame_pct": 7.97,
+        "yolo_conf": 0.831,
+        "final_conf": 0.67,
+        "detected": true
+      },
+      {
+        "scene": "sample_fire.jpg",
+        "hazard": "FIRE",
+        "scale": "Medium",
+        "bbox": [
+          635,
+          338,
+          782,
+          575
+        ],
+        "dim": "147x237",
+        "area_px": 34839,
+        "frame_pct": 3.3,
+        "yolo_conf": 0.828,
+        "final_conf": 0.738,
+        "detected": true
+      },
+      {
+        "scene": "sample_sparks.jpg",
+        "hazard": "SPARKS",
+        "scale": "Large",
+        "bbox": [
+          0,
+          0,
+          613,
+          350
+        ],
+        "dim": "613x350",
+        "area_px": 214550,
+        "frame_pct": 95.48,
+        "yolo_conf": 0.907,
+        "final_conf": 0.871,
+        "detected": true
+      },
+      {
+        "scene": "sample_sparks.jpg",
+        "hazard": "FIRE",
+        "scale": "Tiny",
+        "bbox": [
+          610,
+          61,
+          638,
+          76
+        ],
+        "dim": "28x15",
+        "area_px": 420,
+        "frame_pct": 0.19,
+        "yolo_conf": 0.389,
+        "final_conf": 0.532,
+        "detected": true
+      },
+      {
+        "scene": "sample_smoke.jpg (4K)",
+        "hazard": "SMOKE",
+        "scale": "Large",
+        "bbox": [
+          1304,
+          16,
+          3815,
+          1648
+        ],
+        "dim": "2511x1632",
+        "area_px": 4097952,
+        "frame_pct": 49.41,
+        "yolo_conf": 0.91,
+        "final_conf": 0.795,
+        "detected": true
+      }
+    ],
+    "smallest_target": {
+      "scene": "sample_sparks.jpg",
+      "hazard": "FIRE",
+      "scale": "Tiny",
+      "bbox": [
+        610,
+        61,
+        638,
+        76
+      ],
+      "dim": "28x15",
+      "area_px": 420,
+      "frame_pct": 0.19,
+      "yolo_conf": 0.389,
+      "final_conf": 0.532,
+      "detected": true
+    },
+    "status": "PASS"
+  },
+  "phase_9_10_alerts": {
+    "frames_processed": 15,
+    "alerts_count": 23,
+    "hazards_seen": [
+      "smoke_detected",
+      "fire_detected"
+    ],
+    "avg_latency_ms": 175.17,
+    "valid_schema": true,
+    "status": "PASS"
+  },
+  "phase_11_multi_hazard": {
+    "fire_isolated": true,
+    "smoke_isolated": true,
+    "sparks_isolated": true,
+    "all_isolated": true,
+    "status": "PASS"
+  },
+  "phase_12_multi_camera": {
+    "cam_a_detections": 2,
+    "cam_b_detections": 0,
+    "isolated": true,
+    "status": "PASS"
+  },
+  "phase_13_reconnect": {
+    "pre_disconnect_seq": 5,
+    "post_reconnect_start_seq": 6,
+    "monotonic_continuation": true,
+    "status": "PASS"
+  },
+  "phase_14_freshness": {
+    "avg_frame_age_ms": 272.75,
+    "p95_frame_age_ms": 343.47,
+    "p99_frame_age_ms": 377.28,
+    "processed_frames": 1047,
+    "skipped_frames": 0,
+    "frame_freshness_bounded": true,
+    "status": "PASS"
+  },
+  "phase_2_3_profiling": {
+    "avg_yolo_ms": 127.47,
+    "avg_verif_ms": 108.75,
+    "avg_enc_ms": 7.35,
+    "avg_pipe_ms": 136.58,
+    "yolo_bottleneck_pct": 93.3,
+    "measured_cpu_fps": 7.32,
+    "status": "PASS"
+  }
+}

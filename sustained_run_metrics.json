@@ -1,0 +1,29 @@
+{
+  "duration_s": 300.2,
+  "source_fps": 3.49,
+  "ingestion_fps": 3.49,
+  "uc2_fps": 3.49,
+  "source_frames": 1047,
+  "processed_frames": 1047,
+  "skipped_frames": 0,
+  "avg_latency_ms": 263.29,
+  "p95_latency_ms": 332.89,
+  "p99_latency_ms": 370.19,
+  "max_latency_ms": 607.08,
+  "avg_frame_age_ms": 272.75,
+  "p95_frame_age_ms": 343.47,
+  "p99_frame_age_ms": 377.28,
+  "max_frame_age_ms": 617.36,
+  "mem_checkpoints_mb": {
+    "0": 366.13,
+    "1": 587.44,
+    "2": 584.41,
+    "3": 584.38,
+    "4": 586.84,
+    "5": 544.82
+  },
+  "fire_detections": 990,
+  "smoke_detections": 1045,
+  "sparks_detections": 0,
+  "alert_events_created": 10
+}

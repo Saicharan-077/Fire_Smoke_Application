@@ -873,8 +873,8 @@ class DetectionLayer:
                 ix2, iy2 = min(bb["x2"], kbb["x2"]), min(bb["y2"], kbb["y2"])
                 if ix2 > ix1 and iy2 > iy1:
                     inter_area = (ix2 - ix1) * (iy2 - iy1)
-                    # If this box is sparks and inside/overlapping a larger fire box, suppress it to prevent bonfire clutter
-                    if d["detection_type"] in ("sparks", "spark") and kept["detection_type"] == "fire" and (inter_area / float(box_area)) > 0.15:
+                    # If this box is sparks and inside/overlapping a larger fire or smoke box, suppress it to prevent false sparks on smoke/fire
+                    if d["detection_type"] in ("sparks", "spark") and kept["detection_type"] in ("fire", "smoke") and (inter_area / float(box_area)) > 0.20:
                         is_enclosed = True
                         break
                     # Only suppress redundant sub-boxes of the SAME class (e.g. smaller flame inside larger flame)
@@ -1011,8 +1011,8 @@ class DetectionLayer:
         active_cfg = self._merge_db_settings(db_settings)
         cap = cv2.VideoCapture(video_path)
         frame_num = 0
-        counters: Dict[str, int] = {"fire": 0, "smoke": 0}
-        triggered: Dict[str, bool] = {"fire": False, "smoke": False}
+        counters: Dict[str, int] = {"fire": 0, "smoke": 0, "sparks": 0}
+        triggered: Dict[str, bool] = {"fire": False, "smoke": False, "sparks": False}
 
         # Use actual frame_skip from db_settings, not conf_threshold
         frame_skip = int(db_settings.get("frame_skip", 0)) if db_settings else 0

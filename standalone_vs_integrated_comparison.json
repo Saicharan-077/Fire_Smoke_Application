@@ -1,0 +1,59 @@
+[
+  {
+    "name": "Fire Scene (Warehouse)",
+    "dimensions": "1376x768",
+    "psnr_db": 34.59,
+    "standalone_classes": [
+      "fire",
+      "sparks",
+      "sparks",
+      "sparks",
+      "sparks",
+      "sparks",
+      "sparks",
+      "sparks",
+      "sparks",
+      "sparks",
+      "sparks",
+      "sparks",
+      "smoke"
+    ],
+    "integrated_classes": [
+      "smoke",
+      "fire"
+    ],
+    "standalone_latency_ms": 438.4,
+    "integrated_latency_ms": 347.0,
+    "preserved": true
+  },
+  {
+    "name": "Smoke Plume (High-Res)",
+    "dimensions": "3840x2160",
+    "psnr_db": 44.1,
+    "standalone_classes": [
+      "smoke"
+    ],
+    "integrated_classes": [
+      "smoke"
+    ],
+    "standalone_latency_ms": 597.0,
+    "integrated_latency_ms": 1121.6,
+    "preserved": true
+  },
+  {
+    "name": "Sparks Scene (Industrial)",
+    "dimensions": "642x350",
+    "psnr_db": 41.09,
+    "standalone_classes": [
+      "fire"
+    ],
+    "integrated_classes": [
+      "sparks",
+      "fire",
+      "fire"
+    ],
+    "standalone_latency_ms": 388.3,
+    "integrated_latency_ms": 343.2,
+    "preserved": true
+  }
+]

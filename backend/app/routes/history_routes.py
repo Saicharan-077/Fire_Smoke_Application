@@ -80,7 +80,7 @@ def get_history(
     page_size: int = Query(20, ge=1, le=100),
     search: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
-    type: Optional[str] = Query(None, regex="^(fire|smoke)$"),
+    type: Optional[str] = Query(None, regex="^(fire|smoke|sparks)$"),
     start_date: Optional[str] = Query(None, description="YYYY-MM-DD"),
     end_date: Optional[str] = Query(None, description="YYYY-MM-DD"),
     db: Session = Depends(get_db),
@@ -137,7 +137,7 @@ def get_history(
 def export_history_csv(
     search: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
-    type: Optional[str] = Query(None, regex="^(fire|smoke)$"),
+    type: Optional[str] = Query(None, regex="^(fire|smoke|sparks)$"),
     start_date: Optional[str] = Query(None, description="YYYY-MM-DD"),
     end_date: Optional[str] = Query(None, description="YYYY-MM-DD"),
     db: Session = Depends(get_db),
@@ -201,7 +201,7 @@ def export_history_csv(
 def export_history_pdf(
     search: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
-    type: Optional[str] = Query(None, regex="^(fire|smoke)$"),
+    type: Optional[str] = Query(None, regex="^(fire|smoke|sparks)$"),
     start_date: Optional[str] = Query(None, description="YYYY-MM-DD"),
     end_date: Optional[str] = Query(None, description="YYYY-MM-DD"),
     db: Session = Depends(get_db),
@@ -277,7 +277,7 @@ def export_history_pdf(
 def export_history_json(
     search: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
-    type: Optional[str] = Query(None, regex="^(fire|smoke)$"),
+    type: Optional[str] = Query(None, regex="^(fire|smoke|sparks)$"),
     start_date: Optional[str] = Query(None, description="YYYY-MM-DD"),
     end_date: Optional[str] = Query(None, description="YYYY-MM-DD"),
     db: Session = Depends(get_db),

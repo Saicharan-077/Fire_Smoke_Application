@@ -32,9 +32,10 @@ def test_alert_event_validation_errors():
         severity=AlertSeverity.high,
         alert_type="smoke_detected",
         title="  ",  # Whitespace title
-        description="",  # Empty description
+        description="   ",  # Whitespace description
         source_uc=SourceUC.uc2,
     )
+
     errors = AlertEventValidator.validate(alert, known_cam_ids=["cam-001"])
     assert len(errors) >= 3
     assert any("Title cannot be empty" in e for e in errors)

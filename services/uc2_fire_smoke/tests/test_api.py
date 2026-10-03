@@ -59,3 +59,30 @@ def test_api_mode_switch():
     response = client.post("/mode", json={"mode": "SENSITIVE"})
     assert response.status_code == 200
     assert response.json()["detection_mode"] == "SENSITIVE"
+
+
+def test_api_liveness_probe():
+    client = TestClient(app)
+    response = client.get("/health/live")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "alive"
+    assert "timestamp" in data
+
+
+def test_api_readiness_probe():
+    client = TestClient(app)
+    response = client.get("/health/ready")
+    assert response.status_code in [200, 503]
+    data = response.json()
+    assert "ready" in data
+    assert "dependencies" in data
+
+
+def test_api_model_metadata():
+    client = TestClient(app)
+    response = client.get("/model")
+    assert response.status_code == 200
+    data = response.json()
+    assert "model_version" in data
+
