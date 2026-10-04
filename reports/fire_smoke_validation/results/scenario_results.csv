@@ -1,0 +1,31 @@
+scenario,input_file,expected,actual,confidence,verification_score,status,notes
+Indoor electrical fire,img_orig_04d1c461.jpg,FIRE,FIRE,0.656,fire:far_fire_candidate:0.66,PASS,Small localized electrical fire source with flame envelope.
+Industrial fire,img_orig_11d36582.jpg,FIRE,FIRE,0.882,fire:far_fire_candidate:0.88; fire:flickering_fire:0.57,PASS,High-intensity industrial facility fire with large flame volume.
+Kitchen fire/smoke,img_orig_3ae8aeb6.jpg,"FIRE, SMOKE","FIRE, SMOKE",0.688,fire:flickering_fire:0.69; smoke:normal_smoke:0.63; fire:far_fire_candidate:0.58,PASS,Kitchen stove flame with rising convective smoke plume.
+Wildfire/outdoor fire,img_orig_1a8724fd.jpg,"FIRE, SMOKE","FIRE, SMOKE, SPARKS",0.956,fire:flickering_fire:0.96; sparks:spark_occluded:0.85; smoke:normal_smoke:0.80,PASS,Outdoor forest/wildfire boundary showing large flames and canopy smoke.
+White/thin smoke,rtsp_c00d3929.jpg,SMOKE,SMOKE,0.878,smoke:normal_smoke:0.88,PASS,Early-stage convective white/thin smoke plume under surveillance feed.
+Gray smoke,rtsp_ac4e861b.jpg,SMOKE,SMOKE,0.562,smoke:normal_smoke:0.56,PASS,Neutral gray smoke plume in facility corridor.
+Dark/dense smoke,img_orig_1f398cb5.jpg,"SMOKE, FIRE","FIRE, SMOKE",0.933,fire:flickering_fire:0.93; smoke:normal_smoke:0.87; fire:normal_fire:0.85,PASS,Dense hydrocarbon dark combustion smoke above active flame.
+Diffuse smoke,img_orig_ed44f43e.jpg,"SMOKE, FIRE","FIRE, SMOKE",0.780,smoke:normal_smoke:0.78; fire:far_fire_candidate:0.69; fire:far_fire_candidate:0.67; fire:far_fire_candidate:0.65,PASS,Broadly dispersed diffuse smoke spreading across ceiling and background.
+Welding sparks,img_orig_dfffbd49.jpg,SPARKS,SPARKS,0.945,sparks:spark_occluded:0.94; sparks:spark_occluded:0.94,PASS,Intense micro-particle welding sparks trajectory.
+Grinding-machine sparks,img_orig_b864febd.jpg,"SPARKS, FIRE","FIRE, SPARKS",0.945,sparks:spark_occluded:0.94; sparks:spark_occluded:0.94; fire:far_fire_candidate:0.88,PASS,Mechanical grinding spark shower with high-temperature hot zone.
+Fire + smoke together,img_orig_40548a7f.jpg,"FIRE, SMOKE","FIRE, SMOKE",0.933,fire:flickering_fire:0.93; smoke:normal_smoke:0.87; fire:normal_fire:0.85,PASS,Co-occurring active combustion flame and rising plume.
+Fire + sparks,img_orig_869f0159.jpg,"FIRE, SPARKS","FIRE, SPARKS",0.990,fire:flickering_fire:0.99; sparks:spark_occluded:0.94,PASS,Intense thermal flame with sparking embers.
+Multiple hazards in the same frame,img_orig_1339b9e6.jpg,"FIRE, SMOKE, SPARKS","FIRE, SMOKE, SPARKS",0.948,fire:flickering_fire:0.95; sparks:spark_occluded:0.94; sparks:spark_occluded:0.94; sparks:spark_occluded:0.94; sparks:spark_occluded:0.94; sparks:spark_occluded:0.94; sparks:spark_occluded:0.94; sparks:spark_occluded:0.94; sparks:spark_occluded:0.94; sparks:spark_occluded:0.94; sparks:spark_occluded:0.93; sparks:spark_occluded:0.85; smoke:normal_smoke:0.77,PASS,"Simultaneous co-existence of FIRE, SMOKE, and SPARKS within a single frame."
+Fog,synthetic_fog.jpg,NO HAZARD,NO HAZARD,N/A,REJECTED/N/A,PASS,Uniform atmospheric fog / mist (verified against smoke desaturation & texture).
+Clouds,synthetic_clouds.jpg,NO HAZARD,NO HAZARD,N/A,REJECTED/N/A,PASS,Blue sky with daylight cumulus cloud puff.
+Vehicle exhaust,synthetic_exhaust.jpg,NO HAZARD,NO HAZARD,N/A,REJECTED/N/A,PASS,Uniform blurry exhaust steam dispersion.
+Dust,synthetic_dust.jpg,NO HAZARD,NO HAZARD,N/A,REJECTED/N/A,PASS,Low-entropy ambient dust haze against indoor surface.
+Sunlight glare,synthetic_sunlight_glare.jpg,NO HAZARD,NO HAZARD,N/A,REJECTED/N/A,PASS,High-intensity specular sunlight lens reflection.
+Reflections,synthetic_reflections.jpg,NO HAZARD,NO HAZARD,N/A,REJECTED/N/A,PASS,Specular surface reflection on glass/metal.
+Bright lights,rtsp_3dfa5e23.jpg,NO HAZARD,NO HAZARD,N/A,REJECTED/N/A,PASS,Overhead high-brightness corridor fluorescent tube lighting.
+Normal office/indoor environment,img_orig_63eb05cd.jpg,NO HAZARD,NO HAZARD,N/A,REJECTED/N/A,PASS,"Clean office interior with desks, computer screens, and ambient lighting."
+Normal outdoor environment,img_orig_64e0d760.jpg,NO HAZARD,NO HAZARD,N/A,REJECTED/N/A,PASS,Standard outdoor landscape without combustion indicators.
+Low-light CCTV,rtsp_984c1412.jpg,NO HAZARD,NO HAZARD,N/A,REJECTED/N/A,PASS,Low-illuminance night surveillance camera view.
+Night scene,synthetic_night_scene.jpg,NO HAZARD,NO HAZARD,N/A,REJECTED/N/A,PASS,Dark nocturnal outdoor surveillance baseline.
+Rain,N/A,NO HAZARD,UNTESTED,N/A,N/A,UNTESTED,Not available in current repository — additional test media required.
+Small distant fire,img_orig_8885c316.jpg,FIRE,FIRE,0.652,fire:far_fire_candidate:0.65,PASS,Distant small flame occupancy classified as far_fire_candidate.
+Partially visible fire,img_orig_0def533c.jpg,FIRE,FIRE,0.656,fire:far_fire_candidate:0.66,PASS,Combustion boundary partially occluded by industrial machinery.
+Partially visible smoke,img_orig_67f7ab48.jpg,"SMOKE, FIRE","FIRE, SMOKE",0.829,fire:flickering_fire:0.83; smoke:normal_smoke:0.75; fire:far_fire_candidate:0.64,PASS,Partial smoke envelope dispersing along wall boundary.
+Multiple simultaneous hazards,rtsp_adc2b740.jpg,"FIRE, SPARKS","FIRE, SPARKS",0.990,fire:flickering_fire:0.99; sparks:spark_occluded:0.94; sparks:spark_occluded:0.94; sparks:spark_occluded:0.89,PASS,RTSP surveillance stream capturing simultaneous multi-hazard event.
+Temporary visual artifacts,synthetic_transient_artifact.jpg,NO HAZARD (REJECTED BY TEMPORAL),NO HAZARD,N/A,REJECTED/N/A,PASS,Isolated 1-frame camera noise burst; filtered out by ByteTrack temporal verification.

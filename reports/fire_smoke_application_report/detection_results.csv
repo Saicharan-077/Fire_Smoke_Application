@@ -1,0 +1,49 @@
+image_id,filename,source_path,scenario,width,height,class,confidence,verification_score,x1,y1,x2,y2,area,status
+IMAGE_001,debug_raw_yolo_frame_151.jpg,debug_raw_yolo_frame_151.jpg,Horizon Wildfire Convective Smoke Plume (4K),3840,2160,SMOKE,88.8%,0.89,1304,16,3815,1648,4097952,CONFIRMED
+IMAGE_002,img_orig_04d1c461.jpg,backend/evidence/img_orig_04d1c461.jpg,Localized Indoor Electrical Fire,642,350,FIRE,65.6%,0.66,610,61,638,76,420,CONFIRMED
+IMAGE_003,img_orig_0b1468d1.jpg,backend/evidence/img_orig_0b1468d1.jpg,Wildfire Canopy & Forest Underbrush Flame,1800,1800,FIRE,79.6%,0.80,753,1706,845,1780,6808,CONFIRMED
+IMAGE_003,img_orig_0b1468d1.jpg,backend/evidence/img_orig_0b1468d1.jpg,Wildfire Canopy & Forest Underbrush Flame,1800,1800,FIRE,58.9%,0.59,885,67,1189,1693,494304,CONFIRMED
+IMAGE_004,img_orig_11d36582.jpg,backend/evidence/img_orig_11d36582.jpg,Industrial Facility Structural Fire,547,365,FIRE,88.2%,0.88,29,206,80,236,1530,CONFIRMED
+IMAGE_004,img_orig_11d36582.jpg,backend/evidence/img_orig_11d36582.jpg,Industrial Facility Structural Fire,547,365,FIRE,57.0%,0.57,124,92,430,270,54468,CONFIRMED
+IMAGE_005,img_orig_1339b9e6.jpg,backend/evidence/img_orig_1339b9e6.jpg,Industrial Grinding / Hot-Work Multi-Hazard,1376,768,FIRE,94.8%,0.95,635,339,782,574,34545,CONFIRMED
+IMAGE_005,img_orig_1339b9e6.jpg,backend/evidence/img_orig_1339b9e6.jpg,Industrial Grinding / Hot-Work Multi-Hazard,1376,768,SPARKS,94.5%,0.94,36,694,122,738,3784,CONFIRMED
+IMAGE_005,img_orig_1339b9e6.jpg,backend/evidence/img_orig_1339b9e6.jpg,Industrial Grinding / Hot-Work Multi-Hazard,1376,768,SPARKS,94.5%,0.94,509,721,578,751,2070,CONFIRMED
+IMAGE_005,img_orig_1339b9e6.jpg,backend/evidence/img_orig_1339b9e6.jpg,Industrial Grinding / Hot-Work Multi-Hazard,1376,768,SPARKS,94.5%,0.94,1178,709,1247,738,2001,CONFIRMED
+IMAGE_005,img_orig_1339b9e6.jpg,backend/evidence/img_orig_1339b9e6.jpg,Industrial Grinding / Hot-Work Multi-Hazard,1376,768,SPARKS,94.5%,0.94,813,721,867,751,1620,CONFIRMED
+IMAGE_005,img_orig_1339b9e6.jpg,backend/evidence/img_orig_1339b9e6.jpg,Industrial Grinding / Hot-Work Multi-Hazard,1376,768,SPARKS,94.5%,0.94,676,721,715,751,1170,CONFIRMED
+IMAGE_005,img_orig_1339b9e6.jpg,backend/evidence/img_orig_1339b9e6.jpg,Industrial Grinding / Hot-Work Multi-Hazard,1376,768,SPARKS,94.5%,0.94,1254,709,1293,738,1131,CONFIRMED
+IMAGE_005,img_orig_1339b9e6.jpg,backend/evidence/img_orig_1339b9e6.jpg,Industrial Grinding / Hot-Work Multi-Hazard,1376,768,SPARKS,94.5%,0.94,1299,712,1337,739,1026,CONFIRMED
+IMAGE_005,img_orig_1339b9e6.jpg,backend/evidence/img_orig_1339b9e6.jpg,Industrial Grinding / Hot-Work Multi-Hazard,1376,768,SPARKS,94.5%,0.94,782,721,806,751,720,CONFIRMED
+IMAGE_005,img_orig_1339b9e6.jpg,backend/evidence/img_orig_1339b9e6.jpg,Industrial Grinding / Hot-Work Multi-Hazard,1376,768,SPARKS,94.5%,0.94,646,721,669,751,690,CONFIRMED
+IMAGE_005,img_orig_1339b9e6.jpg,backend/evidence/img_orig_1339b9e6.jpg,Industrial Grinding / Hot-Work Multi-Hazard,1376,768,SPARKS,92.5%,0.93,736,721,760,751,720,CONFIRMED
+IMAGE_005,img_orig_1339b9e6.jpg,backend/evidence/img_orig_1339b9e6.jpg,Industrial Grinding / Hot-Work Multi-Hazard,1376,768,SPARKS,84.8%,0.85,812,396,866,441,2430,CONFIRMED
+IMAGE_005,img_orig_1339b9e6.jpg,backend/evidence/img_orig_1339b9e6.jpg,Industrial Grinding / Hot-Work Multi-Hazard,1376,768,SMOKE,77.1%,0.77,544,83,796,415,83664,CONFIRMED
+IMAGE_006,img_orig_1a8724fd.jpg,backend/evidence/img_orig_1a8724fd.jpg,Wildfire Flame Wall with Embers & Smoke Plume,1408,768,FIRE,95.6%,0.96,815,358,947,520,21384,CONFIRMED
+IMAGE_006,img_orig_1a8724fd.jpg,backend/evidence/img_orig_1a8724fd.jpg,Wildfire Flame Wall with Embers & Smoke Plume,1408,768,SPARKS,85.4%,0.85,384,512,408,544,768,CONFIRMED
+IMAGE_006,img_orig_1a8724fd.jpg,backend/evidence/img_orig_1a8724fd.jpg,Wildfire Flame Wall with Embers & Smoke Plume,1408,768,SMOKE,79.5%,0.80,271,16,904,442,269658,CONFIRMED
+IMAGE_007,img_orig_1ed82628.jpg,backend/evidence/img_orig_1ed82628.jpg,Commercial Structure Flame Venting,800,534,FIRE,92.7%,0.93,6,26,794,534,400304,CONFIRMED
+IMAGE_008,img_orig_1f398cb5.jpg,backend/evidence/img_orig_1f398cb5.jpg,Open-Air Debris Combustion & Rising Smoke,540,360,FIRE,93.3%,0.93,267,171,468,359,37788,CONFIRMED
+IMAGE_008,img_orig_1f398cb5.jpg,backend/evidence/img_orig_1f398cb5.jpg,Open-Air Debris Combustion & Rising Smoke,540,360,SMOKE,86.9%,0.87,0,1,540,360,193860,CONFIRMED
+IMAGE_008,img_orig_1f398cb5.jpg,backend/evidence/img_orig_1f398cb5.jpg,Open-Air Debris Combustion & Rising Smoke,540,360,FIRE,84.9%,0.85,80,202,249,360,26702,CONFIRMED
+IMAGE_009,img_orig_3ae8aeb6.jpg,backend/evidence/img_orig_3ae8aeb6.jpg,Kitchen Range Fire & Greasy Smoke,612,410,FIRE,68.8%,0.69,163,249,564,378,51729,CONFIRMED
+IMAGE_009,img_orig_3ae8aeb6.jpg,backend/evidence/img_orig_3ae8aeb6.jpg,Kitchen Range Fire & Greasy Smoke,612,410,SMOKE,63.4%,0.63,3,0,612,333,202797,CONFIRMED
+IMAGE_009,img_orig_3ae8aeb6.jpg,backend/evidence/img_orig_3ae8aeb6.jpg,Kitchen Range Fire & Greasy Smoke,612,410,FIRE,57.6%,0.58,584,354,612,385,868,CONFIRMED
+IMAGE_010,img_orig_63eb05cd.jpg,backend/evidence/img_orig_63eb05cd.jpg,Uniform High-Chroma Red Surface (Distractor Rejection),640,640,NONE,0.0%,0.00,0,0,0,0,0,NO_DETECTION
+IMAGE_011,img_orig_64e0d760.jpg,backend/evidence/img_orig_64e0d760.jpg,Normal Indoor Office Wall & Partition,289,174,NONE,0.0%,0.00,0,0,0,0,0,NO_DETECTION
+IMAGE_012,img_orig_67f7ab48.jpg,backend/evidence/img_orig_67f7ab48.jpg,Industrial Warehouse Fire & Dense Dark Smoke,992,416,FIRE,82.9%,0.83,521,182,649,329,18816,CONFIRMED
+IMAGE_012,img_orig_67f7ab48.jpg,backend/evidence/img_orig_67f7ab48.jpg,Industrial Warehouse Fire & Dense Dark Smoke,992,416,SMOKE,74.7%,0.75,436,3,675,252,59511,CONFIRMED
+IMAGE_012,img_orig_67f7ab48.jpg,backend/evidence/img_orig_67f7ab48.jpg,Industrial Warehouse Fire & Dense Dark Smoke,992,416,FIRE,64.3%,0.64,573,332,643,395,4410,CONFIRMED
+IMAGE_013,img_orig_869f0159.jpg,backend/evidence/img_orig_869f0159.jpg,High-Temperature Torch Cutting & Spark Spray,1920,1080,FIRE,99.0%,0.99,469,3,1410,1067,1001224,CONFIRMED
+IMAGE_013,img_orig_869f0159.jpg,backend/evidence/img_orig_869f0159.jpg,High-Temperature Torch Cutting & Spark Spray,1920,1080,SPARKS,94.5%,0.94,420,0,470,28,1400,CONFIRMED
+IMAGE_014,img_orig_8885c316.jpg,backend/evidence/img_orig_8885c316.jpg,Distant Nighttime Burning Hotspot (Low Light),512,512,FIRE,65.2%,0.65,253,359,281,393,952,CONFIRMED
+IMAGE_015,img_orig_b774e203.jpg,backend/evidence/img_orig_b774e203.jpg,Daylight Sky with Natural Clouds (Distractor Rejection),641,360,NONE,0.0%,0.00,0,0,0,0,0,NO_DETECTION
+IMAGE_016,img_orig_b864febd.jpg,backend/evidence/img_orig_b864febd.jpg,Electrical Arc Discharge & Spark Ignition,547,365,SPARKS,94.5%,0.94,254,151,290,196,1620,CONFIRMED
+IMAGE_016,img_orig_b864febd.jpg,backend/evidence/img_orig_b864febd.jpg,Electrical Arc Discharge & Spark Ignition,547,365,SPARKS,94.5%,0.94,310,169,339,192,667,CONFIRMED
+IMAGE_016,img_orig_b864febd.jpg,backend/evidence/img_orig_b864febd.jpg,Electrical Arc Discharge & Spark Ignition,547,365,FIRE,88.0%,0.88,29,206,80,236,1530,CONFIRMED
+IMAGE_017,img_orig_dfffbd49.jpg,backend/evidence/img_orig_dfffbd49.jpg,Vertical Welding Spark Shower,738,1600,SPARKS,94.5%,0.94,202,665,252,701,1800,CONFIRMED
+IMAGE_017,img_orig_dfffbd49.jpg,backend/evidence/img_orig_dfffbd49.jpg,Vertical Welding Spark Shower,738,1600,SPARKS,94.5%,0.94,192,772,216,796,576,CONFIRMED
+IMAGE_018,img_orig_ed44f43e.jpg,backend/evidence/img_orig_ed44f43e.jpg,Petrochemical Plant Blaze with Plume,1408,768,SMOKE,78.0%,0.78,63,0,1073,293,295930,CONFIRMED
+IMAGE_018,img_orig_ed44f43e.jpg,backend/evidence/img_orig_ed44f43e.jpg,Petrochemical Plant Blaze with Plume,1408,768,FIRE,69.2%,0.69,828,277,874,309,1472,CONFIRMED
+IMAGE_018,img_orig_ed44f43e.jpg,backend/evidence/img_orig_ed44f43e.jpg,Petrochemical Plant Blaze with Plume,1408,768,FIRE,66.8%,0.67,772,277,799,311,918,CONFIRMED
+IMAGE_018,img_orig_ed44f43e.jpg,backend/evidence/img_orig_ed44f43e.jpg,Petrochemical Plant Blaze with Plume,1408,768,FIRE,64.9%,0.65,498,241,526,301,1680,CONFIRMED
+IMAGE_019,img_orig_fcad80a0.jpg,backend/evidence/img_orig_fcad80a0.jpg,Zero-Lux Complete Facility Blackout,640,480,NONE,0.0%,0.00,0,0,0,0,0,NO_DETECTION

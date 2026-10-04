@@ -1,0 +1,1615 @@
+[
+  {
+    "id": 1,
+    "scenario": "Indoor electrical fire",
+    "orig_img": "sc_01_img_orig_04d1c461_orig.jpg",
+    "annot_img": "sc_01_img_orig_04d1c461_annotated.jpg",
+    "expected": "FIRE",
+    "actual": "FIRE",
+    "detections": [
+      {
+        "detection_type": "fire",
+        "confidence": 0.6559,
+        "bbox": {
+          "x1": 610,
+          "y1": 61,
+          "x2": 638,
+          "y2": 76
+        },
+        "raw_class_name": "fire",
+        "class_id": 0,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "flame_color_ratio": 0.2214,
+          "avg_brightness": 137.11,
+          "avg_saturation": 140.57,
+          "components_count": 1,
+          "sparks_count": 6,
+          "flicker_index": 0.97
+        },
+        "raw_yolo_conf": 0.3341,
+        "candidate_category": "far_fire_candidate",
+        "alert_level": "RED",
+        "fusion_score": 0.6559
+      }
+    ],
+    "status": "PASS",
+    "notes": "Small localized electrical fire source with flame envelope.",
+    "latency_ms": 207.8
+  },
+  {
+    "id": 2,
+    "scenario": "Industrial fire",
+    "orig_img": "sc_02_img_orig_11d36582_orig.jpg",
+    "annot_img": "sc_02_img_orig_11d36582_annotated.jpg",
+    "expected": "FIRE",
+    "actual": "FIRE",
+    "detections": [
+      {
+        "detection_type": "fire",
+        "confidence": 0.8816,
+        "bbox": {
+          "x1": 29,
+          "y1": 206,
+          "x2": 80,
+          "y2": 236
+        },
+        "raw_class_name": "fire",
+        "class_id": 0,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "flame_color_ratio": 0.1804,
+          "avg_brightness": 124.47,
+          "avg_saturation": 155.36,
+          "components_count": 3,
+          "sparks_count": 7,
+          "flicker_index": 0.838
+        },
+        "raw_yolo_conf": 0.7746,
+        "candidate_category": "far_fire_candidate",
+        "alert_level": "RED",
+        "fusion_score": 0.8816
+      },
+      {
+        "detection_type": "fire",
+        "confidence": 0.5697,
+        "bbox": {
+          "x1": 124,
+          "y1": 92,
+          "x2": 430,
+          "y2": 270
+        },
+        "raw_class_name": "fire",
+        "class_id": 0,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "flame_color_ratio": 0.1336,
+          "avg_brightness": 138.68,
+          "avg_saturation": 151.31,
+          "components_count": 30,
+          "sparks_count": 65,
+          "flicker_index": 0.856
+        },
+        "raw_yolo_conf": 0.1926,
+        "candidate_category": "flickering_fire",
+        "alert_level": "YELLOW",
+        "fusion_score": 0.5697
+      }
+    ],
+    "status": "PASS",
+    "notes": "High-intensity industrial facility fire with large flame volume.",
+    "latency_ms": 271.7
+  },
+  {
+    "id": 3,
+    "scenario": "Kitchen fire/smoke",
+    "orig_img": "sc_03_img_orig_3ae8aeb6_orig.jpg",
+    "annot_img": "sc_03_img_orig_3ae8aeb6_annotated.jpg",
+    "expected": "FIRE, SMOKE",
+    "actual": "FIRE, SMOKE",
+    "detections": [
+      {
+        "detection_type": "fire",
+        "confidence": 0.6876,
+        "bbox": {
+          "x1": 163,
+          "y1": 249,
+          "x2": 564,
+          "y2": 378
+        },
+        "raw_class_name": "fire",
+        "class_id": 0,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "flame_color_ratio": 0.8978,
+          "avg_brightness": 149.75,
+          "avg_saturation": 216.53,
+          "components_count": 1,
+          "sparks_count": 49,
+          "flicker_index": 0.979
+        },
+        "raw_yolo_conf": 0.3797,
+        "candidate_category": "flickering_fire",
+        "alert_level": "RED",
+        "fusion_score": 0.6876
+      },
+      {
+        "detection_type": "smoke",
+        "confidence": 0.6339,
+        "bbox": {
+          "x1": 3,
+          "y1": 0,
+          "x2": 612,
+          "y2": 333
+        },
+        "raw_class_name": "smoke",
+        "class_id": 1,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "avg_saturation": 161.06,
+          "avg_brightness": 146.27,
+          "avg_chroma": 92.48,
+          "texture_std": 30.64,
+          "edge_density": 0.0421,
+          "entropy": 6.89,
+          "laplacian_var": 165.97,
+          "avg_gradient_mag": 24.37
+        },
+        "raw_yolo_conf": 0.7057,
+        "candidate_category": "normal_smoke",
+        "alert_level": "YELLOW",
+        "fusion_score": 0.6339
+      },
+      {
+        "detection_type": "fire",
+        "confidence": 0.5756,
+        "bbox": {
+          "x1": 584,
+          "y1": 354,
+          "x2": 612,
+          "y2": 385
+        },
+        "raw_class_name": "fire",
+        "class_id": 0,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "flame_color_ratio": 0.8491,
+          "avg_brightness": 115.09,
+          "avg_saturation": 213.02,
+          "components_count": 1,
+          "sparks_count": 4,
+          "flicker_index": 0.936
+        },
+        "raw_yolo_conf": 0.212,
+        "candidate_category": "far_fire_candidate",
+        "alert_level": "YELLOW",
+        "fusion_score": 0.5756
+      }
+    ],
+    "status": "PASS",
+    "notes": "Kitchen stove flame with rising convective smoke plume.",
+    "latency_ms": 221.2
+  },
+  {
+    "id": 4,
+    "scenario": "Wildfire/outdoor fire",
+    "orig_img": "sc_04_img_orig_1a8724fd_orig.jpg",
+    "annot_img": "sc_04_img_orig_1a8724fd_annotated.jpg",
+    "expected": "FIRE, SMOKE",
+    "actual": "FIRE, SMOKE, SPARKS",
+    "detections": [
+      {
+        "detection_type": "fire",
+        "confidence": 0.9561,
+        "bbox": {
+          "x1": 815,
+          "y1": 358,
+          "x2": 947,
+          "y2": 520
+        },
+        "raw_class_name": "fire",
+        "class_id": 0,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "flame_color_ratio": 0.8153,
+          "avg_brightness": 178.11,
+          "avg_saturation": 179.94,
+          "components_count": 1,
+          "sparks_count": 25,
+          "flicker_index": 1.0
+        },
+        "raw_yolo_conf": 0.8406,
+        "candidate_category": "flickering_fire",
+        "alert_level": "RED",
+        "fusion_score": 0.9561
+      },
+      {
+        "detection_type": "sparks",
+        "confidence": 0.8536,
+        "bbox": {
+          "x1": 384,
+          "y1": 512,
+          "x2": 408,
+          "y2": 544
+        },
+        "source": "cv",
+        "candidate_category": "spark_occluded",
+        "alert_level": "RED",
+        "verified": true,
+        "verification_scores": {
+          "max_brightness": 255.0,
+          "avg_brightness": 90.2,
+          "std_brightness": 44.2,
+          "spark_pixels": 0,
+          "spark_ratio": 0.0
+        },
+        "rejection_reason": "passed",
+        "raw_yolo_conf": 0.7654,
+        "fusion_score": 0.8536
+      },
+      {
+        "detection_type": "smoke",
+        "confidence": 0.7955,
+        "bbox": {
+          "x1": 271,
+          "y1": 16,
+          "x2": 904,
+          "y2": 442
+        },
+        "raw_class_name": "smoke",
+        "class_id": 1,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "avg_saturation": 88.51,
+          "avg_brightness": 47.89,
+          "avg_chroma": 19.96,
+          "texture_std": 34.14,
+          "edge_density": 0.051,
+          "entropy": 6.21,
+          "laplacian_var": 736.96,
+          "avg_gradient_mag": 33.38
+        },
+        "raw_yolo_conf": 0.8589,
+        "candidate_category": "normal_smoke",
+        "alert_level": "RED",
+        "fusion_score": 0.7955
+      }
+    ],
+    "status": "PASS",
+    "notes": "Outdoor forest/wildfire boundary showing large flames and canopy smoke.",
+    "latency_ms": 232.0
+  },
+  {
+    "id": 5,
+    "scenario": "White/thin smoke",
+    "orig_img": "sc_05_rtsp_c00d3929_orig.jpg",
+    "annot_img": "sc_05_rtsp_c00d3929_annotated.jpg",
+    "expected": "SMOKE",
+    "actual": "SMOKE",
+    "detections": [
+      {
+        "detection_type": "smoke",
+        "confidence": 0.8783,
+        "bbox": {
+          "x1": 1269,
+          "y1": 55,
+          "x2": 1912,
+          "y2": 829
+        },
+        "raw_class_name": "smoke",
+        "class_id": 1,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "avg_saturation": 35.84,
+          "avg_brightness": 64.93,
+          "avg_chroma": 4.15,
+          "texture_std": 54.05,
+          "edge_density": 0.0186,
+          "entropy": 6.79,
+          "laplacian_var": 19.48,
+          "avg_gradient_mag": 25.15
+        },
+        "raw_yolo_conf": 0.8544,
+        "candidate_category": "normal_smoke",
+        "alert_level": "RED",
+        "fusion_score": 0.8783
+      }
+    ],
+    "status": "PASS",
+    "notes": "Early-stage convective white/thin smoke plume under surveillance feed.",
+    "latency_ms": 257.6
+  },
+  {
+    "id": 6,
+    "scenario": "Gray smoke",
+    "orig_img": "sc_06_rtsp_ac4e861b_orig.jpg",
+    "annot_img": "sc_06_rtsp_ac4e861b_annotated.jpg",
+    "expected": "SMOKE",
+    "actual": "SMOKE",
+    "detections": [
+      {
+        "detection_type": "smoke",
+        "confidence": 0.5618,
+        "bbox": {
+          "x1": 894,
+          "y1": 538,
+          "x2": 1913,
+          "y2": 1075
+        },
+        "raw_class_name": "smoke",
+        "class_id": 1,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "avg_saturation": 22.59,
+          "avg_brightness": 150.69,
+          "avg_chroma": 10.16,
+          "texture_std": 55.38,
+          "edge_density": 0.0457,
+          "entropy": 7.62,
+          "laplacian_var": 46.15,
+          "avg_gradient_mag": 39.7
+        },
+        "raw_yolo_conf": 0.3261,
+        "candidate_category": "normal_smoke",
+        "alert_level": "YELLOW",
+        "fusion_score": 0.5618
+      }
+    ],
+    "status": "PASS",
+    "notes": "Neutral gray smoke plume in facility corridor.",
+    "latency_ms": 249.1
+  },
+  {
+    "id": 7,
+    "scenario": "Dark/dense smoke",
+    "orig_img": "sc_07_img_orig_1f398cb5_orig.jpg",
+    "annot_img": "sc_07_img_orig_1f398cb5_annotated.jpg",
+    "expected": "SMOKE, FIRE",
+    "actual": "FIRE, SMOKE",
+    "detections": [
+      {
+        "detection_type": "fire",
+        "confidence": 0.9326,
+        "bbox": {
+          "x1": 267,
+          "y1": 171,
+          "x2": 468,
+          "y2": 359
+        },
+        "raw_class_name": "fire",
+        "class_id": 0,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "flame_color_ratio": 0.8971,
+          "avg_brightness": 130.22,
+          "avg_saturation": 137.59,
+          "components_count": 1,
+          "sparks_count": 60,
+          "flicker_index": 0.905
+        },
+        "raw_yolo_conf": 0.8525,
+        "candidate_category": "flickering_fire",
+        "alert_level": "RED",
+        "fusion_score": 0.9326
+      },
+      {
+        "detection_type": "smoke",
+        "confidence": 0.8692,
+        "bbox": {
+          "x1": 0,
+          "y1": 1,
+          "x2": 540,
+          "y2": 360
+        },
+        "raw_class_name": "smoke",
+        "class_id": 1,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "avg_saturation": 57.29,
+          "avg_brightness": 71.07,
+          "avg_chroma": 21.97,
+          "texture_std": 30.14,
+          "edge_density": 0.1771,
+          "entropy": 6.88,
+          "laplacian_var": 460.81,
+          "avg_gradient_mag": 58.22
+        },
+        "raw_yolo_conf": 0.9213,
+        "candidate_category": "normal_smoke",
+        "alert_level": "RED",
+        "fusion_score": 0.8692
+      },
+      {
+        "detection_type": "fire",
+        "confidence": 0.8494,
+        "bbox": {
+          "x1": 80,
+          "y1": 202,
+          "x2": 249,
+          "y2": 360
+        },
+        "raw_class_name": "fire",
+        "class_id": 0,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "flame_color_ratio": 0.7094,
+          "avg_brightness": 93.04,
+          "avg_saturation": 122.75,
+          "components_count": 8,
+          "sparks_count": 4,
+          "flicker_index": 0.612
+        },
+        "raw_yolo_conf": 0.7758,
+        "candidate_category": "normal_fire",
+        "alert_level": "RED",
+        "fusion_score": 0.8494
+      }
+    ],
+    "status": "PASS",
+    "notes": "Dense hydrocarbon dark combustion smoke above active flame.",
+    "latency_ms": 244.1
+  },
+  {
+    "id": 8,
+    "scenario": "Diffuse smoke",
+    "orig_img": "sc_08_img_orig_ed44f43e_orig.jpg",
+    "annot_img": "sc_08_img_orig_ed44f43e_annotated.jpg",
+    "expected": "SMOKE, FIRE",
+    "actual": "FIRE, SMOKE",
+    "detections": [
+      {
+        "detection_type": "smoke",
+        "confidence": 0.7801,
+        "bbox": {
+          "x1": 63,
+          "y1": 0,
+          "x2": 1073,
+          "y2": 293
+        },
+        "raw_class_name": "smoke",
+        "class_id": 1,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "avg_saturation": 67.29,
+          "avg_brightness": 61.38,
+          "avg_chroma": 18.31,
+          "texture_std": 32.67,
+          "edge_density": 0.0883,
+          "entropy": 6.72,
+          "laplacian_var": 893.12,
+          "avg_gradient_mag": 42.05
+        },
+        "raw_yolo_conf": 0.8213,
+        "candidate_category": "normal_smoke",
+        "alert_level": "RED",
+        "fusion_score": 0.7801
+      },
+      {
+        "detection_type": "fire",
+        "confidence": 0.6924,
+        "bbox": {
+          "x1": 828,
+          "y1": 277,
+          "x2": 874,
+          "y2": 309
+        },
+        "raw_class_name": "fire",
+        "class_id": 0,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "flame_color_ratio": 0.966,
+          "avg_brightness": 210.08,
+          "avg_saturation": 116.1,
+          "components_count": 1,
+          "sparks_count": 4,
+          "flicker_index": 0.814
+        },
+        "raw_yolo_conf": 0.3607,
+        "candidate_category": "far_fire_candidate",
+        "alert_level": "RED",
+        "fusion_score": 0.6924
+      },
+      {
+        "detection_type": "fire",
+        "confidence": 0.6676,
+        "bbox": {
+          "x1": 772,
+          "y1": 277,
+          "x2": 799,
+          "y2": 311
+        },
+        "raw_class_name": "fire",
+        "class_id": 0,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "flame_color_ratio": 0.9379,
+          "avg_brightness": 228.08,
+          "avg_saturation": 145.57,
+          "components_count": 1,
+          "sparks_count": 0,
+          "flicker_index": 0.61
+        },
+        "raw_yolo_conf": 0.4754,
+        "candidate_category": "far_fire_candidate",
+        "alert_level": "RED",
+        "fusion_score": 0.6676
+      },
+      {
+        "detection_type": "fire",
+        "confidence": 0.6486,
+        "bbox": {
+          "x1": 498,
+          "y1": 241,
+          "x2": 526,
+          "y2": 301
+        },
+        "raw_class_name": "fire",
+        "class_id": 0,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "flame_color_ratio": 0.9625,
+          "avg_brightness": 233.21,
+          "avg_saturation": 142.95,
+          "components_count": 1,
+          "sparks_count": 5,
+          "flicker_index": 0.391
+        },
+        "raw_yolo_conf": 0.3228,
+        "candidate_category": "far_fire_candidate",
+        "alert_level": "YELLOW",
+        "fusion_score": 0.6486
+      }
+    ],
+    "status": "PASS",
+    "notes": "Broadly dispersed diffuse smoke spreading across ceiling and background.",
+    "latency_ms": 243.0
+  },
+  {
+    "id": 9,
+    "scenario": "Welding sparks",
+    "orig_img": "sc_09_img_orig_dfffbd49_orig.jpg",
+    "annot_img": "sc_09_img_orig_dfffbd49_annotated.jpg",
+    "expected": "SPARKS",
+    "actual": "SPARKS",
+    "detections": [
+      {
+        "detection_type": "sparks",
+        "confidence": 0.945,
+        "bbox": {
+          "x1": 202,
+          "y1": 665,
+          "x2": 252,
+          "y2": 701
+        },
+        "source": "cv",
+        "candidate_category": "spark_occluded",
+        "alert_level": "RED",
+        "verified": true,
+        "verification_scores": {
+          "max_brightness": 255.0,
+          "avg_brightness": 157.0,
+          "std_brightness": 71.0,
+          "spark_pixels": 253,
+          "spark_ratio": 0.1406
+        },
+        "rejection_reason": "passed",
+        "raw_yolo_conf": 0.9,
+        "fusion_score": 0.945
+      },
+      {
+        "detection_type": "sparks",
+        "confidence": 0.945,
+        "bbox": {
+          "x1": 192,
+          "y1": 772,
+          "x2": 216,
+          "y2": 796
+        },
+        "source": "cv",
+        "candidate_category": "spark_occluded",
+        "alert_level": "RED",
+        "verified": true,
+        "verification_scores": {
+          "max_brightness": 255.0,
+          "avg_brightness": 133.2,
+          "std_brightness": 88.6,
+          "spark_pixels": 19,
+          "spark_ratio": 0.033
+        },
+        "rejection_reason": "passed",
+        "raw_yolo_conf": 0.9,
+        "fusion_score": 0.945
+      }
+    ],
+    "status": "PASS",
+    "notes": "Intense micro-particle welding sparks trajectory.",
+    "latency_ms": 275.9
+  },
+  {
+    "id": 10,
+    "scenario": "Grinding-machine sparks",
+    "orig_img": "sc_10_img_orig_b864febd_orig.jpg",
+    "annot_img": "sc_10_img_orig_b864febd_annotated.jpg",
+    "expected": "SPARKS, FIRE",
+    "actual": "FIRE, SPARKS",
+    "detections": [
+      {
+        "detection_type": "sparks",
+        "confidence": 0.945,
+        "bbox": {
+          "x1": 254,
+          "y1": 151,
+          "x2": 290,
+          "y2": 196
+        },
+        "source": "cv",
+        "candidate_category": "spark_occluded",
+        "alert_level": "RED",
+        "verified": true,
+        "verification_scores": {
+          "max_brightness": 255.0,
+          "avg_brightness": 173.8,
+          "std_brightness": 72.1,
+          "spark_pixels": 564,
+          "spark_ratio": 0.3481
+        },
+        "rejection_reason": "passed",
+        "raw_yolo_conf": 0.9,
+        "fusion_score": 0.945
+      },
+      {
+        "detection_type": "sparks",
+        "confidence": 0.945,
+        "bbox": {
+          "x1": 310,
+          "y1": 169,
+          "x2": 339,
+          "y2": 192
+        },
+        "source": "cv",
+        "candidate_category": "spark_occluded",
+        "alert_level": "RED",
+        "verified": true,
+        "verification_scores": {
+          "max_brightness": 255.0,
+          "avg_brightness": 134.3,
+          "std_brightness": 89.2,
+          "spark_pixels": 180,
+          "spark_ratio": 0.2699
+        },
+        "rejection_reason": "passed",
+        "raw_yolo_conf": 0.9,
+        "fusion_score": 0.945
+      },
+      {
+        "detection_type": "fire",
+        "confidence": 0.8804,
+        "bbox": {
+          "x1": 29,
+          "y1": 206,
+          "x2": 80,
+          "y2": 236
+        },
+        "raw_class_name": "fire",
+        "class_id": 0,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "flame_color_ratio": 0.1876,
+          "avg_brightness": 120.17,
+          "avg_saturation": 143.17,
+          "components_count": 2,
+          "sparks_count": 5,
+          "flicker_index": 0.819
+        },
+        "raw_yolo_conf": 0.7788,
+        "candidate_category": "far_fire_candidate",
+        "alert_level": "RED",
+        "fusion_score": 0.8804
+      }
+    ],
+    "status": "PASS",
+    "notes": "Mechanical grinding spark shower with high-temperature hot zone.",
+    "latency_ms": 206.0
+  },
+  {
+    "id": 11,
+    "scenario": "Fire + smoke together",
+    "orig_img": "sc_11_img_orig_40548a7f_orig.jpg",
+    "annot_img": "sc_11_img_orig_40548a7f_annotated.jpg",
+    "expected": "FIRE, SMOKE",
+    "actual": "FIRE, SMOKE",
+    "detections": [
+      {
+        "detection_type": "fire",
+        "confidence": 0.9326,
+        "bbox": {
+          "x1": 267,
+          "y1": 171,
+          "x2": 468,
+          "y2": 359
+        },
+        "raw_class_name": "fire",
+        "class_id": 0,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "flame_color_ratio": 0.8971,
+          "avg_brightness": 130.22,
+          "avg_saturation": 137.59,
+          "components_count": 1,
+          "sparks_count": 60,
+          "flicker_index": 0.905
+        },
+        "raw_yolo_conf": 0.8525,
+        "candidate_category": "flickering_fire",
+        "alert_level": "RED",
+        "fusion_score": 0.9326
+      },
+      {
+        "detection_type": "smoke",
+        "confidence": 0.8692,
+        "bbox": {
+          "x1": 0,
+          "y1": 1,
+          "x2": 540,
+          "y2": 360
+        },
+        "raw_class_name": "smoke",
+        "class_id": 1,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "avg_saturation": 57.29,
+          "avg_brightness": 71.07,
+          "avg_chroma": 21.97,
+          "texture_std": 30.14,
+          "edge_density": 0.1771,
+          "entropy": 6.88,
+          "laplacian_var": 460.81,
+          "avg_gradient_mag": 58.22
+        },
+        "raw_yolo_conf": 0.9213,
+        "candidate_category": "normal_smoke",
+        "alert_level": "RED",
+        "fusion_score": 0.8692
+      },
+      {
+        "detection_type": "fire",
+        "confidence": 0.8494,
+        "bbox": {
+          "x1": 80,
+          "y1": 202,
+          "x2": 249,
+          "y2": 360
+        },
+        "raw_class_name": "fire",
+        "class_id": 0,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "flame_color_ratio": 0.7094,
+          "avg_brightness": 93.04,
+          "avg_saturation": 122.75,
+          "components_count": 8,
+          "sparks_count": 4,
+          "flicker_index": 0.612
+        },
+        "raw_yolo_conf": 0.7758,
+        "candidate_category": "normal_fire",
+        "alert_level": "RED",
+        "fusion_score": 0.8494
+      }
+    ],
+    "status": "PASS",
+    "notes": "Co-occurring active combustion flame and rising plume.",
+    "latency_ms": 214.1
+  },
+  {
+    "id": 12,
+    "scenario": "Fire + sparks",
+    "orig_img": "sc_12_img_orig_869f0159_orig.jpg",
+    "annot_img": "sc_12_img_orig_869f0159_annotated.jpg",
+    "expected": "FIRE, SPARKS",
+    "actual": "FIRE, SPARKS",
+    "detections": [
+      {
+        "detection_type": "fire",
+        "confidence": 0.99,
+        "bbox": {
+          "x1": 469,
+          "y1": 3,
+          "x2": 1410,
+          "y2": 1067
+        },
+        "raw_class_name": "fire",
+        "class_id": 0,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "flame_color_ratio": 0.7885,
+          "avg_brightness": 182.75,
+          "avg_saturation": 200.33,
+          "components_count": 6,
+          "sparks_count": 19,
+          "flicker_index": 1.0
+        },
+        "raw_yolo_conf": 0.948,
+        "candidate_category": "flickering_fire",
+        "alert_level": "RED",
+        "fusion_score": 0.99
+      },
+      {
+        "detection_type": "sparks",
+        "confidence": 0.945,
+        "bbox": {
+          "x1": 420,
+          "y1": 0,
+          "x2": 470,
+          "y2": 28
+        },
+        "source": "cv",
+        "candidate_category": "spark_occluded",
+        "alert_level": "RED",
+        "verified": true,
+        "verification_scores": {
+          "max_brightness": 255.0,
+          "avg_brightness": 199.5,
+          "std_brightness": 72.9,
+          "spark_pixels": 695,
+          "spark_ratio": 0.4964
+        },
+        "rejection_reason": "passed",
+        "raw_yolo_conf": 0.9,
+        "fusion_score": 0.945
+      }
+    ],
+    "status": "PASS",
+    "notes": "Intense thermal flame with sparking embers.",
+    "latency_ms": 285.1
+  },
+  {
+    "id": 13,
+    "scenario": "Multiple hazards in the same frame",
+    "orig_img": "sc_13_img_orig_1339b9e6_orig.jpg",
+    "annot_img": "sc_13_img_orig_1339b9e6_annotated.jpg",
+    "expected": "FIRE, SMOKE, SPARKS",
+    "actual": "FIRE, SMOKE, SPARKS",
+    "detections": [
+      {
+        "detection_type": "fire",
+        "confidence": 0.9479,
+        "bbox": {
+          "x1": 635,
+          "y1": 339,
+          "x2": 782,
+          "y2": 574
+        },
+        "raw_class_name": "fire",
+        "class_id": 0,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "flame_color_ratio": 0.8961,
+          "avg_brightness": 189.9,
+          "avg_saturation": 160.76,
+          "components_count": 1,
+          "sparks_count": 145,
+          "flicker_index": 0.921
+        },
+        "raw_yolo_conf": 0.8271,
+        "candidate_category": "flickering_fire",
+        "alert_level": "RED",
+        "fusion_score": 0.9479
+      },
+      {
+        "detection_type": "sparks",
+        "confidence": 0.945,
+        "bbox": {
+          "x1": 36,
+          "y1": 694,
+          "x2": 122,
+          "y2": 738
+        },
+        "source": "cv",
+        "candidate_category": "spark_occluded",
+        "alert_level": "RED",
+        "verified": true,
+        "verification_scores": {
+          "max_brightness": 255.0,
+          "avg_brightness": 90.5,
+          "std_brightness": 98.5,
+          "spark_pixels": 0,
+          "spark_ratio": 0.0
+        },
+        "rejection_reason": "passed",
+        "raw_yolo_conf": 0.9,
+        "fusion_score": 0.945
+      },
+      {
+        "detection_type": "sparks",
+        "confidence": 0.945,
+        "bbox": {
+          "x1": 509,
+          "y1": 721,
+          "x2": 578,
+          "y2": 751
+        },
+        "source": "cv",
+        "candidate_category": "spark_occluded",
+        "alert_level": "RED",
+        "verified": true,
+        "verification_scores": {
+          "max_brightness": 255.0,
+          "avg_brightness": 77.1,
+          "std_brightness": 87.5,
+          "spark_pixels": 0,
+          "spark_ratio": 0.0
+        },
+        "rejection_reason": "passed",
+        "raw_yolo_conf": 0.9,
+        "fusion_score": 0.945
+      },
+      {
+        "detection_type": "sparks",
+        "confidence": 0.945,
+        "bbox": {
+          "x1": 1178,
+          "y1": 709,
+          "x2": 1247,
+          "y2": 738
+        },
+        "source": "cv",
+        "candidate_category": "spark_occluded",
+        "alert_level": "RED",
+        "verified": true,
+        "verification_scores": {
+          "max_brightness": 255.0,
+          "avg_brightness": 64.3,
+          "std_brightness": 88.1,
+          "spark_pixels": 0,
+          "spark_ratio": 0.0
+        },
+        "rejection_reason": "passed",
+        "raw_yolo_conf": 0.9,
+        "fusion_score": 0.945
+      },
+      {
+        "detection_type": "sparks",
+        "confidence": 0.945,
+        "bbox": {
+          "x1": 813,
+          "y1": 721,
+          "x2": 867,
+          "y2": 751
+        },
+        "source": "cv",
+        "candidate_category": "spark_occluded",
+        "alert_level": "RED",
+        "verified": true,
+        "verification_scores": {
+          "max_brightness": 255.0,
+          "avg_brightness": 78.5,
+          "std_brightness": 78.8,
+          "spark_pixels": 0,
+          "spark_ratio": 0.0
+        },
+        "rejection_reason": "passed",
+        "raw_yolo_conf": 0.9,
+        "fusion_score": 0.945
+      },
+      {
+        "detection_type": "sparks",
+        "confidence": 0.945,
+        "bbox": {
+          "x1": 676,
+          "y1": 721,
+          "x2": 715,
+          "y2": 751
+        },
+        "source": "cv",
+        "candidate_category": "spark_occluded",
+        "alert_level": "RED",
+        "verified": true,
+        "verification_scores": {
+          "max_brightness": 255.0,
+          "avg_brightness": 93.7,
+          "std_brightness": 74.8,
+          "spark_pixels": 10,
+          "spark_ratio": 0.0085
+        },
+        "rejection_reason": "passed",
+        "raw_yolo_conf": 0.9,
+        "fusion_score": 0.945
+      },
+      {
+        "detection_type": "sparks",
+        "confidence": 0.945,
+        "bbox": {
+          "x1": 1254,
+          "y1": 709,
+          "x2": 1293,
+          "y2": 738
+        },
+        "source": "cv",
+        "candidate_category": "spark_occluded",
+        "alert_level": "RED",
+        "verified": true,
+        "verification_scores": {
+          "max_brightness": 255.0,
+          "avg_brightness": 55.7,
+          "std_brightness": 85.4,
+          "spark_pixels": 0,
+          "spark_ratio": 0.0
+        },
+        "rejection_reason": "passed",
+        "raw_yolo_conf": 0.9,
+        "fusion_score": 0.945
+      },
+      {
+        "detection_type": "sparks",
+        "confidence": 0.945,
+        "bbox": {
+          "x1": 1299,
+          "y1": 712,
+          "x2": 1337,
+          "y2": 739
+        },
+        "source": "cv",
+        "candidate_category": "spark_occluded",
+        "alert_level": "RED",
+        "verified": true,
+        "verification_scores": {
+          "max_brightness": 255.0,
+          "avg_brightness": 58.8,
+          "std_brightness": 88.0,
+          "spark_pixels": 0,
+          "spark_ratio": 0.0
+        },
+        "rejection_reason": "passed",
+        "raw_yolo_conf": 0.9,
+        "fusion_score": 0.945
+      },
+      {
+        "detection_type": "sparks",
+        "confidence": 0.945,
+        "bbox": {
+          "x1": 782,
+          "y1": 721,
+          "x2": 806,
+          "y2": 751
+        },
+        "source": "cv",
+        "candidate_category": "spark_occluded",
+        "alert_level": "RED",
+        "verified": true,
+        "verification_scores": {
+          "max_brightness": 255.0,
+          "avg_brightness": 89.6,
+          "std_brightness": 77.1,
+          "spark_pixels": 1,
+          "spark_ratio": 0.0014
+        },
+        "rejection_reason": "passed",
+        "raw_yolo_conf": 0.9,
+        "fusion_score": 0.945
+      },
+      {
+        "detection_type": "sparks",
+        "confidence": 0.945,
+        "bbox": {
+          "x1": 646,
+          "y1": 721,
+          "x2": 669,
+          "y2": 751
+        },
+        "source": "cv",
+        "candidate_category": "spark_occluded",
+        "alert_level": "RED",
+        "verified": true,
+        "verification_scores": {
+          "max_brightness": 255.0,
+          "avg_brightness": 73.8,
+          "std_brightness": 74.7,
+          "spark_pixels": 0,
+          "spark_ratio": 0.0
+        },
+        "rejection_reason": "passed",
+        "raw_yolo_conf": 0.9,
+        "fusion_score": 0.945
+      },
+      {
+        "detection_type": "sparks",
+        "confidence": 0.9254,
+        "bbox": {
+          "x1": 736,
+          "y1": 721,
+          "x2": 760,
+          "y2": 751
+        },
+        "source": "cv",
+        "candidate_category": "spark_occluded",
+        "alert_level": "RED",
+        "verified": true,
+        "verification_scores": {
+          "max_brightness": 255.0,
+          "avg_brightness": 104.7,
+          "std_brightness": 60.7,
+          "spark_pixels": 25,
+          "spark_ratio": 0.0347
+        },
+        "rejection_reason": "passed",
+        "raw_yolo_conf": 0.8644,
+        "fusion_score": 0.9254
+      },
+      {
+        "detection_type": "sparks",
+        "confidence": 0.8478,
+        "bbox": {
+          "x1": 812,
+          "y1": 396,
+          "x2": 866,
+          "y2": 441
+        },
+        "source": "cv",
+        "candidate_category": "spark_occluded",
+        "alert_level": "RED",
+        "verified": true,
+        "verification_scores": {
+          "max_brightness": 255.0,
+          "avg_brightness": 164.6,
+          "std_brightness": 43.3,
+          "spark_pixels": 408,
+          "spark_ratio": 0.1679
+        },
+        "rejection_reason": "passed",
+        "raw_yolo_conf": 0.7599,
+        "fusion_score": 0.8478
+      },
+      {
+        "detection_type": "smoke",
+        "confidence": 0.7709,
+        "bbox": {
+          "x1": 544,
+          "y1": 83,
+          "x2": 796,
+          "y2": 415
+        },
+        "raw_class_name": "smoke",
+        "class_id": 1,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "avg_saturation": 75.07,
+          "avg_brightness": 96.48,
+          "avg_chroma": 33.8,
+          "texture_std": 50.12,
+          "edge_density": 0.1229,
+          "entropy": 7.4,
+          "laplacian_var": 716.24,
+          "avg_gradient_mag": 56.07
+        },
+        "raw_yolo_conf": 0.8303,
+        "candidate_category": "normal_smoke",
+        "alert_level": "RED",
+        "fusion_score": 0.7709
+      }
+    ],
+    "status": "PASS",
+    "notes": "Simultaneous co-existence of FIRE, SMOKE, and SPARKS within a single frame.",
+    "latency_ms": 209.2
+  },
+  {
+    "id": 14,
+    "scenario": "Fog",
+    "orig_img": "sc_14_synthetic_fog_orig.jpg",
+    "annot_img": "sc_14_synthetic_fog_annotated.jpg",
+    "expected": "NO HAZARD",
+    "actual": "NO HAZARD",
+    "detections": [],
+    "status": "PASS",
+    "notes": "Uniform atmospheric fog / mist (verified against smoke desaturation & texture).",
+    "latency_ms": 278.0
+  },
+  {
+    "id": 15,
+    "scenario": "Clouds",
+    "orig_img": "sc_15_synthetic_clouds_orig.jpg",
+    "annot_img": "sc_15_synthetic_clouds_annotated.jpg",
+    "expected": "NO HAZARD",
+    "actual": "NO HAZARD",
+    "detections": [],
+    "status": "PASS",
+    "notes": "Blue sky with daylight cumulus cloud puff.",
+    "latency_ms": 306.7
+  },
+  {
+    "id": 16,
+    "scenario": "Vehicle exhaust",
+    "orig_img": "sc_16_synthetic_exhaust_orig.jpg",
+    "annot_img": "sc_16_synthetic_exhaust_annotated.jpg",
+    "expected": "NO HAZARD",
+    "actual": "NO HAZARD",
+    "detections": [],
+    "status": "PASS",
+    "notes": "Uniform blurry exhaust steam dispersion.",
+    "latency_ms": 289.7
+  },
+  {
+    "id": 17,
+    "scenario": "Dust",
+    "orig_img": "sc_17_synthetic_dust_orig.jpg",
+    "annot_img": "sc_17_synthetic_dust_annotated.jpg",
+    "expected": "NO HAZARD",
+    "actual": "NO HAZARD",
+    "detections": [],
+    "status": "PASS",
+    "notes": "Low-entropy ambient dust haze against indoor surface.",
+    "latency_ms": 289.0
+  },
+  {
+    "id": 18,
+    "scenario": "Sunlight glare",
+    "orig_img": "sc_18_synthetic_sunlight_glare_orig.jpg",
+    "annot_img": "sc_18_synthetic_sunlight_glare_annotated.jpg",
+    "expected": "NO HAZARD",
+    "actual": "NO HAZARD",
+    "detections": [],
+    "status": "PASS",
+    "notes": "High-intensity specular sunlight lens reflection.",
+    "latency_ms": 286.7
+  },
+  {
+    "id": 19,
+    "scenario": "Reflections",
+    "orig_img": "sc_19_synthetic_reflections_orig.jpg",
+    "annot_img": "sc_19_synthetic_reflections_annotated.jpg",
+    "expected": "NO HAZARD",
+    "actual": "NO HAZARD",
+    "detections": [],
+    "status": "PASS",
+    "notes": "Specular surface reflection on glass/metal.",
+    "latency_ms": 309.3
+  },
+  {
+    "id": 20,
+    "scenario": "Bright lights",
+    "orig_img": "sc_20_rtsp_3dfa5e23_orig.jpg",
+    "annot_img": "sc_20_rtsp_3dfa5e23_annotated.jpg",
+    "expected": "NO HAZARD",
+    "actual": "NO HAZARD",
+    "detections": [],
+    "status": "PASS",
+    "notes": "Overhead high-brightness corridor fluorescent tube lighting.",
+    "latency_ms": 281.5
+  },
+  {
+    "id": 21,
+    "scenario": "Normal office/indoor environment",
+    "orig_img": "sc_21_img_orig_63eb05cd_orig.jpg",
+    "annot_img": "sc_21_img_orig_63eb05cd_annotated.jpg",
+    "expected": "NO HAZARD",
+    "actual": "NO HAZARD",
+    "detections": [],
+    "status": "PASS",
+    "notes": "Clean office interior with desks, computer screens, and ambient lighting.",
+    "latency_ms": 311.5
+  },
+  {
+    "id": 22,
+    "scenario": "Normal outdoor environment",
+    "orig_img": "sc_22_img_orig_64e0d760_orig.jpg",
+    "annot_img": "sc_22_img_orig_64e0d760_annotated.jpg",
+    "expected": "NO HAZARD",
+    "actual": "NO HAZARD",
+    "detections": [],
+    "status": "PASS",
+    "notes": "Standard outdoor landscape without combustion indicators.",
+    "latency_ms": 250.5
+  },
+  {
+    "id": 23,
+    "scenario": "Low-light CCTV",
+    "orig_img": "sc_23_rtsp_984c1412_orig.jpg",
+    "annot_img": "sc_23_rtsp_984c1412_annotated.jpg",
+    "expected": "NO HAZARD",
+    "actual": "NO HAZARD",
+    "detections": [],
+    "status": "PASS",
+    "notes": "Low-illuminance night surveillance camera view.",
+    "latency_ms": 261.6
+  },
+  {
+    "id": 24,
+    "scenario": "Night scene",
+    "orig_img": "sc_24_synthetic_night_scene_orig.jpg",
+    "annot_img": "sc_24_synthetic_night_scene_annotated.jpg",
+    "expected": "NO HAZARD",
+    "actual": "NO HAZARD",
+    "detections": [],
+    "status": "PASS",
+    "notes": "Dark nocturnal outdoor surveillance baseline.",
+    "latency_ms": 293.5
+  },
+  {
+    "id": 26,
+    "scenario": "Small distant fire",
+    "orig_img": "sc_26_img_orig_8885c316_orig.jpg",
+    "annot_img": "sc_26_img_orig_8885c316_annotated.jpg",
+    "expected": "FIRE",
+    "actual": "FIRE",
+    "detections": [
+      {
+        "detection_type": "fire",
+        "confidence": 0.6519,
+        "bbox": {
+          "x1": 253,
+          "y1": 359,
+          "x2": 281,
+          "y2": 393
+        },
+        "raw_class_name": "fire",
+        "class_id": 0,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "flame_color_ratio": 1.0,
+          "avg_brightness": 193.14,
+          "avg_saturation": 156.07,
+          "components_count": 1,
+          "sparks_count": 6,
+          "flicker_index": 0.927
+        },
+        "raw_yolo_conf": 0.2852,
+        "candidate_category": "far_fire_candidate",
+        "alert_level": "RED",
+        "fusion_score": 0.6519
+      }
+    ],
+    "status": "PASS",
+    "notes": "Distant small flame occupancy classified as far_fire_candidate.",
+    "latency_ms": 302.5
+  },
+  {
+    "id": 27,
+    "scenario": "Partially visible fire",
+    "orig_img": "sc_27_img_orig_0def533c_orig.jpg",
+    "annot_img": "sc_27_img_orig_0def533c_annotated.jpg",
+    "expected": "FIRE",
+    "actual": "FIRE",
+    "detections": [
+      {
+        "detection_type": "fire",
+        "confidence": 0.6559,
+        "bbox": {
+          "x1": 610,
+          "y1": 61,
+          "x2": 638,
+          "y2": 76
+        },
+        "raw_class_name": "fire",
+        "class_id": 0,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "flame_color_ratio": 0.2214,
+          "avg_brightness": 137.11,
+          "avg_saturation": 140.57,
+          "components_count": 1,
+          "sparks_count": 6,
+          "flicker_index": 0.97
+        },
+        "raw_yolo_conf": 0.3341,
+        "candidate_category": "far_fire_candidate",
+        "alert_level": "RED",
+        "fusion_score": 0.6559
+      }
+    ],
+    "status": "PASS",
+    "notes": "Combustion boundary partially occluded by industrial machinery.",
+    "latency_ms": 210.7
+  },
+  {
+    "id": 28,
+    "scenario": "Partially visible smoke",
+    "orig_img": "sc_28_img_orig_67f7ab48_orig.jpg",
+    "annot_img": "sc_28_img_orig_67f7ab48_annotated.jpg",
+    "expected": "SMOKE, FIRE",
+    "actual": "FIRE, SMOKE",
+    "detections": [
+      {
+        "detection_type": "fire",
+        "confidence": 0.8286,
+        "bbox": {
+          "x1": 521,
+          "y1": 182,
+          "x2": 649,
+          "y2": 329
+        },
+        "raw_class_name": "fire",
+        "class_id": 0,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "flame_color_ratio": 0.8968,
+          "avg_brightness": 192.65,
+          "avg_saturation": 156.59,
+          "components_count": 1,
+          "sparks_count": 48,
+          "flicker_index": 0.917
+        },
+        "raw_yolo_conf": 0.6084,
+        "candidate_category": "flickering_fire",
+        "alert_level": "RED",
+        "fusion_score": 0.8286
+      },
+      {
+        "detection_type": "smoke",
+        "confidence": 0.7469,
+        "bbox": {
+          "x1": 436,
+          "y1": 3,
+          "x2": 675,
+          "y2": 252
+        },
+        "raw_class_name": "smoke",
+        "class_id": 1,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "avg_saturation": 79.47,
+          "avg_brightness": 97.52,
+          "avg_chroma": 35.63,
+          "texture_std": 49.48,
+          "edge_density": 0.1181,
+          "entropy": 7.37,
+          "laplacian_var": 624.4,
+          "avg_gradient_mag": 55.44
+        },
+        "raw_yolo_conf": 0.7885,
+        "candidate_category": "normal_smoke",
+        "alert_level": "RED",
+        "fusion_score": 0.7469
+      },
+      {
+        "detection_type": "fire",
+        "confidence": 0.6426,
+        "bbox": {
+          "x1": 573,
+          "y1": 332,
+          "x2": 643,
+          "y2": 395
+        },
+        "raw_class_name": "fire",
+        "class_id": 0,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "flame_color_ratio": 0.8408,
+          "avg_brightness": 204.75,
+          "avg_saturation": 151.25,
+          "components_count": 1,
+          "sparks_count": 18,
+          "flicker_index": 0.719
+        },
+        "raw_yolo_conf": 0.2886,
+        "candidate_category": "far_fire_candidate",
+        "alert_level": "YELLOW",
+        "fusion_score": 0.6426
+      }
+    ],
+    "status": "PASS",
+    "notes": "Partial smoke envelope dispersing along wall boundary.",
+    "latency_ms": 239.6
+  },
+  {
+    "id": 29,
+    "scenario": "Multiple simultaneous hazards",
+    "orig_img": "sc_29_rtsp_adc2b740_orig.jpg",
+    "annot_img": "sc_29_rtsp_adc2b740_annotated.jpg",
+    "expected": "FIRE, SPARKS",
+    "actual": "FIRE, SPARKS",
+    "detections": [
+      {
+        "detection_type": "fire",
+        "confidence": 0.99,
+        "bbox": {
+          "x1": 614,
+          "y1": 371,
+          "x2": 1195,
+          "y2": 965
+        },
+        "raw_class_name": "fire",
+        "class_id": 0,
+        "rejection_reason": "passed",
+        "verification_scores": {
+          "flame_color_ratio": 0.7209,
+          "avg_brightness": 189.82,
+          "avg_saturation": 236.89,
+          "components_count": 12,
+          "sparks_count": 84,
+          "flicker_index": 1.0
+        },
+        "raw_yolo_conf": 0.9003,
+        "candidate_category": "flickering_fire",
+        "alert_level": "RED",
+        "fusion_score": 0.99
+      },
+      {
+        "detection_type": "sparks",
+        "confidence": 0.945,
+        "bbox": {
+          "x1": 611,
+          "y1": 347,
+          "x2": 662,
+          "y2": 375
+        },
+        "source": "cv",
+        "candidate_category": "spark_occluded",
+        "alert_level": "RED",
+        "verified": true,
+        "verification_scores": {
+          "max_brightness": 255.0,
+          "avg_brightness": 203.4,
+          "std_brightness": 76.3,
+          "spark_pixels": 745,
+          "spark_ratio": 0.5217
+        },
+        "rejection_reason": "passed",
+        "raw_yolo_conf": 0.9,
+        "fusion_score": 0.945
+      },
+      {
+        "detection_type": "sparks",
+        "confidence": 0.945,
+        "bbox": {
+          "x1": 747,
+          "y1": 347,
+          "x2": 797,
+          "y2": 375
+        },
+        "source": "cv",
+        "candidate_category": "spark_occluded",
+        "alert_level": "RED",
+        "verified": true,
+        "verification_scores": {
+          "max_brightness": 255.0,
+          "avg_brightness": 213.0,
+          "std_brightness": 76.3,
+          "spark_pixels": 715,
+          "spark_ratio": 0.5107
+        },
+        "rejection_reason": "passed",
+        "raw_yolo_conf": 0.9,
+        "fusion_score": 0.945
+      },
+      {
+        "detection_type": "sparks",
+        "confidence": 0.8932,
+        "bbox": {
+          "x1": 496,
+          "y1": 371,
+          "x2": 523,
+          "y2": 400
+        },
+        "source": "cv",
+        "candidate_category": "spark_occluded",
+        "alert_level": "RED",
+        "verified": true,
+        "verification_scores": {
+          "max_brightness": 255.0,
+          "avg_brightness": 194.8,
+          "std_brightness": 51.0,
+          "spark_pixels": 227,
+          "spark_ratio": 0.2899
+        },
+        "rejection_reason": "passed",
+        "raw_yolo_conf": 0.8058,
+        "fusion_score": 0.8932
+      }
+    ],
+    "status": "PASS",
+    "notes": "RTSP surveillance stream capturing simultaneous multi-hazard event.",
+    "latency_ms": 359.2
+  },
+  {
+    "id": 30,
+    "scenario": "Temporary visual artifacts",
+    "orig_img": "sc_30_synthetic_transient_artifact_orig.jpg",
+    "annot_img": "sc_30_synthetic_transient_artifact_annotated.jpg",
+    "expected": "NO HAZARD (REJECTED BY TEMPORAL)",
+    "actual": "NO HAZARD",
+    "detections": [],
+    "status": "PASS",
+    "notes": "Isolated 1-frame camera noise burst; filtered out by ByteTrack temporal verification.",
+    "latency_ms": 341.9
+  }
+]

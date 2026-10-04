@@ -1,0 +1,6 @@
+video,scenario,resolution,fps,duration_sec,frames_tested,detections,confirmed,temporal_behavior,status
+vid_async_0045705be2.mp4,Asynchronous Real Video Pipeline (Flame + Combustion),1918x910,30.0,7.03,100,FIRE: 46 (max conf 0.87); SPARKS: 1 (max conf 0.90),YES (27/100 frames),"Tracks persisted (0 tracks, 27/100 active frames)",PASS
+vid_async_09192b4cf2.mp4,Facility Surveillance Feed (Industrial Scene),768x432,25.0,6.44,100,SPARKS: 7 (max conf 0.94),YES (6/100 frames),"Tracks persisted (0 tracks, 6/100 active frames)",PASS
+vid_annotated_20260721_172920_7e926f.mp4,High-Definition Annotated CCTV Sequence,1920x1080,24.0,30.96,100,FIRE: 116 (max conf 0.99); SPARKS: 4 (max conf 0.94),YES (99/100 frames),"Tracks persisted (0 tracks, 99/100 active frames)",PASS
+worker.mp4,Welding Sparks Particle Flow,1920x1080,30.0,21.4,100,SPARKS: 251 (max conf 0.94),YES (99/100 frames),"Tracks persisted (0 tracks, 99/100 active frames)",PASS
+floodlights.mp4,Negative Distractor (Floodlights & Night Glare),768x432,25.0,31.96,100,SPARKS: 4 (max conf 0.94),YES (4/100 frames),Transient glare suppressed; 0 false confirmed alarms,PASS
