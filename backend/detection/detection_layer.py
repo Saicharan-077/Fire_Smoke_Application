@@ -88,6 +88,19 @@ class ByteTracker:
                 curr_conf = det["confidence"]
                 smoothed_conf = round(0.6 * curr_conf + 0.4 * prev_conf, 4)
                 
+                # Centroid displacement calculation for stationary light / monitor suppression
+                prev_bb = self.tracks[best_tid]["bbox"]
+                curr_bb = det["bbox"]
+                prev_cx = (prev_bb["x1"] + prev_bb["x2"]) / 2.0
+                prev_cy = (prev_bb["y1"] + prev_bb["y2"]) / 2.0
+                curr_cx = (curr_bb["x1"] + curr_bb["x2"]) / 2.0
+                curr_cy = (curr_bb["y1"] + curr_bb["y2"]) / 2.0
+                dist = ((curr_cx - prev_cx) ** 2 + (curr_cy - prev_cy) ** 2) ** 0.5
+                if dist < 3.5:
+                    self.tracks[best_tid]["stationary_count"] = self.tracks[best_tid].get("stationary_count", 0) + 1
+                else:
+                    self.tracks[best_tid]["stationary_count"] = 0
+
                 self.tracks[best_tid]["bbox"] = det["bbox"]
                 self.tracks[best_tid]["confidence"] = smoothed_conf
                 self.tracks[best_tid]["age"] = 0
@@ -113,6 +126,18 @@ class ByteTracker:
                 curr_conf = det["confidence"]
                 smoothed_conf = round(0.3 * curr_conf + 0.7 * prev_conf, 4)
 
+                prev_bb = self.tracks[best_tid]["bbox"]
+                curr_bb = det["bbox"]
+                prev_cx = (prev_bb["x1"] + prev_bb["x2"]) / 2.0
+                prev_cy = (prev_bb["y1"] + prev_bb["y2"]) / 2.0
+                curr_cx = (curr_bb["x1"] + curr_bb["x2"]) / 2.0
+                curr_cy = (curr_bb["y1"] + curr_bb["y2"]) / 2.0
+                dist = ((curr_cx - prev_cx) ** 2 + (curr_cy - prev_cy) ** 2) ** 0.5
+                if dist < 3.5:
+                    self.tracks[best_tid]["stationary_count"] = self.tracks[best_tid].get("stationary_count", 0) + 1
+                else:
+                    self.tracks[best_tid]["stationary_count"] = 0
+
                 self.tracks[best_tid]["bbox"] = det["bbox"]
                 self.tracks[best_tid]["confidence"] = smoothed_conf
                 self.tracks[best_tid]["age"] = 0
@@ -131,11 +156,25 @@ class ByteTracker:
                     "detection_type": det["detection_type"],
                     "confidence": det["confidence"],
                     "age": 0,
-                    "hits": 1
+                    "hits": 1,
+                    "stationary_count": 0
                 }
                 det["track_id"] = tid
 
-        return high_dets
+        # Filter out stationary spark tracks (ceiling lamps, lights, monitors, reflections):
+        # Physical sparks scatter, fly, or extinguish quickly. A track labeled 'sparks'
+        # that remains static in the exact same coordinates across >= 4 frames is a light
+        # fixture, ceiling luminaire, illuminated screen, or reflective object.
+        valid_dets = []
+        for det in high_dets:
+            tid = det.get("track_id")
+            if tid and self.tracks.get(tid, {}).get("detection_type") in ("sparks", "spark"):
+                track_info = self.tracks[tid]
+                if track_info.get("hits", 1) >= 4 and track_info.get("stationary_count", 0) >= 3:
+                    continue  # Suppress stationary light fixture / screen
+            valid_dets.append(det)
+
+        return valid_dets
 
 
 def letterbox(image: np.ndarray, target_shape: Tuple[int, int] = (640, 640), fill_value: Tuple[int, int, int] = (114, 114, 114)) -> Tuple[np.ndarray, float, Tuple[int, int]]:
@@ -746,6 +785,8 @@ class DetectionLayer:
     def verify_sparks(self, roi_bgr: np.ndarray, roi_hsv: np.ndarray, raw_conf: float = 0.0) -> Tuple[bool, str, dict]:
         """Sparks verification checking high-intensity hotspot particles and rejecting uniform sky/daylight.
         Supports both isolated tiny sparks and extensive spark showers/bursts from electrical arcing or grinding.
+        Strictly rejects artificial lighting (ceiling high-bay lights, LED troffers, fluorescent tubes),
+        illuminated computer monitors/screens, and reflective packaging/surfaces.
         """
         if roi_bgr.size == 0 or roi_bgr.shape[0] == 0 or roi_bgr.shape[1] == 0:
             return False, "empty_roi", {}
@@ -756,48 +797,31 @@ class DetectionLayer:
         max_val = float(np.max(v_channel))
         avg_val = float(np.mean(v_channel))
         std_val = float(np.std(roi_gray))
+        avg_sat = float(np.mean(roi_hsv[:, :, 1]))
 
         # Check for spark particles / streaks (both incandescent white-hot and golden amber)
-        white_spark_mask = cv2.inRange(roi_hsv, np.array([0, 0, 220]), np.array([180, 255, 255]))
-        gold_spark_mask = cv2.inRange(roi_hsv, np.array([10, 80, 200]), np.array([35, 255, 255]))
+        white_spark_mask = cv2.inRange(roi_hsv, np.array([0, 0, 215]), np.array([180, 255, 255]))
+        gold_spark_mask = cv2.inRange(roi_hsv, np.array([10, 70, 185]), np.array([35, 255, 255]))
         spark_mask = cv2.bitwise_or(white_spark_mask, gold_spark_mask)
 
         num_spk_labels, _, spk_stats, _ = cv2.connectedComponentsWithStats(spark_mask)
         spark_pixels = int(np.count_nonzero(spark_mask))
         spark_ratio = spark_pixels / float(total_pixels) if total_pixels > 0 else 0.0
 
-        # Multi-spark shower/burst condition: multiple distinct particles or dense spark cluster
-        is_spark_shower = (num_spk_labels >= 4 or spark_pixels >= 40 or (spark_pixels >= 15 and std_val >= 30.0) or raw_conf >= 0.40)
+        comp_areas = spk_stats[1:, cv2.CC_STAT_AREA] if num_spk_labels > 1 else [0]
+        max_comp_area = int(max(comp_areas)) if len(comp_areas) > 0 else 0
+        max_comp_ratio = (max_comp_area / float(spark_pixels)) if spark_pixels > 0 else 0.0
+        gold_pixels = int(np.count_nonzero(gold_spark_mask))
+        gold_ratio = gold_pixels / float(total_pixels) if total_pixels > 0 else 0.0
+        bright_sat = float(np.mean(roi_hsv[spark_mask > 0, 1])) if spark_pixels > 0 else 0.0
 
-        # 0. Particle Size Check: Isolated single spark boxes shouldn't be huge,
-        # but genuine spark showers, bursts, and arcing clouds can be large
-        if total_pixels > 15000 or roi_bgr.shape[0] > 180 or roi_bgr.shape[1] > 180:
-            if not (is_spark_shower and (max_val - avg_val >= 25.0 or raw_conf >= 0.35)):
-                return False, f"spark_box_too_large ({roi_bgr.shape[1]}x{roi_bgr.shape[0]}, area={total_pixels} > 15000)", {"area": total_pixels}
-
-        # 1. Reject smooth daylight sky, clouds, and uniform walls
-        if avg_val > 140.0 and std_val < 20.0 and not is_spark_shower:
-            return False, f"uniform_daylight_or_sky (avg={avg_val:.1f}, std={std_val:.1f})", {"avg_brightness": avg_val, "std": std_val}
-
-        # 1b. Reject dominant sky blue / cyan background (unless genuine multi-spark shower is present)
-        blue_mask = cv2.inRange(roi_hsv, np.array([85, 30, 50]), np.array([135, 255, 255]))
-        blue_ratio = float(np.count_nonzero(blue_mask) / float(total_pixels)) if total_pixels > 0 else 0.0
-        if blue_ratio > 0.45 and not is_spark_shower:
-            return False, f"sky_blue_in_roi (blue_ratio={blue_ratio:.2f})", {"blue_ratio": round(blue_ratio, 3)}
-
-        # 1c. Reject daylight white/gray cloud patches (high brightness + low saturation without spark core, smooth edges)
-        gold_ratio = float(np.count_nonzero(gold_spark_mask) / float(total_pixels)) if total_pixels > 0 else 0.0
-        avg_sat = float(np.mean(roi_hsv[:, :, 1]))
-        if avg_val > 160.0 and gold_ratio < 0.005 and avg_sat < 35.0 and std_val < 25.0 and not is_spark_shower:
-            return False, f"daylight_cloud_patch (avg_b={avg_val:.1f}, avg_sat={avg_sat:.1f})", {"avg_brightness": avg_val, "avg_sat": avg_sat}
-
-        # 1d. Reject stationary artificial lamps, LED light bulbs, and housing fixtures at night (single uniform bulb without particles)
-        aspect_ratio = float(roi_bgr.shape[1]) / float(roi_bgr.shape[0]) if roi_bgr.shape[0] > 0 else 1.0
-        if 0.55 <= aspect_ratio <= 1.75 and total_pixels > 120 and not is_spark_shower:
-            if len(spk_stats) > 1:
-                max_comp_area = int(np.max(spk_stats[1:, cv2.CC_STAT_AREA]))
-                if max_comp_area > 80 and avg_sat < 75.0 and std_val < 25.0:
-                    return False, f"lamp_or_light_fixture (comp_area={max_comp_area}, sat={avg_sat:.1f})", {"comp_area": max_comp_area}
+        # Multi-spark shower/burst condition: multiple distinct particles distributed across the ROI.
+        # Notice: A single massive solid luminaire or illuminated screen is NOT a spark shower.
+        is_spark_shower = (
+            num_spk_labels >= 4 
+            and spark_pixels >= 15 
+            and (max_comp_area <= 250 or max_comp_ratio <= 0.50)
+        )
 
         scores = {
             "max_brightness": round(max_val, 1),
@@ -805,18 +829,54 @@ class DetectionLayer:
             "std_brightness": round(std_val, 1),
             "spark_pixels": spark_pixels,
             "spark_ratio": round(spark_ratio, 4),
-            "num_spk_labels": num_spk_labels
+            "num_spk_labels": num_spk_labels,
+            "max_comp_area": max_comp_area,
+            "bright_sat": round(bright_sat, 1),
         }
 
-        # Sparks must have intense local brightness
-        if max_val < 210.0:
-            return False, f"low_spark_intensity (max_val={max_val:.1f} < 210)", scores
+        # 0. Particle Size Check: Isolated single sparks are compact particles (< 60px across, area < 2500)
+        if not is_spark_shower and (roi_bgr.shape[0] > 60 or roi_bgr.shape[1] > 60 or total_pixels > 2500):
+            return False, f"spark_box_too_large ({roi_bgr.shape[1]}x{roi_bgr.shape[0]}, area={total_pixels})", scores
 
+        # 1. Intense local brightness requirement
+        if max_val < 185.0:
+            return False, f"low_spark_intensity (max_val={max_val:.1f} < 185)", scores
+
+        # 1a. Reject smooth daylight sky, clouds, and uniform walls
+        if avg_val > 140.0 and std_val < 20.0 and not is_spark_shower:
+            return False, f"uniform_daylight_or_sky (avg={avg_val:.1f}, std={std_val:.1f})", scores
+
+        # 1b. Reject dominant sky blue / cyan background
+        blue_mask = cv2.inRange(roi_hsv, np.array([85, 30, 50]), np.array([135, 255, 255]))
+        blue_ratio = float(np.count_nonzero(blue_mask) / float(total_pixels)) if total_pixels > 0 else 0.0
+        if blue_ratio > 0.45 and not is_spark_shower:
+            return False, f"sky_blue_in_roi (blue_ratio={blue_ratio:.2f})", scores
+
+        # 1c. Reject daylight white/gray cloud patches
+        if avg_val > 160.0 and gold_ratio < 0.005 and avg_sat < 35.0 and std_val < 25.0 and not is_spark_shower:
+            return False, f"daylight_cloud_patch (avg_b={avg_val:.1f}, avg_sat={avg_sat:.1f})", scores
+
+        # 1d. Reject stationary artificial lamps, high-bay ceiling lights, LED troffers, and fluorescent tubes
+        # High-bay lights and luminaires have a solid contiguous core of high brightness with low saturation (cool white)
+        if max_comp_area >= 60 and not is_spark_shower:
+            if (bright_sat < 65.0 or gold_ratio < 0.04) and (max_comp_area > 90 or max_comp_ratio > 0.35):
+                return False, f"lamp_or_light_fixture (comp_area={max_comp_area}, bright_sat={bright_sat:.1f})", scores
+
+        # 1e. Reject illuminated computer monitors, CNC control displays, and bright flat panels
+        if total_pixels > 200 and max_comp_area > 70 and not is_spark_shower:
+            if bright_sat < 70.0 and gold_ratio < 0.03:
+                return False, f"illuminated_screen_or_monitor (area={total_pixels}, comp_area={max_comp_area}, sat={bright_sat:.1f})", scores
+
+        # 1f. Reject reflective packaging boxes, storage racks, and white wall panels
+        if total_pixels > 500 and avg_val > 120.0 and bright_sat < 45.0 and gold_ratio < 0.02 and not is_spark_shower:
+            return False, f"reflective_surface_or_box (area={total_pixels}, avg_b={avg_val:.1f}, sat={bright_sat:.1f})", scores
+
+        # 1g. Low local contrast check
         if (max_val - avg_val) < 20.0 and not is_spark_shower:
             return False, f"low_local_contrast (max={max_val:.1f}, avg={avg_val:.1f})", scores
 
-        # If it's a solid uniform field of high brightness (like sun or bright white glare patch)
-        if spark_ratio > 0.75 and not is_spark_shower:
+        # 1h. Broad light field (sun, broad glare patch, floodlight field)
+        if spark_ratio > 0.70 and std_val < 30.0 and not is_spark_shower:
             return False, f"broad_light_field (spark_ratio={spark_ratio:.2f})", scores
 
         return True, "passed", scores
@@ -1541,6 +1601,11 @@ class DetectionLayer:
                     solidity = c_area / float(area) if area > 0 else 0.0
                     if 0.55 <= aspect_ratio <= 1.75 and solidity > 0.65 and area > 100 and roi_sat < 75.0 and std_val < 25.0:
                         continue # Skip outdoor garden lamp fixture / LED light bulb!
+
+                    # Reject white ceiling lamps, fluorescent fixtures, computer monitors, and reflections
+                    roi_gold_count = np.count_nonzero(roi_gold)
+                    if area > 60 and roi_gold_count < 3 and roi_sat < 65.0:
+                        continue # Skip white ceiling lights, LED troffers, computer monitors, and reflections!
 
                     conf = round(min(0.90, max(0.55, 0.50 + (std_val / 50.0) * 0.30)), 4)
                     candidates.append({
