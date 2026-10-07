@@ -5,7 +5,7 @@ import {
   getDashboardStats, getDashboardAnalytics, getIncidents,
   getSettings, uploadImage, type Detection
 } from '../services/api';
-import { useAuthStore } from '../store/authStore';
+
 import { listCameras, getCameraMetrics, patchCameraPriority } from '../services/cameraService';
 import { CameraMetricsOverlay, type CameraMetric } from '../components/Dashboard/CameraMetricsOverlay';
 import { useDashboardStore } from '../store/dashboardStore';
@@ -318,12 +318,7 @@ const Dashboard = () => {
   const addNotification = useNotificationsStore(s => s.addNotification);
   const pushPopup = useNotificationsStore(s => s.pushPopup);
   
-  // Auth roles
-  const currentUser = useAuthStore(s => s.currentUser);
-  const isOperatorOrAdmin = useMemo(() => {
-    const r = (currentUser?.role || '').toLowerCase();
-    return r === 'admin' || r === 'administrator' || r === 'operator';
-  }, [currentUser]);
+
 
   const [simulationMode] = useState(false);
 

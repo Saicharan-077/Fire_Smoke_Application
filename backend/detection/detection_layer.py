@@ -1,14 +1,18 @@
 import os
 import sys
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+backend_dir = os.path.dirname(current_dir)
 scripts_dir = os.path.abspath(os.path.join(sys.prefix, 'Scripts'))
-if os.path.exists(scripts_dir):
-    os.environ['PATH'] = scripts_dir + os.path.pathsep + os.environ.get('PATH', '')
-    if hasattr(os, 'add_dll_directory'):
-        try:
-            os.add_dll_directory(scripts_dir)
-        except Exception:
-            pass
+for d in (current_dir, backend_dir, scripts_dir):
+    if os.path.exists(d):
+        os.environ['PATH'] = d + os.path.pathsep + os.environ.get('PATH', '')
+        if hasattr(os, 'add_dll_directory'):
+            try:
+                os.add_dll_directory(d)
+            except Exception:
+                pass
+
 
 import cv2
 import numpy as np
@@ -134,6 +138,344 @@ class ByteTracker:
         return high_dets
 
 
+def letterbox(image: np.ndarray, target_shape: Tuple[int, int] = (640, 640), fill_value: Tuple[int, int, int] = (114, 114, 114)) -> Tuple[np.ndarray, float, Tuple[int, int]]:
+    """Resizes and letterboxes image to target_shape (default 640x640) preserving aspect ratio with centered padding.
+    Guarantees the YOLO neural network always receives standard 640x640 tensors without aspect distortion.
+    Returns (letterboxed_image, scale_factor, (pad_left, pad_top)).
+    """
+    h, w = image.shape[:2]
+    target_h, target_w = target_shape
+    scale = min(target_w / float(w), target_h / float(h))
+    new_w, new_h = int(round(w * scale)), int(round(h * scale))
+    resized = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+
+    pad_w = target_w - new_w
+    pad_h = target_h - new_h
+    pad_left = pad_w // 2
+    pad_top = pad_h // 2
+    pad_right = pad_w - pad_left
+    pad_bottom = pad_h - pad_top
+
+    letterboxed = cv2.copyMakeBorder(
+        resized, pad_top, pad_bottom, pad_left, pad_right,
+        cv2.BORDER_CONSTANT, value=fill_value
+    )
+    return letterboxed, scale, (pad_left, pad_top)
+
+
+def unletterbox_box(
+    x1: float, y1: float, x2: float, y2: float,
+    scale: float, pad: Tuple[int, int],
+    orig_shape: Tuple[int, int]
+) -> Tuple[int, int, int, int]:
+    """Maps bounding box coordinates from letterboxed space back to original image dimensions.
+    Strictly clamps coordinates within [0, orig_w] and [0, orig_h] to prevent boundary drift.
+    """
+    pad_left, pad_top = pad
+    orig_h, orig_w = orig_shape
+
+    un_x1 = int(round((x1 - pad_left) / scale))
+    un_y1 = int(round((y1 - pad_top) / scale))
+    un_x2 = int(round((x2 - pad_left) / scale))
+    un_y2 = int(round((y2 - pad_top) / scale))
+
+    clamped_x1 = max(0, min(orig_w - 1, un_x1))
+    clamped_y1 = max(0, min(orig_h - 1, un_y1))
+    clamped_x2 = max(0, min(orig_w, un_x2))
+    clamped_y2 = max(0, min(orig_h, un_y2))
+
+    return clamped_x1, clamped_y1, clamped_x2, clamped_y2
+
+
+class TemporalEventManager:
+    """Manages multi-frame temporal event aggregation, persistence, continuity,
+    and event-level confidence calculations across independent hazard classes.
+    Prevents single-frame noise spikes from creating spurious alarms,
+    maintains event continuity across intermittent frames / decoding drops,
+    and calculates structured event statistics and timeline segments.
+    """
+    def __init__(
+        self,
+        classes: Tuple[str, ...] = ("fire", "smoke", "sparks"),
+        window_size: int = 25,
+        min_persistence: int = 2,
+        grace_period: int = 8,
+        fluctuation_penalty: float = 0.15
+    ):
+        self.classes = list(classes)
+        self.window_size = window_size
+        self.min_persistence = min_persistence
+        self.grace_period = grace_period
+        self.fluctuation_penalty = fluctuation_penalty
+
+        self.class_state = {
+            c: {
+                "active_event": None,          # Current ongoing event dict
+                "closed_events": [],           # List of completed events
+                "recent_frames": [],           # Sliding window of recent frame records
+                "consecutive_absence": 0,      # Evaluated frames without detection
+                "total_positive_frames": 0,    # Cumulative positive frames
+                "all_confidences": [],         # List of all detection confidences
+                "first_detected_sec": None,
+                "last_detected_sec": None,
+            }
+            for c in self.classes
+        }
+
+        self.frame_states: List[Dict[str, Any]] = []
+
+    def _calc_event_conf(self, confidences: List[float], positive_frames: int, total_eval_frames: int) -> float:
+        """Calculates event-level confidence from multi-frame observations.
+        Formula:
+          EventConf = clamp(
+            (0.50 * mean_conf + 0.30 * peak_conf + 0.20 * mean_conf)
+            * (0.70 * persistence + 0.30 * continuity)
+            * (1.0 - fluctuation_penalty * min(1.0, std_conf * 3.0)),
+            0.05, 0.99
+          )
+        """
+        if not confidences:
+            return 0.0
+        mean_c = float(np.mean(confidences))
+        peak_c = float(max(confidences))
+        std_c = float(np.std(confidences)) if len(confidences) > 1 else 0.0
+
+        persistence = min(1.0, positive_frames / 4.0)
+        continuity = min(1.0, positive_frames / max(1, total_eval_frames))
+        temporal_mult = 0.70 * persistence + 0.30 * continuity
+        stability = max(0.60, 1.0 - (self.fluctuation_penalty * min(1.0, std_c * 3.0)))
+
+        raw_event_conf = (0.50 * mean_c + 0.30 * peak_c + 0.20 * mean_c) * temporal_mult * stability
+        return round(float(min(0.99, max(0.05, raw_event_conf))), 4)
+
+    def update(
+        self,
+        frame_number: int,
+        timestamp_sec: float,
+        detections: List[Dict[str, Any]],
+        is_evaluated: bool = True,
+        confounder_tag: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Updates temporal tracking state with the current frame's detections."""
+        detected_by_class = {c: [] for c in self.classes}
+        for d in detections:
+            c = d.get("detection_type")
+            if c in detected_by_class:
+                detected_by_class[c].append(d)
+            elif c == "spark" and "sparks" in detected_by_class:
+                detected_by_class["sparks"].append(d)
+
+        active_classes_this_frame = set()
+
+        for c in self.classes:
+            st = self.class_state[c]
+            c_dets = detected_by_class[c]
+
+            if not is_evaluated:
+                if st["active_event"] is not None and st["active_event"]["positive_frames"] >= self.min_persistence:
+                    active_classes_this_frame.add(c)
+                continue
+
+            if c_dets:
+                max_conf = max(d["confidence"] for d in c_dets)
+                st["consecutive_absence"] = 0
+                st["total_positive_frames"] += 1
+                st["all_confidences"].append(max_conf)
+                if st["first_detected_sec"] is None:
+                    st["first_detected_sec"] = timestamp_sec
+                st["last_detected_sec"] = timestamp_sec
+
+                st["recent_frames"].append({
+                    "frame_number": frame_number,
+                    "timestamp_sec": timestamp_sec,
+                    "confidence": max_conf,
+                    "positive": True,
+                })
+
+                if st["active_event"] is None:
+                    st["active_event"] = {
+                        "class": c,
+                        "start_frame": frame_number,
+                        "start_sec": timestamp_sec,
+                        "end_frame": frame_number,
+                        "end_sec": timestamp_sec,
+                        "confidences": [max_conf],
+                        "positive_frames": 1,
+                        "total_frames_in_span": 1,
+                    }
+                else:
+                    ev = st["active_event"]
+                    ev["end_frame"] = frame_number
+                    ev["end_sec"] = timestamp_sec
+                    ev["confidences"].append(max_conf)
+                    ev["positive_frames"] += 1
+                    ev["total_frames_in_span"] = frame_number - ev["start_frame"] + 1
+
+            else:
+                st["recent_frames"].append({
+                    "frame_number": frame_number,
+                    "timestamp_sec": timestamp_sec,
+                    "confidence": 0.0,
+                    "positive": False,
+                })
+                st["consecutive_absence"] += 1
+
+                if st["active_event"] is not None:
+                    if st["consecutive_absence"] > self.grace_period:
+                        ev = st["active_event"]
+                        ev["event_confidence"] = self._calc_event_conf(ev["confidences"], ev["positive_frames"], ev["total_frames_in_span"])
+                        ev["peak_confidence"] = max(ev["confidences"])
+                        ev["average_confidence"] = float(np.mean(ev["confidences"]))
+                        st["closed_events"].append(ev)
+                        st["active_event"] = None
+
+            if len(st["recent_frames"]) > self.window_size:
+                st["recent_frames"].pop(0)
+
+            if st["active_event"] is not None and st["active_event"]["positive_frames"] >= self.min_persistence:
+                active_classes_this_frame.add(c)
+
+        composite_label = self._build_composite_label(active_classes_this_frame, confounder_tag)
+
+        self.frame_states.append({
+            "frame_number": frame_number,
+            "timestamp_sec": timestamp_sec,
+            "active_classes": sorted(list(active_classes_this_frame)),
+            "composite_label": composite_label,
+            "confounder_tag": confounder_tag,
+        })
+
+        return {
+            "active_classes": sorted(list(active_classes_this_frame)),
+            "composite_label": composite_label,
+        }
+
+    @staticmethod
+    def _build_composite_label(active_classes: set, confounder_tag: Optional[str] = None) -> str:
+        has_fire = "fire" in active_classes
+        has_smoke = "smoke" in active_classes
+        has_spark = "sparks" in active_classes or "spark" in active_classes
+
+        if has_fire and has_smoke and has_spark:
+            return "FIRE + SMOKE + SPARK"
+        elif has_fire and has_smoke:
+            return "FIRE + SMOKE"
+        elif has_fire and has_spark:
+            return "FIRE + SPARK"
+        elif has_smoke and has_spark:
+            return "SMOKE + SPARK"
+        elif has_fire:
+            return "FIRE"
+        elif has_smoke:
+            return "SMOKE"
+        elif has_spark:
+            return "SPARK"
+        elif confounder_tag:
+            return confounder_tag
+        return "NORMAL"
+
+    @staticmethod
+    def _format_timestamp(sec: Optional[float]) -> str:
+        if sec is None or sec < 0:
+            return "00:00.0"
+        m = int(sec // 60)
+        s = sec % 60
+        return f"{m:02d}:{s:04.1f}"
+
+    def get_summary_statistics(self, total_frames: int, fps: float) -> dict:
+        for c in self.classes:
+            st = self.class_state[c]
+            if st["active_event"] is not None:
+                ev = st["active_event"]
+                ev["event_confidence"] = self._calc_event_conf(ev["confidences"], ev["positive_frames"], ev["total_frames_in_span"])
+                ev["peak_confidence"] = max(ev["confidences"])
+                ev["average_confidence"] = float(np.mean(ev["confidences"]))
+                st["closed_events"].append(ev)
+                st["active_event"] = None
+
+        stats = {}
+        for c in self.classes:
+            st = self.class_state[c]
+            all_c = st["all_confidences"]
+            n_events = len(st["closed_events"])
+            has_det = len(all_c) > 0 and (st["total_positive_frames"] >= self.min_persistence or n_events > 0)
+
+            first_ts_str = self._format_timestamp(st["first_detected_sec"]) if st["first_detected_sec"] is not None else "N/A"
+            last_ts_str = self._format_timestamp(st["last_detected_sec"]) if st["last_detected_sec"] is not None else "N/A"
+
+            peak_conf = max(all_c) if all_c else 0.0
+            avg_conf = float(np.mean(all_c)) if all_c else 0.0
+
+            if st["closed_events"]:
+                event_conf = max(e["event_confidence"] for e in st["closed_events"])
+            elif all_c:
+                event_conf = self._calc_event_conf(all_c, st["total_positive_frames"], total_frames)
+            else:
+                event_conf = 0.0
+
+            stats[c] = {
+                "detected": has_det,
+                "first_detected_sec": round(st["first_detected_sec"], 2) if st["first_detected_sec"] is not None else None,
+                "last_detected_sec": round(st["last_detected_sec"], 2) if st["last_detected_sec"] is not None else None,
+                "first_detected": first_ts_str,
+                "last_detected": last_ts_str,
+                "detection_frames": st["total_positive_frames"],
+                "peak_confidence": round(peak_conf, 4),
+                "average_confidence": round(avg_conf, 4),
+                "event_confidence": round(event_conf, 4),
+                "events_count": n_events if has_det else 0,
+            }
+        return stats
+
+    def get_timeline(self) -> List[Dict[str, Any]]:
+        if not self.frame_states:
+            return []
+
+        segments = []
+        current_state = self.frame_states[0]["composite_label"]
+        start_time = self.frame_states[0]["timestamp_sec"]
+
+        for i in range(1, len(self.frame_states)):
+            f_state = self.frame_states[i]
+            label = f_state["composite_label"]
+
+            if label != current_state:
+                end_time = self.frame_states[i - 1]["timestamp_sec"]
+                segments.append({
+                    "start_sec": round(start_time, 2),
+                    "end_sec": round(end_time, 2),
+                    "start_time": self._format_timestamp(start_time),
+                    "end_time": self._format_timestamp(end_time),
+                    "state": current_state,
+                    "is_hazard": current_state not in ("NORMAL",) and "no hazard" not in current_state.lower(),
+                })
+                current_state = label
+                start_time = f_state["timestamp_sec"]
+
+        last_f = self.frame_states[-1]
+        segments.append({
+            "start_sec": round(start_time, 2),
+            "end_sec": round(last_f["timestamp_sec"], 2),
+            "start_time": self._format_timestamp(start_time),
+            "end_time": self._format_timestamp(last_f["timestamp_sec"]),
+            "state": current_state,
+            "is_hazard": current_state not in ("NORMAL",) and "no hazard" not in current_state.lower(),
+        })
+
+        merged = []
+        for seg in segments:
+            if not merged:
+                merged.append(seg)
+            else:
+                prev = merged[-1]
+                if seg["state"] == prev["state"]:
+                    prev["end_sec"] = seg["end_sec"]
+                    prev["end_time"] = seg["end_time"]
+                else:
+                    merged.append(seg)
+        return merged
+
+
 def _frame_to_base64(frame: np.ndarray, max_dim: int = 480, quality: int = 60) -> str:
     """Fast JPEG encoder converting OpenCV frame to lightweight Base64 string for live streaming."""
     h, w = frame.shape[:2]
@@ -238,9 +580,19 @@ class DetectionLayer:
             self.model.to(self.device)
             self.class_names = self.model.names
             self.ready = True
+            logger.info("==================================================")
             logger.info(f"[MODEL_VERIFICATION] Requested Model Path: {os.path.abspath(self.model_path)}")
             logger.info(f"[MODEL_VERIFICATION] Loaded Model Container File: {os.path.abspath(target_path)}")
-            logger.info(f"[MODEL_VERIFICATION] Device: {self.device.upper()} | Model Class Names ({len(self.class_names)}): {self.class_names}")
+            logger.info(f"[MODEL_VERIFICATION] Device: {self.device.upper()} | Model Class Count: {len(self.class_names)}")
+            logger.info("[MODEL_VERIFICATION] Model Class Mapping:")
+            print(f"\n==================================================")
+            print(f"[MODEL_STARTUP] Loaded YOLO Model: {os.path.abspath(target_path)}")
+            print(f"[MODEL_STARTUP] Device: {self.device.upper()} | Model Class Mapping ({len(self.class_names)} classes):")
+            for cid, cname in self.class_names.items():
+                logger.info(f"  {cid} → {cname}")
+                print(f"  {cid} → {cname}")
+            print(f"==================================================\n")
+            logger.info("==================================================")
         except Exception as e:
             err_msg = f"[DetectionLayer] CRITICAL: Failed to load exported YOLO model from {target_path}: {e}"
             logger.error(err_msg)
@@ -391,72 +743,80 @@ class DetectionLayer:
 
         return True, "passed", scores
 
-    def verify_sparks(self, roi_bgr: np.ndarray, roi_hsv: np.ndarray) -> Tuple[bool, str, dict]:
-        """Sparks verification checking high-intensity hotspot particles and rejecting uniform sky/daylight."""
+    def verify_sparks(self, roi_bgr: np.ndarray, roi_hsv: np.ndarray, raw_conf: float = 0.0) -> Tuple[bool, str, dict]:
+        """Sparks verification checking high-intensity hotspot particles and rejecting uniform sky/daylight.
+        Supports both isolated tiny sparks and extensive spark showers/bursts from electrical arcing or grinding.
+        """
         if roi_bgr.size == 0 or roi_bgr.shape[0] == 0 or roi_bgr.shape[1] == 0:
             return False, "empty_roi", {}
 
         total_pixels = roi_bgr.shape[0] * roi_bgr.shape[1]
-
-        # 0. Particle Size Check: Sparks are small localized particles, never huge bounding boxes
-        if total_pixels > 15000 or roi_bgr.shape[0] > 180 or roi_bgr.shape[1] > 180:
-            return False, f"spark_box_too_large ({roi_bgr.shape[1]}x{roi_bgr.shape[0]}, area={total_pixels} > 15000)", {"area": total_pixels}
-
         roi_gray = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2GRAY)
         v_channel = roi_hsv[:, :, 2]
         max_val = float(np.max(v_channel))
         avg_val = float(np.mean(v_channel))
         std_val = float(np.std(roi_gray))
 
-        # 1. Reject smooth daylight sky, clouds, and uniform walls
-        if avg_val > 140.0 and std_val < 20.0:
-            return False, f"uniform_daylight_or_sky (avg={avg_val:.1f}, std={std_val:.1f})", {"avg_brightness": avg_val, "std": std_val}
+        # Check for spark particles / streaks (both incandescent white-hot and golden amber)
+        white_spark_mask = cv2.inRange(roi_hsv, np.array([0, 0, 220]), np.array([180, 255, 255]))
+        gold_spark_mask = cv2.inRange(roi_hsv, np.array([10, 80, 200]), np.array([35, 255, 255]))
+        spark_mask = cv2.bitwise_or(white_spark_mask, gold_spark_mask)
 
-        # 1b. Reject sky blue / cyan background in or around spark ROI
-        blue_mask = cv2.inRange(roi_hsv, np.array([85, 15, 40]), np.array([140, 255, 255]))
-        blue_ratio = float(np.count_nonzero(blue_mask) / float(total_pixels)) if total_pixels > 0 else 0.0
-        if blue_ratio > 0.02:
-            return False, f"sky_blue_in_roi (blue_ratio={blue_ratio:.2f})", {"blue_ratio": round(blue_ratio, 3)}
-
-        # 1c. Reject daylight white/gray cloud patches (high brightness + low saturation without golden spark core)
-        gold_mask = cv2.inRange(roi_hsv, np.array([10, 100, 200]), np.array([35, 255, 255]))
-        gold_ratio = float(np.count_nonzero(gold_mask) / float(total_pixels)) if total_pixels > 0 else 0.0
-        avg_sat = float(np.mean(roi_hsv[:, :, 1]))
-        if avg_val > 150.0 and gold_ratio < 0.005 and avg_sat < 45.0:
-            return False, f"daylight_cloud_patch (avg_b={avg_val:.1f}, avg_sat={avg_sat:.1f})", {"avg_brightness": avg_val, "avg_sat": avg_sat}
-
-        # 1d. Reject stationary artificial lamps, LED light bulbs, and housing fixtures at night
-        aspect_ratio = float(roi_bgr.shape[1]) / float(roi_bgr.shape[0]) if roi_bgr.shape[0] > 0 else 1.0
-        if 0.55 <= aspect_ratio <= 1.75 and total_pixels > 120:
-            spark_mask_temp = cv2.inRange(roi_hsv, np.array([0, 0, 220]), np.array([180, 255, 255]))
-            num_spk_labels, _, spk_stats, _ = cv2.connectedComponentsWithStats(spark_mask_temp)
-            if len(spk_stats) > 1:
-                max_comp_area = int(np.max(spk_stats[1:, cv2.CC_STAT_AREA]))
-                if max_comp_area > 80 and avg_sat < 75.0:
-                    return False, f"lamp_or_light_fixture (comp_area={max_comp_area}, sat={avg_sat:.1f})", {"comp_area": max_comp_area}
-
-        # 2. Spark particles mask (high brightness and distinct contrast)
-        spark_mask = cv2.inRange(roi_hsv, np.array([0, 20, 220]), np.array([180, 255, 255]))
+        num_spk_labels, _, spk_stats, _ = cv2.connectedComponentsWithStats(spark_mask)
         spark_pixels = int(np.count_nonzero(spark_mask))
         spark_ratio = spark_pixels / float(total_pixels) if total_pixels > 0 else 0.0
+
+        # Multi-spark shower/burst condition: multiple distinct particles or dense spark cluster
+        is_spark_shower = (num_spk_labels >= 4 or spark_pixels >= 40 or (spark_pixels >= 15 and std_val >= 30.0) or raw_conf >= 0.40)
+
+        # 0. Particle Size Check: Isolated single spark boxes shouldn't be huge,
+        # but genuine spark showers, bursts, and arcing clouds can be large
+        if total_pixels > 15000 or roi_bgr.shape[0] > 180 or roi_bgr.shape[1] > 180:
+            if not (is_spark_shower and (max_val - avg_val >= 25.0 or raw_conf >= 0.35)):
+                return False, f"spark_box_too_large ({roi_bgr.shape[1]}x{roi_bgr.shape[0]}, area={total_pixels} > 15000)", {"area": total_pixels}
+
+        # 1. Reject smooth daylight sky, clouds, and uniform walls
+        if avg_val > 140.0 and std_val < 20.0 and not is_spark_shower:
+            return False, f"uniform_daylight_or_sky (avg={avg_val:.1f}, std={std_val:.1f})", {"avg_brightness": avg_val, "std": std_val}
+
+        # 1b. Reject dominant sky blue / cyan background (unless genuine multi-spark shower is present)
+        blue_mask = cv2.inRange(roi_hsv, np.array([85, 30, 50]), np.array([135, 255, 255]))
+        blue_ratio = float(np.count_nonzero(blue_mask) / float(total_pixels)) if total_pixels > 0 else 0.0
+        if blue_ratio > 0.45 and not is_spark_shower:
+            return False, f"sky_blue_in_roi (blue_ratio={blue_ratio:.2f})", {"blue_ratio": round(blue_ratio, 3)}
+
+        # 1c. Reject daylight white/gray cloud patches (high brightness + low saturation without spark core, smooth edges)
+        gold_ratio = float(np.count_nonzero(gold_spark_mask) / float(total_pixels)) if total_pixels > 0 else 0.0
+        avg_sat = float(np.mean(roi_hsv[:, :, 1]))
+        if avg_val > 160.0 and gold_ratio < 0.005 and avg_sat < 35.0 and std_val < 25.0 and not is_spark_shower:
+            return False, f"daylight_cloud_patch (avg_b={avg_val:.1f}, avg_sat={avg_sat:.1f})", {"avg_brightness": avg_val, "avg_sat": avg_sat}
+
+        # 1d. Reject stationary artificial lamps, LED light bulbs, and housing fixtures at night (single uniform bulb without particles)
+        aspect_ratio = float(roi_bgr.shape[1]) / float(roi_bgr.shape[0]) if roi_bgr.shape[0] > 0 else 1.0
+        if 0.55 <= aspect_ratio <= 1.75 and total_pixels > 120 and not is_spark_shower:
+            if len(spk_stats) > 1:
+                max_comp_area = int(np.max(spk_stats[1:, cv2.CC_STAT_AREA]))
+                if max_comp_area > 80 and avg_sat < 75.0 and std_val < 25.0:
+                    return False, f"lamp_or_light_fixture (comp_area={max_comp_area}, sat={avg_sat:.1f})", {"comp_area": max_comp_area}
 
         scores = {
             "max_brightness": round(max_val, 1),
             "avg_brightness": round(avg_val, 1),
             "std_brightness": round(std_val, 1),
             "spark_pixels": spark_pixels,
-            "spark_ratio": round(spark_ratio, 4)
+            "spark_ratio": round(spark_ratio, 4),
+            "num_spk_labels": num_spk_labels
         }
 
-        # Sparks must have intense local brightness and point contrast over background
-        if max_val < 220.0:
-            return False, f"low_spark_intensity (max_val={max_val:.1f} < 220)", scores
+        # Sparks must have intense local brightness
+        if max_val < 210.0:
+            return False, f"low_spark_intensity (max_val={max_val:.1f} < 210)", scores
 
-        if (max_val - avg_val) < 35.0:
+        if (max_val - avg_val) < 20.0 and not is_spark_shower:
             return False, f"low_local_contrast (max={max_val:.1f}, avg={avg_val:.1f})", scores
 
-        # If it's a solid uniform field of high brightness (like sun or bright sky patch)
-        if spark_ratio > 0.60:
+        # If it's a solid uniform field of high brightness (like sun or bright white glare patch)
+        if spark_ratio > 0.75 and not is_spark_shower:
             return False, f"broad_light_field (spark_ratio={spark_ratio:.2f})", scores
 
         return True, "passed", scores
@@ -662,7 +1022,7 @@ class DetectionLayer:
             elif det_type == "smoke":
                 is_valid, reason, scores = self.verify_smoke(roi_bgr, roi_hsv, roi_gray, active_cfg.smoke, raw_conf=det.get("confidence", 0.0))
             elif det_type in ("sparks", "spark"):
-                is_valid, reason, scores = self.verify_sparks(roi_bgr, roi_hsv)
+                is_valid, reason, scores = self.verify_sparks(roi_bgr, roi_hsv, raw_conf=det.get("confidence", 0.0))
             else:
                 is_valid, reason, scores = True, "passed_raw_yolo", {}
 
@@ -782,16 +1142,22 @@ class DetectionLayer:
         return None
 
     def _run_stage1_ai(self, frame: np.ndarray, active_cfg: DetectionConfig) -> List[Dict[str, Any]]:
-        """Stage 1: AI YOLO model inference to extract ROI bounding boxes."""
+        """Stage 1: AI YOLO model inference to extract ROI bounding boxes.
+        Letterboxes input frames to exact 640x640 dimensions, runs real YOLO inference,
+        and accurately maps bounding box coordinates back to original frame dimensions.
+        """
         if not self.ready or self.model is None:
             return []
 
         org_h, org_w = frame.shape[:2]
         imgsz = active_cfg.imgsz
 
-        # Pass frame directly to YOLO model for letterboxed aspect-preserving inference
+        # Standardized aspect-ratio preserving letterbox preprocessing
+        letterboxed, scale, pad = letterbox(frame, target_shape=(imgsz, imgsz))
+
+        t0 = time.perf_counter()
         results = self.model(
-            frame,
+            letterboxed,
             imgsz=imgsz,
             verbose=False,
             conf=active_cfg.conf_threshold,
@@ -799,6 +1165,7 @@ class DetectionLayer:
             device=self.device,
             half=(self.device == "cuda")
         )
+        inf_time_ms = round((time.perf_counter() - t0) * 1000.0, 2)
         
         raw_candidates = []
         for r in results:
@@ -809,7 +1176,13 @@ class DetectionLayer:
                 cls_id = int(box.cls[0])
                 raw_name = self.class_names.get(cls_id, str(cls_id))
                 conf = round(float(box.conf[0]), 4)
-                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                bx1, by1, bx2, by2 = map(float, box.xyxy[0])
+                
+                # Unletterbox coordinates back to original image space
+                x1, y1, x2, y2 = unletterbox_box(bx1, by1, bx2, by2, scale, pad, (org_h, org_w))
+
+                if x2 <= x1 or y2 <= y1:
+                    continue
                 
                 mapped_cls = self._map_class(cls_id, raw_name)
 
@@ -824,7 +1197,9 @@ class DetectionLayer:
                     "bbox": {"x1": x1, "y1": y1, "x2": x2, "y2": y2},
                     "raw_class_name": raw_name,
                     "class_id": cls_id,
+                    "inference_time_ms": inf_time_ms,
                 })
+        return raw_candidates
         return raw_candidates
 
     def detect_image(self, frame: np.ndarray, db_settings: dict | None = None) -> Tuple[np.ndarray, List[Dict[str, Any]]]:
@@ -873,12 +1248,11 @@ class DetectionLayer:
                 ix2, iy2 = min(bb["x2"], kbb["x2"]), min(bb["y2"], kbb["y2"])
                 if ix2 > ix1 and iy2 > iy1:
                     inter_area = (ix2 - ix1) * (iy2 - iy1)
-                    # If this box is sparks and inside/overlapping a larger fire or smoke box, suppress it to prevent false sparks on smoke/fire
-                    if d["detection_type"] in ("sparks", "spark") and kept["detection_type"] in ("fire", "smoke") and (inter_area / float(box_area)) > 0.20:
+                    # Only suppress redundant sub-boxes of the SAME class (e.g. smaller flame inside larger flame),
+                    # or tiny spark box almost completely engulfed (>85%) inside fire with low confidence
+                    if d["detection_type"] in ("sparks", "spark") and kept["detection_type"] in ("fire", "smoke") and (inter_area / float(box_area)) > 0.85 and d["confidence"] < 0.45:
                         is_enclosed = True
                         break
-                    # Only suppress redundant sub-boxes of the SAME class (e.g. smaller flame inside larger flame)
-                    # Never allow smoke to suppress fire or fire to suppress smoke!
                     if d["detection_type"] == kept["detection_type"] and (inter_area / float(box_area)) > 0.35:
                         is_enclosed = True
                         break
@@ -1135,10 +1509,8 @@ class DetectionLayer:
         for c in contours:
             x, y, cw, ch = cv2.boundingRect(c)
             area = cw * ch
-            # Sparks are small localized particles: area <= 5000 px, cw <= 120, ch <= 120
-            # Enforce minimum 15px width AND height to match Stage-2 box_too_small gate
-            # (avoids generating thin-sliver boxes that are guaranteed rejected)
-            if 25 <= area <= 5000 and cw >= 15 and ch >= 15 and cw <= 120 and ch <= 120:
+            # Allow individual sparks as well as spark cluster bursts up to 350x350
+            if 25 <= area <= 60000 and cw >= 12 and ch >= 12 and cw <= 350 and ch <= 350:
                 pad = 4
                 bx1, by1 = max(0, x - pad), max(0, y - pad)
                 bx2, by2 = min(w, x + cw + pad), min(h, y + ch + pad)
@@ -1150,24 +1522,24 @@ class DetectionLayer:
                 avg_val = float(np.mean(roi_gray))
                 
                 # Sparks must have intense local peak and sharp contrast over local ambient
-                if max_val >= 245.0 and (max_val - avg_val) >= 40.0:
+                if max_val >= 235.0 and (max_val - avg_val) >= 30.0:
                     roi_hsv = hsv[by1:by2, bx1:bx2]
                     # Check if candidate ROI touches blue sky or cyan background
-                    roi_blue = cv2.inRange(roi_hsv, np.array([85, 15, 40]), np.array([140, 255, 255]))
-                    if np.count_nonzero(roi_blue) > 0.02 * roi_gray.size:
-                        continue # Skip! It's in the sky or next to sky!
+                    roi_blue = cv2.inRange(roi_hsv, np.array([85, 30, 50]), np.array([135, 255, 255]))
+                    if np.count_nonzero(roi_blue) > 0.40 * roi_gray.size and std_val < 25.0:
+                        continue # Skip sky!
 
-                    # Check if candidate ROI is a white cloud patch (low saturation + high brightness, lacking golden spark core)
-                    roi_gold = cv2.inRange(roi_hsv, np.array([10, 100, 200]), np.array([35, 255, 255]))
+                    # Check if candidate ROI is a white cloud patch (smooth low-variance overcast cloud)
+                    roi_gold = cv2.inRange(roi_hsv, np.array([10, 80, 200]), np.array([35, 255, 255]))
                     roi_sat = float(np.mean(roi_hsv[:, :, 1]))
-                    if roi_sat < 45.0 and np.count_nonzero(roi_gold) < 2:
+                    if roi_sat < 35.0 and np.count_nonzero(roi_gold) < 2 and std_val < 25.0:
                         continue # Skip white cloud patch!
 
                     # Check if candidate ROI is a solid artificial lamp / LED light bulb housing at night
                     aspect_ratio = float(cw) / float(ch) if ch > 0 else 1.0
                     c_area = cv2.contourArea(c)
                     solidity = c_area / float(area) if area > 0 else 0.0
-                    if 0.55 <= aspect_ratio <= 1.75 and solidity > 0.55 and area > 100 and roi_sat < 75.0:
+                    if 0.55 <= aspect_ratio <= 1.75 and solidity > 0.65 and area > 100 and roi_sat < 75.0 and std_val < 25.0:
                         continue # Skip outdoor garden lamp fixture / LED light bulb!
 
                     conf = round(min(0.90, max(0.55, 0.50 + (std_val / 50.0) * 0.30)), 4)
@@ -1201,6 +1573,13 @@ class DetectionLayer:
         is_debug_mode = "debug" in mode_lower
 
         tracker = ByteTracker(high_thresh=0.30, low_thresh=0.15, iou_thresh=0.20, max_age=30)
+        temporal_mgr = TemporalEventManager(
+            classes=("fire", "smoke", "sparks"),
+            window_size=getattr(active_cfg, "temporal_window_frames", 25),
+            min_persistence=getattr(active_cfg, "min_event_persistence_frames", 2),
+            grace_period=getattr(active_cfg, "event_absence_grace_frames", 8),
+            fluctuation_penalty=getattr(active_cfg, "confidence_fluctuation_penalty", 0.15),
+        )
 
         meta = self.extract_video_metadata(video_path)
         fps = meta.get("fps", 25.0) or 25.0
@@ -1237,6 +1616,7 @@ class DetectionLayer:
 
         frame_latencies: list = []
         carried_dets: list = []
+        current_composite_state = "NORMAL"
 
         # In Accuracy mode, evaluate every single frame (stride=1) for exhaustive hazard capture.
         # In Real-Time mode, sample 2-3 keyframes per second for low latency.
@@ -1257,44 +1637,29 @@ class DetectionLayer:
 
             frame_num += 1
             t_decode_ms = (time.perf_counter() - t_dec_start) * 1000.0
+            ts_sec = round((frame_num - 1) / fps, 3)
 
             curr_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            has_active_threat = any(c > 0 for c in consecutive_threats.values())
 
             # Maintain fast real-time stride across stream
             current_stride = normal_stride
             if user_frame_skip > 0:
                 current_stride = max(current_stride, base_skip)
 
-            run_inference = (frame_num % current_stride == 1) or (frame_num == 1)
+            run_inference = (current_stride <= 1) or (frame_num % current_stride == 1) or (frame_num == 1)
 
             t_infer_ms = 0.0
             t_cv_ms = 0.0
+            confounder_tag = None
 
             if run_inference:
                 processed_count += 1
                 t_frame_start = time.perf_counter()
 
-                # Pre-scale high-res input frames (e.g. 4K) if needed, but preserve aspect ratio
-                infer_frame = frame
-                h_f, w_f = frame.shape[:2]
-                if max(h_f, w_f) > 1280:
-                    scale_f = 1280.0 / float(max(h_f, w_f))
-                    infer_frame = cv2.resize(frame, (int(w_f * scale_f), int(h_f * scale_f)), interpolation=cv2.INTER_AREA)
-
-                # 1. Stage 1 YOLO Inference
+                # 1. Stage 1 YOLO Inference (strictly letterboxed to 640x640 with aspect preservation)
                 t_yolo_start = time.perf_counter()
-                raw_dets = self._run_stage1_ai(infer_frame, active_cfg)
+                raw_dets = self._run_stage1_ai(frame, active_cfg)
                 t_infer_ms = (time.perf_counter() - t_yolo_start) * 1000.0
-
-                if raw_dets and max(h_f, w_f) > 1280:
-                    inv_scale = float(max(h_f, w_f)) / 1280.0
-                    for d in raw_dets:
-                        bb = d["bbox"]
-                        bb["x1"] = int(bb["x1"] * inv_scale)
-                        bb["y1"] = int(bb["y1"] * inv_scale)
-                        bb["x2"] = int(bb["x2"] * inv_scale)
-                        bb["y2"] = int(bb["y2"] * inv_scale)
 
                 # 2. CV Enhancement Layer (Sparks & Distant Fire)
                 t_cv_start = time.perf_counter()
@@ -1306,7 +1671,6 @@ class DetectionLayer:
                 for cv_c in cv_candidates:
                     c_bb = cv_c["bbox"]
                     c_area = max(1, (c_bb["x2"] - c_bb["x1"]) * (c_bb["y2"] - c_bb["y1"]))
-                    # Candidate is inside or significantly overlapping ANY YOLO detection (smoke plume or fire flame)
                     inside_yolo = any(
                         (max(0, min(c_bb["x2"], yd["bbox"]["x2"]) - max(c_bb["x1"], yd["bbox"]["x1"])) *
                          max(0, min(c_bb["y2"], yd["bbox"]["y2"]) - max(c_bb["y1"], yd["bbox"]["y1"]))) / float(c_area) > 0.15
@@ -1321,10 +1685,24 @@ class DetectionLayer:
                 else:
                     verified_dets = []
 
+                # Confounder tracking for non-hazardous phenomena
+                for d in all_raw:
+                    reason = str(d.get("rejection_reason", "")).lower()
+                    if "steam" in reason or "too_dark" in reason or "dissipation" in reason:
+                        confounder_tag = "STEAM — no hazard"
+                    elif "dust" in reason:
+                        confounder_tag = "DUST — no hazard"
+                    elif "lamp" in reason or "sky" in reason or "static_background" in reason or "broad_light_field" in reason or "daylight" in reason:
+                        confounder_tag = "REFLECTION — no hazard"
+
                 # 4. ByteTrack Multi-Object Association
                 tracked_dets = tracker.update(verified_dets) if (all_raw or tracker.tracks) else []
 
-                # 5. Check Early Threat Alerts
+                # 5. Temporal Event Aggregation & Persistence
+                temp_update = temporal_mgr.update(frame_num, ts_sec, tracked_dets, is_evaluated=True, confounder_tag=confounder_tag)
+                current_composite_state = temp_update["composite_label"]
+
+                # 6. Check Early Threat Alerts
                 detected_types = {d["detection_type"] for d in tracked_dets}
                 early_threat_triggered = None
 
@@ -1337,16 +1715,7 @@ class DetectionLayer:
                     else:
                         consecutive_threats[cls] = max(0, consecutive_threats[cls] - 1)
 
-                active_threat_type = None
-                if "fire" in detected_types:
-                    active_threat_type = "fire"
-                elif "smoke" in detected_types:
-                    active_threat_type = "smoke"
-                elif "sparks" in detected_types or "spark" in detected_types:
-                    active_threat_type = "sparks"
-                elif max(consecutive_threats.values()) > 0:
-                    active_threat_type = max(consecutive_threats, key=consecutive_threats.get)
-
+                active_threat_type = current_composite_state
                 carried_dets = tracked_dets
 
                 t_frame_ms = (time.perf_counter() - t_frame_start) * 1000.0
@@ -1357,37 +1726,39 @@ class DetectionLayer:
                 skipped_frames_count += 1
                 tracked_dets = carried_dets
                 early_threat_triggered = None
-                active_threat_type = None
-                if carried_dets:
-                    c_types = {d["detection_type"] for d in carried_dets}
-                    for priority_cls in ("fire", "smoke", "sparks"):
-                        if priority_cls in c_types:
-                            active_threat_type = priority_cls
-                            break
+                temp_update = temporal_mgr.update(frame_num, ts_sec, carried_dets, is_evaluated=False)
+                current_composite_state = temp_update["composite_label"]
+                active_threat_type = current_composite_state
 
             prev_gray = curr_gray
 
-            # 6. Annotate EVERY frame for smooth playback
+            # 7. Annotate EVERY frame with boxes, labels, confidence, and HUD overlay
             t_ren_start = time.perf_counter()
-            annotated = self.annotate_frame(frame, tracked_dets) if tracked_dets else frame.copy()
+            ts_display = TemporalEventManager._format_timestamp(ts_sec)
+            annotated = self.annotate_frame(
+                frame,
+                tracked_dets,
+                composite_state=current_composite_state,
+                timestamp_str=ts_display
+            )
 
             # In Debug mode, add HUD overlay
             if is_debug_mode:
-                hud_text = f"F:{frame_num}/{total_frames} | T:{frame_num/fps:.2f}s | Dets:{len(tracked_dets)} | Inf:{t_infer_ms:.0f}ms | Mode:{mode}"
+                hud_text = f"F:{frame_num}/{total_frames} | T:{ts_display} | Dets:{len(tracked_dets)} | Inf:{t_infer_ms:.0f}ms | State:{current_composite_state}"
                 cv2.putText(annotated, hud_text, (12, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255), 2)
 
             t_render_ms = (time.perf_counter() - t_ren_start) * 1000.0
 
-            # 7. Encode annotated frame as raw JPEG bytes for MJPEG streaming
+            # 8. Encode annotated frame as raw JPEG bytes for MJPEG streaming
             encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), 75]
             ok, jpeg_buf = cv2.imencode(".jpg", annotated, encode_params)
             annotated_jpeg = jpeg_buf.tobytes() if ok else None
 
-            # 8. Write annotated frame to output video
+            # 9. Write annotated frame to output video
             if writer:
                 writer.write(annotated)
 
-            # 9. Telemetry & Progress
+            # 10. Telemetry & Progress
             avg_latency = round(float(np.mean(frame_latencies)), 1) if frame_latencies else round(t_infer_ms, 1)
             t_elapsed = time.perf_counter() - t_start
             proc_fps = processed_count / t_elapsed if t_elapsed > 0 else 0.0
@@ -1396,7 +1767,7 @@ class DetectionLayer:
             remaining_frames = max(0, total_frames - frame_num)
             eta_sec = (remaining_frames / overall_fps) if overall_fps > 0 else 0.0
 
-            # 10. High-quality preview frame base64 for real-time visualization
+            # 11. High-quality preview frame base64 for real-time visualization
             preview_b64 = _frame_to_base64(annotated, max_dim=720, quality=75)
 
             if run_inference or frame_num == total_frames:
@@ -1406,7 +1777,8 @@ class DetectionLayer:
                     "frame_number": frame_num,
                     "total_frames": total_frames,
                     "progress_pct": progress_pct,
-                    "timestamp_sec": round((frame_num - 1) / fps, 3),
+                    "timestamp_sec": ts_sec,
+                    "timestamp_str": ts_display,
                     "fps": round(proc_fps, 1),
                     "source_fps": round(fps, 1),
                     "inference_fps": round(overall_fps, 1),
@@ -1421,6 +1793,7 @@ class DetectionLayer:
                     "detections": tracked_dets,
                     "early_threat": early_threat_triggered,
                     "active_threat": active_threat_type,
+                    "composite_state": current_composite_state,
                     "consecutive_threat_frames": max(consecutive_threats.values()),
                     "continuous_alarm": (consecutive_threats["fire"] >= 12 or consecutive_threats["smoke"] >= 15 or consecutive_threats["sparks"] >= 15),
                     "preview_b64": preview_b64,
@@ -1435,12 +1808,53 @@ class DetectionLayer:
         if writer:
             writer.release()
 
+        # Generate structured final statistics and timeline
+        summary_stats = temporal_mgr.get_summary_statistics(total_frames, fps)
+        timeline_segments = temporal_mgr.get_timeline()
+
+        fire_detected = bool(summary_stats.get("fire", {}).get("detected", False))
+        smoke_detected = bool(summary_stats.get("smoke", {}).get("detected", False))
+        spark_detected = bool(summary_stats.get("sparks", {}).get("detected", False))
+
+        video_info = {
+            "duration": meta.get("duration", 0),
+            "duration_sec": meta.get("duration_sec", 0),
+            "fps": round(fps, 2),
+            "resolution": f"{w}x{h}",
+            "width": w,
+            "height": h,
+            "total_frames": total_frames,
+            "processed_frames": processed_count,
+            "skipped_frames": skipped_frames_count,
+        }
+
+        detection_summary = {
+            "fire_detected": fire_detected,
+            "smoke_detected": smoke_detected,
+            "spark_detected": spark_detected,
+            "fire": summary_stats.get("fire", {}).get("detection_frames", 0),
+            "smoke": summary_stats.get("smoke", {}).get("detection_frames", 0),
+            "sparks": summary_stats.get("sparks", {}).get("detection_frames", 0),
+        }
+
         logger.info(
             f"[VideoStream] Completed job. Processed={processed_count}, Skipped={skipped_frames_count}/{total_frames} "
-            f"in {time.perf_counter() - t_start:.1f}s"
+            f"in {time.perf_counter() - t_start:.1f}s | Summary: Fire={fire_detected}, Smoke={smoke_detected}, Spark={spark_detected}"
         )
 
-
+        # Final terminal yield containing full statistical payload
+        yield {
+            "event": "video_analysis_completed",
+            "type": "summary_ready",
+            "frame_number": total_frames,
+            "total_frames": total_frames,
+            "progress_pct": 100.0,
+            "video_info": video_info,
+            "detection_summary": detection_summary,
+            "event_statistics": summary_stats,
+            "timeline": timeline_segments,
+            "has_detections": (fire_detected or smoke_detected or spark_detected),
+        }
 
     def detect_batch(self, frames: List[np.ndarray], db_settings: dict | None = None) -> List[Tuple[np.ndarray, List[Dict[str, Any]]]]:
         """Batch inference support."""
@@ -1450,35 +1864,69 @@ class DetectionLayer:
             results.append((annotated, detections))
         return results
 
-    def annotate_frame(self, frame: np.ndarray, detections: List[Dict[str, Any]]) -> np.ndarray:
-        """Annotates frame with clean, modern bounding boxes and badges."""
+    def annotate_frame(
+        self,
+        frame: np.ndarray,
+        detections: List[Dict[str, Any]],
+        composite_state: Optional[str] = None,
+        timestamp_str: Optional[str] = None
+    ) -> np.ndarray:
+        """Annotates frame with clean, modern bounding boxes, class labels, confidence,
+        and HUD state badge containing current timestamp and composite hazard state.
+        Ensures bounding boxes strictly clamp within frame boundaries.
+        """
         out = frame.copy()
+        h, w = out.shape[:2]
         colors = {
             "fire": (0, 30, 255),       # BGR Red
-            "smoke": (235, 160, 14),    # BGR Sky Blue / Cyan (distinct from Fire & Sparks)
+            "smoke": (235, 160, 14),    # BGR Sky Blue / Cyan
             "sparks": (0, 215, 255),    # BGR Gold / Amber
             "spark": (0, 215, 255),     # BGR Gold / Amber
         }
         for d in detections:
             bb = d["bbox"]
+            bx1 = max(0, min(w - 1, int(bb["x1"])))
+            by1 = max(0, min(h - 1, int(bb["y1"])))
+            bx2 = max(0, min(w, int(bb["x2"])))
+            by2 = max(0, min(h, int(bb["y2"])))
+            if bx2 <= bx1 or by2 <= by1:
+                continue
+
             color = colors.get(d["detection_type"], (255, 255, 255))
-            cv2.rectangle(out, (bb["x1"], bb["y1"]), (bb["x2"], bb["y2"]), color, 2)
-            
+            cv2.rectangle(out, (bx1, by1), (bx2, by2), color, 2)
+
             tid_str = f" #{d['track_id']}" if "track_id" in d else ""
             label = f"{d['detection_type'].upper()}{tid_str} {d['confidence']:.0%}"
             (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
 
-            if bb["y1"] - th - 10 >= 0:
-                rect_y1 = bb["y1"] - th - 10
-                rect_y2 = bb["y1"]
-                text_y = bb["y1"] - 4
+            if by1 - th - 10 >= 0:
+                rect_y1 = by1 - th - 10
+                rect_y2 = by1
+                text_y = by1 - 4
             else:
-                rect_y1 = bb["y1"]
-                rect_y2 = bb["y1"] + th + 10
-                text_y = bb["y1"] + th + 6
+                rect_y1 = by1
+                rect_y2 = by1 + th + 10
+                text_y = by1 + th + 6
 
-            cv2.rectangle(out, (bb["x1"], rect_y1), (bb["x1"] + tw + 10, rect_y2), color, -1)
-            cv2.putText(out, label, (bb["x1"] + 5, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+            cv2.rectangle(out, (bx1, rect_y1), (min(w, bx1 + tw + 10), rect_y2), color, -1)
+            cv2.putText(out, label, (bx1 + 5, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+
+        # Draw HUD banner with timestamp and current hazard state (Requirement 16)
+        if timestamp_str or composite_state:
+            hud_parts = []
+            if timestamp_str:
+                hud_parts.append(f"TIME: {timestamp_str}")
+            if composite_state:
+                hud_parts.append(f"STATE: {composite_state}")
+            hud_text = " | ".join(hud_parts)
+            (hw, hh), _ = cv2.getTextSize(hud_text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+            hud_x = 12
+            hud_y = h - 16
+            cv2.rectangle(out, (hud_x - 6, hud_y - hh - 6), (hud_x + hw + 6, hud_y + 6), (20, 20, 20), -1)
+            is_hazard = composite_state and composite_state != "NORMAL" and "no hazard" not in composite_state.lower()
+            text_color = (0, 60, 255) if is_hazard else (180, 240, 180)
+            cv2.putText(out, hud_text, (hud_x, hud_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color, 1, cv2.LINE_AA)
+
         return out
 
     def _print_pipeline_debug_logs(

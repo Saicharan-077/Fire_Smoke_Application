@@ -1002,41 +1002,240 @@ const Detection = () => {
                       );
                     })()}
 
-                    {/* INTERACTIVE DETECTION TIMELINE */}
-                    {vidTimelineEvents.length > 0 && (
-                      <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 space-y-2 mt-3">
-                        <div className="flex justify-between items-center text-xs font-bold text-slate-200">
-                          <span>Detection Timeline</span>
-                          <span className="text-[10px] text-slate-400">{vidTimelineEvents.length} Threat Timestamp(s)</span>
-                        </div>
-                        <div className="flex gap-2 overflow-x-auto py-1 custom-scrollbar">
-                          {vidTimelineEvents.map((evt, idx) => {
-                            const isSpark = evt.type === 'sparks' || evt.type === 'spark';
-                            const isFire = evt.type === 'fire';
-                            return (
-                              <button
-                                key={idx}
-                                onClick={() => {
-                                  if (playerRef.current) {
-                                    playerRef.current.currentTime = evt.timestamp_sec;
-                                    playerRef.current.play().catch(() => {});
+                    {/* SECTION 10 & 11: DETECTION TIMELINE & STRUCTURED SUMMARY */}
+                    {vidResult !== null && (
+                      <div className="space-y-3 pt-2">
+                        {/* DYNAMIC DETECTION TIMELINE (Section 10) */}
+                        {((vidResult.timeline && vidResult.timeline.length > 0) || vidTimelineEvents.length > 0) && (
+                          <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 space-y-2.5">
+                            <div className="flex justify-between items-center text-xs font-bold text-slate-200">
+                              <span className="flex items-center gap-1.5">
+                                <Film size={14} className="text-sky-400" /> Dynamic Detection Timeline
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                {vidResult.timeline ? `${vidResult.timeline.length} Segment(s)` : `${vidTimelineEvents.length} Threat Timestamp(s)`}
+                              </span>
+                            </div>
+
+                            {/* Contiguous Interval Timeline Blocks */}
+                            {vidResult.timeline && vidResult.timeline.length > 0 ? (
+                              <div className="flex gap-2 overflow-x-auto py-1 custom-scrollbar">
+                                {vidResult.timeline.map((seg: any, idx: number) => {
+                                  const state = seg.state || 'NORMAL';
+                                  const isFire = state.includes('FIRE');
+                                  const isSmoke = state.includes('SMOKE');
+                                  const isSpark = state.includes('SPARK');
+                                  const isConfounder = state.includes('no hazard') || state.includes('STEAM') || state.includes('DUST') || state.includes('REFLECTION');
+
+                                  let badgeStyle = 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-700/80';
+                                  let icon = '🛡';
+                                  if (isConfounder) {
+                                    badgeStyle = 'bg-cyan-950/40 text-cyan-300 border-cyan-800/50 hover:bg-cyan-900/50';
+                                    icon = '💨';
+                                  } else if (isFire && isSmoke && isSpark) {
+                                    badgeStyle = 'bg-rose-950/60 text-rose-300 border-rose-600/60 hover:bg-rose-900/60 animate-pulse';
+                                    icon = '🔥✨';
+                                  } else if (isFire && isSmoke) {
+                                    badgeStyle = 'bg-red-950/60 text-red-300 border-red-700/50 hover:bg-red-900/50';
+                                    icon = '🔥💨';
+                                  } else if (isFire) {
+                                    badgeStyle = 'bg-red-950/50 text-red-400 border-red-800/50 hover:bg-red-900/50';
+                                    icon = '🔥';
+                                  } else if (isSmoke) {
+                                    badgeStyle = 'bg-indigo-950/50 text-indigo-300 border-indigo-800/50 hover:bg-indigo-900/50';
+                                    icon = '💨';
+                                  } else if (isSpark) {
+                                    badgeStyle = 'bg-amber-950/50 text-amber-300 border-amber-800/50 hover:bg-amber-900/50';
+                                    icon = '✨';
                                   }
-                                }}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap ${
-                                  isFire
-                                    ? 'bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30'
-                                    : (isSpark
-                                      ? 'bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-amber-500/30'
-                                      : 'bg-purple-500/20 text-purple-400 border-purple-500/30 hover:bg-purple-500/30')
-                                }`}
-                              >
-                                <span>{isFire ? '🔥' : (isSpark ? '✨' : '💨')}</span>
-                                <span className="capitalize">{evt.type}</span>
-                                <span>{Math.floor(evt.timestamp_sec / 60)}:{(evt.timestamp_sec % 60).toFixed(0).padStart(2, '0')}</span>
-                                <span className="text-[10px] opacity-75 font-mono">({(evt.confidence * 100).toFixed(0)}%)</span>
-                              </button>
-                            );
-                          })}
+
+                                  return (
+                                    <button
+                                      key={idx}
+                                      onClick={() => {
+                                        if (playerRef.current) {
+                                          playerRef.current.currentTime = seg.start_sec || 0;
+                                          playerRef.current.play().catch(() => {});
+                                        }
+                                      }}
+                                      title={`Jump to ${seg.start_time} - ${seg.end_time} (${state})`}
+                                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap shadow-xs ${badgeStyle}`}
+                                    >
+                                      <span>{icon}</span>
+                                      <span className="font-mono text-[11px] opacity-80">{seg.start_time}–{seg.end_time}</span>
+                                      <span className="tracking-wide">{state}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="flex gap-2 overflow-x-auto py-1 custom-scrollbar">
+                                {vidTimelineEvents.map((evt, idx) => {
+                                  const isSpark = evt.type === 'sparks' || evt.type === 'spark';
+                                  const isFire = evt.type === 'fire';
+                                  return (
+                                    <button
+                                      key={idx}
+                                      onClick={() => {
+                                        if (playerRef.current) {
+                                          playerRef.current.currentTime = evt.timestamp_sec;
+                                          playerRef.current.play().catch(() => {});
+                                        }
+                                      }}
+                                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer whitespace-nowrap ${
+                                        isFire
+                                          ? 'bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30'
+                                          : (isSpark
+                                            ? 'bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-amber-500/30'
+                                            : 'bg-purple-500/20 text-purple-400 border-purple-500/30 hover:bg-purple-500/30')
+                                      }`}
+                                    >
+                                      <span>{isFire ? '🔥' : (isSpark ? '✨' : '💨')}</span>
+                                      <span className="capitalize">{evt.type}</span>
+                                      <span>{Math.floor(evt.timestamp_sec / 60)}:{(evt.timestamp_sec % 60).toFixed(0).padStart(2, '0')}</span>
+                                      <span className="text-[10px] opacity-75 font-mono">({(evt.confidence * 100).toFixed(0)}%)</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* SECTION 11: STRUCTURED DETECTION SUMMARY & EVENT STATISTICS */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {/* VIDEO INFORMATION & DETECTION SUMMARY */}
+                          <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 space-y-3">
+                            <div>
+                              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                                <Film size={13} className="text-sky-400" /> Video Information
+                              </p>
+                              {(() => {
+                                const vInfo = vidResult.video_info || vidResult.metadata || videoMeta || {};
+                                return (
+                                  <div className="grid grid-cols-3 gap-2 mt-2 text-center text-xs">
+                                    <div className="bg-slate-950/70 p-2 rounded-lg border border-slate-800/80">
+                                      <span className="text-[10px] text-slate-400 block">Duration</span>
+                                      <span className="font-mono font-bold text-slate-200">{(vInfo.duration || vInfo.duration_sec || 0).toFixed(1)}s</span>
+                                    </div>
+                                    <div className="bg-slate-950/70 p-2 rounded-lg border border-slate-800/80">
+                                      <span className="text-[10px] text-slate-400 block">FPS</span>
+                                      <span className="font-mono font-bold text-slate-200">{vInfo.fps || 25}</span>
+                                    </div>
+                                    <div className="bg-slate-950/70 p-2 rounded-lg border border-slate-800/80">
+                                      <span className="text-[10px] text-slate-400 block">Resolution</span>
+                                      <span className="font-mono font-bold text-slate-200">{vInfo.resolution || `${vInfo.width || 640}x${vInfo.height || 480}`}</span>
+                                    </div>
+                                    <div className="bg-slate-950/70 p-2 rounded-lg border border-slate-800/80">
+                                      <span className="text-[10px] text-slate-400 block">Total Frames</span>
+                                      <span className="font-mono font-bold text-slate-200">{vInfo.total_frames || vInfo.frame_count || vidTelemetry.total_frames || 0}</span>
+                                    </div>
+                                    <div className="bg-slate-950/70 p-2 rounded-lg border border-slate-800/80">
+                                      <span className="text-[10px] text-slate-400 block">Processed</span>
+                                      <span className="font-mono font-bold text-emerald-400">{vInfo.processed_frames || vidTelemetry.current_frame || 0}</span>
+                                    </div>
+                                    <div className="bg-slate-950/70 p-2 rounded-lg border border-slate-800/80">
+                                      <span className="text-[10px] text-slate-400 block">Skipped/Dropped</span>
+                                      <span className="font-mono font-bold text-slate-400">{vInfo.skipped_frames || vidTelemetry.skipped_frames || 0}</span>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+
+                            <div className="border-t border-slate-800/80 pt-2.5">
+                              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                                Detection Summary
+                              </p>
+                              {(() => {
+                                const detSum = vidResult.detection_summary || vidResult.summary || {};
+                                const evStats = vidResult.event_statistics || {};
+                                const hasFire = detSum.fire_detected ?? (Boolean(detSum.fire) || Boolean(evStats.fire?.detected));
+                                const hasSmoke = detSum.smoke_detected ?? (Boolean(detSum.smoke) || Boolean(evStats.smoke?.detected));
+                                const hasSpark = detSum.spark_detected ?? (Boolean(detSum.sparks || detSum.spark) || Boolean(evStats.sparks?.detected));
+
+                                return (
+                                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                                    <div className={`p-2 rounded-lg border ${hasFire ? 'bg-red-950/40 border-red-700/50 text-red-300' : 'bg-slate-950/50 border-slate-800 text-slate-400'}`}>
+                                      <span className="text-[10px] block">Fire Detected</span>
+                                      <span className="font-bold">{hasFire ? '✓ YES' : '✗ NO'}</span>
+                                    </div>
+                                    <div className={`p-2 rounded-lg border ${hasSmoke ? 'bg-indigo-950/40 border-indigo-700/50 text-indigo-300' : 'bg-slate-950/50 border-slate-800 text-slate-400'}`}>
+                                      <span className="text-[10px] block">Smoke Detected</span>
+                                      <span className="font-bold">{hasSmoke ? '✓ YES' : '✗ NO'}</span>
+                                    </div>
+                                    <div className={`p-2 rounded-lg border ${hasSpark ? 'bg-amber-950/40 border-amber-700/50 text-amber-300' : 'bg-slate-950/50 border-slate-800 text-slate-400'}`}>
+                                      <span className="text-[10px] block">Spark Detected</span>
+                                      <span className="font-bold">{hasSpark ? '✓ YES' : '✗ NO'}</span>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          </div>
+
+                          {/* EVENT STATISTICS PER CLASS */}
+                          <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 space-y-2">
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                              <Activity size={13} className="text-amber-400" /> Event Statistics (Temporal Aggregation)
+                            </p>
+                            {(() => {
+                              const evStats = vidResult.event_statistics || {};
+                              const classes = [
+                                { id: 'fire', name: 'FIRE', icon: '🔥', color: 'text-red-400', stat: evStats.fire },
+                                { id: 'smoke', name: 'SMOKE', icon: '💨', color: 'text-indigo-400', stat: evStats.smoke },
+                                { id: 'sparks', name: 'SPARK', icon: '✨', color: 'text-amber-400', stat: evStats.sparks || evStats.spark },
+                              ];
+
+                              return (
+                                <div className="space-y-2 text-xs">
+                                  {classes.map((c) => {
+                                    const st = c.stat;
+                                    const detected = st?.detected || (st?.detection_frames > 0);
+                                    return (
+                                      <div key={c.id} className="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800/80">
+                                        <div className="flex justify-between items-center mb-1.5">
+                                          <span className={`font-bold flex items-center gap-1.5 ${c.color}`}>
+                                            <span>{c.icon}</span> {c.name}
+                                          </span>
+                                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${detected ? 'bg-red-500/20 text-red-300 border border-red-500/30' : 'bg-slate-800 text-slate-400'}`}>
+                                            {detected ? `${st?.events_count || 1} Event(s)` : '0 Events'}
+                                          </span>
+                                        </div>
+
+                                        {detected ? (
+                                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-[11px] text-slate-300 font-mono">
+                                            <div>
+                                              <span className="text-[10px] text-slate-500 block">Span:</span>
+                                              <span>{st.first_detected || '00:00.0'} → {st.last_detected || '00:00.0'}</span>
+                                            </div>
+                                            <div>
+                                              <span className="text-[10px] text-slate-500 block">Positive Frames:</span>
+                                              <span>{st.detection_frames || 0}</span>
+                                            </div>
+                                            <div>
+                                              <span className="text-[10px] text-slate-500 block">Peak Conf:</span>
+                                              <span className="text-emerald-400 font-bold">{((st.peak_confidence || 0) * 100).toFixed(0)}%</span>
+                                            </div>
+                                            <div>
+                                              <span className="text-[10px] text-slate-500 block">Avg Conf:</span>
+                                              <span>{((st.average_confidence || 0) * 100).toFixed(0)}%</span>
+                                            </div>
+                                            <div className="col-span-2">
+                                              <span className="text-[10px] text-slate-500 block">Event Confidence (Temporal):</span>
+                                              <span className="text-sky-400 font-bold">{((st.event_confidence || 0) * 100).toFixed(0)}%</span>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <p className="text-[11px] text-slate-500 italic">No verified hazards detected in temporal window.</p>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            })()}
+                          </div>
                         </div>
                       </div>
                     )}

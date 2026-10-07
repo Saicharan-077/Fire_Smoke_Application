@@ -50,6 +50,9 @@ backend/.env
 # Scratch / debug artifacts
 scratch/
 *.patch
+*.mp4
+.archify/
 
 # OS
 Thumbs.db
+

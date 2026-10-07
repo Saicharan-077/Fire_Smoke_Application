@@ -33,3 +33,19 @@ def test_smoke_texture_verification():
     result = verifier.verify(smoke_roi, "smoke")
     assert result.hsv_score > 0.5
     assert 0.0 <= result.combined_score <= 1.0
+
+
+def test_sparks_verification():
+    verifier = DeterministicVerifier()
+    # Create dark scene with bright sparkling particles
+    h, w = 100, 100
+    sparks_roi = np.zeros((h, w, 3), dtype=np.uint8)
+    # Add multiple intense bright spark particles
+    coords = [(10, 15), (30, 45), (60, 20), (80, 75), (50, 85)]
+    for y, x in coords:
+        sparks_roi[y:y+3, x:x+3] = [255, 255, 255]
+
+    result = verifier.verify(sparks_roi, "sparks")
+    assert result.passed is True
+    assert result.combined_score > 0.4
+

@@ -164,6 +164,9 @@ class VideoUploadResponse(BaseModel):
     annotated_video_path: Optional[str] = None
     has_detections: bool = False
     detection_summary: Optional[dict] = None
+    video_info: Optional[dict] = None
+    event_statistics: Optional[dict] = None
+    timeline: Optional[List[dict]] = None
 
 
 # ── User Authentication ───────────────────────────────────────────────────────

@@ -221,8 +221,12 @@ class DeterministicVerifier:
                 scores=scores,
             )
 
+        # Connected components for spark particles & floodlight checks
+        num_labels, _labels, stats, _centroids = cv2.connectedComponentsWithStats(spark_mask)
+        is_spark_shower = (num_labels >= 4 or (spark_pixels >= 20 and std_val >= 25.0))
+
         # Reject diffuse smoke cloud or overcast daylight patch misclassified as sparks
-        if spark_pixels > 0:
+        if spark_pixels > 0 and not is_spark_shower:
             active_spark_hsv = roi_hsv[spark_mask > 0]
             avg_spark_sat = float(np.mean(active_spark_hsv[:, 1]))
             # If bright pixels are desaturated (gray/white smoke or cloud)
@@ -234,8 +238,7 @@ class DeterministicVerifier:
                 )
 
         # Check for static floodlight bulb / large uniform lamp fixture
-        num_labels, _labels, stats, _centroids = cv2.connectedComponentsWithStats(spark_mask)
-        if num_labels > 1:
+        if num_labels > 1 and not is_spark_shower:
             max_component_area = max(stats[1:, cv2.CC_STAT_AREA]) if len(stats) > 1 else 0
             # If a single solid connected component covers > 80% of ROI and has large area, it's a static lamp fixture
             if max_component_area > 2000 and (max_component_area / float(total_px)) > 0.80 and std_val < 30.0:

@@ -43,6 +43,12 @@ class DetectionConfig(BaseModel):
     consecutive_frames: int = Field(1, description="Consecutive frames required to confirm detection (1 = immediate).")
     smoothing_alpha: float = Field(0.6, description="Exponential moving average factor for confidence smoothing.")
 
+    # Temporal Event Aggregation Parameters
+    temporal_window_frames: int = Field(25, description="Sliding temporal window frame count for event confidence calculation.")
+    min_event_persistence_frames: int = Field(2, description="Minimum positive frames in temporal window to declare an active event.")
+    event_absence_grace_frames: int = Field(8, description="Tolerance for dropped/missing frames before concluding an active event.")
+    confidence_fluctuation_penalty: float = Field(0.15, description="Penalty coefficient for heavy confidence volatility.")
+
     # Adaptive Scheduler Parameters
     pixel_change_threshold: float = Field(default_factory=lambda: float(os.getenv("PIXEL_CHANGE_THRESHOLD", "8.0")), description="Pixel difference percentage threshold to trigger inference.")
     motion_threshold: float = Field(default_factory=lambda: float(os.getenv("MOTION_THRESHOLD", "0.01")), description="Motion score threshold.")

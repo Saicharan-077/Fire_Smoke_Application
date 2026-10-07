@@ -197,15 +197,15 @@ async def upload_video(
     logger.info(f"Video received: {file.filename}")
 
     ext = os.path.splitext(file.filename)[1].lower()
-    if ext not in [".mp4", ".avi", ".mov", ".mkv"]:
+    if ext not in [".mp4", ".avi", ".mov", ".mkv", ".webm"]:
         raise HTTPException(
             status_code=400,
-            detail="Unsupported video format. Allowed: MP4, AVI, MOV, MKV.",
+            detail="Unsupported video format. Allowed: MP4, AVI, MOV, MKV, WEBM.",
         )
 
     video_data = await _read_upload_with_limit(file, MAX_VIDEO_SIZE)
 
-    suffix = os.path.splitext(file.filename)[1] or ".mp4"
+    suffix = ext or ".mp4"
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp.write(video_data)
         tmp_path = tmp.name
@@ -232,35 +232,64 @@ async def upload_video(
     out_video_rel = f"/evidence/{out_video_filename}"
 
     events_out = []
+    video_info = None
+    detection_summary = None
+    event_statistics = None
+    timeline = []
+    best_frames: dict = {}
+    all_detections = []
+
     try:
-        best_frames: dict = {}
-        all_detections = []
-
-        for frame_num, detections, annotated in svc.infer_video(
-            tmp_path, output_video_path=out_video_path
+        db_settings = svc._load_db_settings()
+        for update in svc.layer.detect_video_stream(
+            tmp_path,
+            db_settings=db_settings,
+            output_video_path=out_video_path,
+            mode="Real-Time",
         ):
-            if not detections:
+            if update.get("event") == "video_analysis_completed":
+                video_info = update.get("video_info")
+                detection_summary = update.get("detection_summary")
+                event_statistics = update.get("event_statistics")
+                timeline = update.get("timeline")
                 continue
-            cls_type = detections[0]["detection_type"]
-            max_conf = max(d["confidence"] for d in detections)
 
-            if cls_type not in best_frames or max_conf > max(d["confidence"] for d in best_frames[cls_type]["detections"]):
-                best_frames[cls_type] = {
-                    "frame_num": frame_num,
-                    "detections": detections,
-                    "annotated": annotated,
-                }
+            dets = update.get("detections", [])
+            f_num = update.get("frame_number", 0)
+            preview_b64 = update.get("preview_b64")
+
+            if not dets:
+                continue
+
+            for d in dets:
+                cls_type = d["detection_type"]
+                conf = d["confidence"]
+
+                if cls_type not in best_frames or conf > max(bd["confidence"] for bd in best_frames[cls_type]["detections"]):
+                    best_frames[cls_type] = {
+                        "frame_num": f_num,
+                        "detections": dets,
+                        "preview_b64": preview_b64,
+                    }
 
             all_detections.append({
-                "frame_num": frame_num,
-                "cls_type": cls_type,
-                "detections": detections,
+                "frame_num": f_num,
+                "timestamp_sec": update.get("timestamp_sec", 0.0),
+                "detections": dets,
             })
 
         created_alerts: dict = {}
         for cls_type, best_info in best_frames.items():
-            evidence_path = save_evidence(best_info["annotated"], prefix=f"vid_{cls_type}_best")
-            best_conf = max(d["confidence"] for d in best_info["detections"])
+            ev_img_bytes = base64.b64decode(best_info["preview_b64"]) if best_info.get("preview_b64") else None
+            evidence_path = None
+            if ev_img_bytes:
+                ev_name = f"vid_{cls_type}_best_{uid}.jpg"
+                ev_abs = os.path.join(evidence_dir, ev_name)
+                with open(ev_abs, "wb") as f:
+                    f.write(ev_img_bytes)
+                evidence_path = f"/evidence/{ev_name}"
+
+            best_conf = max(d["confidence"] for d in best_info["detections"] if d["detection_type"] == cls_type)
             alert = create_alert(
                 db,
                 detection_type=cls_type,
@@ -283,16 +312,16 @@ async def upload_video(
             )
 
         for item in all_detections:
-            c_type = item["cls_type"]
             f_num = item["frame_num"]
-            assoc_alert = created_alerts.get(c_type)
-            if not assoc_alert:
-                continue
-
-            is_peak = (f_num == best_frames[c_type]["frame_num"])
-            ev_path = assoc_alert.evidence_path if is_peak else None
-
             for d in item["detections"]:
+                c_type = d["detection_type"]
+                assoc_alert = created_alerts.get(c_type)
+                if not assoc_alert:
+                    continue
+
+                is_peak = (f_num == best_frames.get(c_type, {}).get("frame_num"))
+                ev_path = assoc_alert.evidence_path if is_peak else None
+
                 create_event(
                     db, assoc_alert.id, d, "video",
                     camera_id="CAM-UPLOAD", location="Upload",
@@ -300,13 +329,13 @@ async def upload_video(
                     evidence_path=ev_path,
                 )
 
-            events_out.append({
-                "alert_id":       assoc_alert.id,
-                "frame_number":   f_num,
-                "detection_type": c_type,
-                "confidence":     max(d["confidence"] for d in item["detections"]),
-                "evidence_path":  ev_path,
-            })
+                events_out.append({
+                    "alert_id":       assoc_alert.id,
+                    "frame_number":   f_num,
+                    "detection_type": c_type,
+                    "confidence":     d["confidence"],
+                    "evidence_path":  ev_path,
+                })
 
     finally:
         try:
@@ -314,13 +343,7 @@ async def upload_video(
         except Exception:
             pass
 
-    # Check if annotated video was actually written
     annotated_path = out_video_rel if (os.path.exists(out_video_path) and os.path.getsize(out_video_path) > 0) else None
-
-    detection_summary = {
-        cls: len([e for e in events_out if e["detection_type"] == cls])
-        for cls in set(e["detection_type"] for e in events_out)
-    }
 
     logger.info(f"Video done — {len(events_out)} event(s), annotated_video={annotated_path}")
     return schemas.VideoUploadResponse(
@@ -329,7 +352,13 @@ async def upload_video(
         file_name=file.filename,
         annotated_video_path=annotated_path,
         has_detections=len(events_out) > 0,
-        detection_summary=detection_summary if detection_summary else None,
+        detection_summary=detection_summary if detection_summary else {
+            cls: len([e for e in events_out if e["detection_type"] == cls])
+            for cls in set(e["detection_type"] for e in events_out)
+        },
+        video_info=video_info,
+        event_statistics=event_statistics,
+        timeline=timeline,
     )
 
 
@@ -403,6 +432,10 @@ async def _run_video_job_task(job_id: str, tmp_path: str, filename: str, mode: s
             all_detections = []
             best_confidence = 0.0
             best_frame_b64 = None
+            final_summary_stats = None
+            final_timeline = []
+            final_video_info = None
+            final_detection_summary = None
 
             def is_cancelled():
                 j = active_video_jobs.get(job_id)
@@ -441,6 +474,13 @@ async def _run_video_job_task(job_id: str, tmp_path: str, filename: str, mode: s
                     await notify_job_subscribers(job_id, {"event": "cancelled", "type": "cancelled", "job_id": job_id})
                     break
 
+                if update.get("event") == "video_analysis_completed":
+                    final_summary_stats = update.get("event_statistics")
+                    final_timeline = update.get("timeline")
+                    final_video_info = update.get("video_info")
+                    final_detection_summary = update.get("detection_summary")
+                    continue
+
                 job["progress_pct"] = update["progress_pct"]
                 job["fps"] = update["fps"]
                 job["source_fps"] = update.get("source_fps", 25.0)
@@ -452,6 +492,7 @@ async def _run_video_job_task(job_id: str, tmp_path: str, filename: str, mode: s
                 job["current_frame"] = update["frame_number"]
                 job["total_frames"] = update["total_frames"]
                 job["latest_preview"] = update["preview_b64"]
+                job["composite_state"] = update.get("composite_state", "NORMAL")
 
                 # Enqueue annotated JPEG frame for MJPEG stream (non-blocking, drop if queue full)
                 raw_jpeg = update.pop("annotated_jpeg", None)
@@ -461,7 +502,7 @@ async def _run_video_job_task(job_id: str, tmp_path: str, filename: str, mode: s
                     except asyncio.QueueFull:
                         pass  # Drop frame if consumer is slow
 
-                dets = update["detections"]
+                dets = update.get("detections", [])
                 if dets:
                     job["has_detections"] = True
                     cls_type = dets[0]["detection_type"]
@@ -519,7 +560,11 @@ async def _run_video_job_task(job_id: str, tmp_path: str, filename: str, mode: s
                 for d in all_detections:
                     c = d["detection_type"]
                     summary[c] = summary.get(c, 0) + 1
-                job["summary"] = summary
+                job["summary"] = final_detection_summary or summary
+                job["video_info"] = final_video_info or job.get("metadata")
+                job["detection_summary"] = final_detection_summary or summary
+                job["event_statistics"] = final_summary_stats
+                job["timeline"] = final_timeline
 
                 completion_msg = {
                     "event": "completed",
@@ -528,10 +573,14 @@ async def _run_video_job_task(job_id: str, tmp_path: str, filename: str, mode: s
                     "status": "completed",
                     "progress_pct": 100.0,
                     "has_detections": job["has_detections"],
-                    "summary": summary,
+                    "summary": job["summary"],
                     "events": all_detections,
                     "thumbnail_path": thumbnail_path,
                     "annotated_video_path": job["annotated_video_path"],
+                    "video_info": job["video_info"],
+                    "detection_summary": job["detection_summary"],
+                    "event_statistics": final_summary_stats,
+                    "timeline": final_timeline,
                 }
                 await notify_job_subscribers(job_id, completion_msg)
 
@@ -588,6 +637,10 @@ async def upload_video_async(
         "status": "pending",
         "mode": mode,
         "metadata": meta,
+        "video_info": meta,
+        "detection_summary": None,
+        "event_statistics": None,
+        "timeline": [],
         "progress_pct": 0.0,
         "fps": 0.0,
         "source_fps": meta.get("fps", 25.0),

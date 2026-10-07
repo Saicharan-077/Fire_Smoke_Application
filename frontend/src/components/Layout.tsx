@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Settings, Bell, LogOut,
-  Camera, BarChart3, Shield, Menu,
+  Camera, Shield, Menu,
   ChevronRight, ChevronLeft, Search, AlertTriangle,
-  Video, History, Sun, Moon, Sparkles, Target
+  Video, Sun, Moon, Sparkles
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useNotificationsStore } from '../store/notificationsStore';

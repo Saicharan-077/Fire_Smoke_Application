@@ -376,10 +376,55 @@ else:
         allow_headers=["*"],
     )
 
+# ── MJPEG Live Stream Endpoints (Must be registered BEFORE static mount) ─────
+@app.get("/api/v1/upload/stream/{job_id}")
+@app.get("/evidence/stream/{job_id}")
+async def mjpeg_video_stream(job_id: str):
+    """Streams annotated video frames as MJPEG (multipart/x-mixed-replace).
+    The browser renders this natively via <img src=...>. No base64 encoding needed.
+    """
+    from .routes import upload_routes as _ur
+
+    async def generate() -> AsyncGenerator[bytes, None]:
+        boundary = b"--frame\r\nContent-Type: image/jpeg\r\n\r\n"
+        q = _ur.mjpeg_queues.get(job_id)
+
+        # Wait up to 10s for the queue to be created (job may not have started yet)
+        import asyncio
+        for _ in range(100):
+            q = _ur.mjpeg_queues.get(job_id)
+            if q is not None:
+                break
+            await asyncio.sleep(0.1)
+
+        if q is None:
+            return
+
+        while True:
+            try:
+                frame: bytes | None = await asyncio.wait_for(q.get(), timeout=30.0)
+            except asyncio.TimeoutError:
+                break
+
+            if frame is None:  # Sentinel: stream ended
+                break
+
+            yield boundary + frame + b"\r\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Access-Control-Allow-Origin": "*",
+        },
+    )
+
 # Serve evidence images as static files
 EVIDENCE_DIR = os.path.join(os.path.dirname(__file__), "..", "evidence")
 os.makedirs(EVIDENCE_DIR, exist_ok=True)
 app.mount("/evidence", StaticFiles(directory=EVIDENCE_DIR), name="evidence")
+
 
 
 @app.get("/api/v1/evidence/{filename:path}", dependencies=[Depends(get_current_user)])
@@ -608,48 +653,7 @@ async def video_stream_ws(websocket: WebSocket, job_id: str):
 
 
 
-# ── MJPEG Live Stream Endpoint ────────────────────────────────────────────────
-@app.get("/evidence/stream/{job_id}")
-async def mjpeg_video_stream(job_id: str):
-    """Streams annotated video frames as MJPEG (multipart/x-mixed-replace).
-    The browser renders this natively via <img src=...>. No base64 encoding needed.
-    """
-    from .routes import upload_routes as _ur
 
-    async def generate() -> AsyncGenerator[bytes, None]:
-        boundary = b"--frame\r\nContent-Type: image/jpeg\r\n\r\n"
-        q = _ur.mjpeg_queues.get(job_id)
-
-        # Wait up to 10s for the queue to be created (job may not have started yet)
-        import asyncio
-        for _ in range(100):
-            q = _ur.mjpeg_queues.get(job_id)
-            if q is not None:
-                break
-            await asyncio.sleep(0.1)
-
-        if q is None:
-            return
-
-        while True:
-            try:
-                frame: bytes | None = await asyncio.wait_for(q.get(), timeout=30.0)
-            except asyncio.TimeoutError:
-                break
-
-            if frame is None:  # Sentinel: stream ended
-                break
-
-            yield boundary + frame + b"\r\n"
-
-    return StreamingResponse(
-        generate(),
-        media_type="multipart/x-mixed-replace; boundary=frame",
-        headers={
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Access-Control-Allow-Origin": "*",
-        },
-    )
 
 
 # ── Health check ──────────────────────────────────────────────────────────────
